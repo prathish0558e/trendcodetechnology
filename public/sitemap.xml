@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://trendcodetechnology.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://trendcodetechnology.com/about</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/services</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/software-development</loc><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/web-development</loc><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/app-development</loc><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/digital-marketing</loc><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/iot</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/ml-python</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/ai-robotics</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/ui-ux</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/software-testing</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/cloud</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/data-entry</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/services/voice-process</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/hr-services</loc><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/hr-services/domestic</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/hr-services/training</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/bpo</loc><priority>0.8</priority></url>
+  <url><loc>https://trendcodetechnology.com/bpo/data-entry</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/bpo/voice-process</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/careers</loc><priority>0.7</priority></url>
+  <url><loc>https://trendcodetechnology.com/careers/it</loc><priority>0.6</priority></url>
+  <url><loc>https://trendcodetechnology.com/careers/non-it</loc><priority>0.6</priority></url>
+  <url><loc>https://trendcodetechnology.com/contact</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+</urlset>
