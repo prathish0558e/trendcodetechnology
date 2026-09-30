@@ -45,6 +45,7 @@ export const NAV = [
     children: [
       { label: "IT Fields", to: "/careers/it" },
       { label: "Non-IT Fields", to: "/careers/non-it" },
+      { label: "Internship", to: "/internship" },
     ],
   },
   { label: "Contact Us", to: "/contact" },
@@ -228,10 +229,30 @@ export const FEATURES = [
 ];
 
 export const PROCESS = [
-  { step: "01", title: "Discover", text: "We map your goals, users and constraints in a focused discovery sprint." },
-  { step: "02", title: "Design", text: "Wireframes, architecture and a concrete plan — approved before code begins." },
-  { step: "03", title: "Develop", text: "Iterative builds with weekly demos, automated tests and code review." },
-  { step: "04", title: "Deliver", text: "Launch, monitor and improve — with SLAs and support that stay on." },
+  {
+    title: "Business Requirement Analysis",
+    text: "We study your goals, run a feasibility check and map the tech stack — then hand you a clear product roadmap with milestone timelines.",
+  },
+  {
+    title: "UI & UX Design Approval",
+    text: "Our design team crafts intuitive user journeys, wireframes and high-fidelity prototypes for your review and sign-off before development begins.",
+  },
+  {
+    title: "Agile Development",
+    text: "Our engineering team builds clean, scalable applications using sprint-based agile sprints with regular code commits and transparent progress updates.",
+  },
+  {
+    title: "Quality Testing",
+    text: "Rigorous multi-layer QA across devices, performance benchmarks and security audits guarantee zero bugs and a smooth user experience.",
+  },
+  {
+    title: "Deployment & Training",
+    text: "Zero-downtime production deployment to cloud servers or app stores, followed by comprehensive team onboarding and admin walkthroughs.",
+  },
+  {
+    title: "Ongoing Technical Support",
+    text: "Dedicated SLA maintenance, proactive server monitoring, regular security updates and continuous enhancements keep your platform at peak performance.",
+  },
 ];
 
 export const TESTIMONIALS = [
@@ -341,6 +362,171 @@ export const CAREERS = {
     blurb:
       "People-first roles with clear growth paths, paid training and performance-linked incentives in our BPO and operations teams.",
     roles: ["Data Entry", "Voice Process"],
+  },
+};
+
+/* Detailed job descriptions (from the old careers page) — keyed by career
+   track slug. Tracks listed here get the full JD + dedicated apply form. */
+export const JOB_LISTINGS = {
+  "non-it": {
+    intro: [
+      "We're hiring dedicated people for our Data Entry and Voice Process teams at Trend Code Technology. If you are accurate, disciplined and love working with people or numbers, we want to hear from you!",
+      "At TCT, you get paid training, comfortable AC workspace, performance incentives and a clear growth path from executive to team lead — with daily-format work and supportive supervisors.",
+      "We offer competitive salaries, daily/weekly payout options for select roles, and continuous skill training at our Ganapathy, Coimbatore centre.",
+    ],
+    jobs: [
+      {
+        title: "Data Entry",
+        qualification: "Any degree; typing speed 30+ WPM in English preferred",
+        skills:
+          "Fast & accurate typing, MS Excel / Word, data verification, attention to detail, basic English reading",
+        tools: "MS Office, Google Sheets, in-house CRM / ERP software",
+        description: [
+          "Enter and update customer records with 99%+ accuracy",
+          "Verify and digitise physical documents and forms",
+          "Meet daily target volumes and turnaround times (TAT)",
+          "Flag and report data discrepancies to supervisors",
+          "Maintain confidentiality of client data at all times",
+          "Support ad-hoc data requests from the QC team",
+        ],
+        experience: "Fresher to 2 years — freshers with good typing speed welcome",
+      },
+      {
+        title: "Voice Process",
+        qualification: "Any degree; fluent Tamil + basic English (Hindi a plus)",
+        skills:
+          "Clear communication, friendly customer handling, patience, basic computer knowledge, persuasive calling for outbound",
+        tools: "CRM software, dialer systems, headset, call QA tools",
+        description: [
+          "Handle inbound customer support and outbound calling campaigns",
+          "Resolve customer queries politely and accurately on calls",
+          "Log every interaction in the CRM with correct disposition",
+          "Meet CSAT, quality and daily call-count targets",
+          "Escalate complex issues to the team lead with full context",
+          "Participate in daily huddles and QA feedback coaching",
+        ],
+        experience: "Fresher to 2 years — paid voice & accent training provided",
+      },
+    ],
+  },
+  it: {
+    intro: [
+      "We're looking for skilled developers to join our Web Development team at Trend Code Technology. If you have expertise in building robust, scalable web applications and enjoy solving complex technical challenges, we want to hear from you!",
+      "At TCT, we provide opportunities to work with cutting-edge technologies on diverse projects. Our developers collaborate with designers and product managers to create high-performance web solutions that drive business growth.",
+      "We offer competitive salaries, continuous learning opportunities, and a collaborative work environment with the latest development tools and technologies.",
+    ],
+    jobs: [
+      {
+        title: "Frontend Developer",
+        qualification: "Degree in Computer Science or related field",
+        skills: "HTML5, CSS3, JavaScript, React/Angular/Vue, Responsive Design",
+        tools: "Git, Webpack, npm/yarn, Chrome DevTools",
+        description: [
+          "Develop new user-facing features using modern frameworks",
+          "Build reusable components and front-end libraries",
+          "Optimize applications for maximum speed and scalability",
+          "Collaborate with UI/UX designers to implement designs",
+          "Ensure technical feasibility of UI/UX designs",
+          "Stay updated with emerging frontend technologies",
+        ],
+        experience: "Fresher to 3 years in frontend development (GitHub profile preferred)",
+      },
+      {
+        title: "Backend Developer",
+        qualification: "Degree in Computer Science or related field",
+        skills: "Node.js/Python/Java, REST APIs, Databases, Authentication",
+        tools: "Git, Docker, Postman, SQL/NoSQL databases",
+        description: [
+          "Design and implement server-side logic",
+          "Build reusable, testable, and efficient code",
+          "Implement security and data protection measures",
+          "Integrate data storage solutions",
+          "Optimize application for maximum speed and scalability",
+          "Collaborate with frontend developers and DevOps",
+        ],
+        experience: "Fresher to 3 years in backend development",
+      },
+      {
+        title: "Full Stack Developer",
+        qualification: "Degree in Computer Science or related field",
+        skills: "JavaScript, React/Angular, Node.js/Python, Databases",
+        tools: "Git, Docker, Postman, AWS/Google Cloud",
+        description: [
+          "Develop both client-side and server-side architecture",
+          "Design and develop APIs",
+          "Create database schemas that support business processes",
+          "Ensure cross-platform optimization for mobile",
+          "Work with DevOps for deployment and CI/CD",
+          "Stay updated with emerging technologies",
+        ],
+        experience: "Fresher to 5 years in full stack development",
+      },
+    ],
+  },
+};
+
+/* Per-role detailed JDs — keyed by role name. A role listed here gets its
+   own JD accordion + pre-selected dedicated apply form on the track page. */
+export const ROLE_JDS = {
+  "Web Designing": {
+    qualification: "Degree/Diploma in Web Design, Visual Communication or related field",
+    skills:
+      "Figma/Adobe XD, HTML5, CSS3, JavaScript basics, responsive layouts, typography & color theory",
+    tools: "Figma, Photoshop, Illustrator, VS Code, Chrome DevTools",
+    description: [
+      "Design clean, modern website layouts and landing pages in Figma",
+      "Convert approved designs into pixel-perfect responsive HTML/CSS",
+      "Build reusable UI components consistent with the brand design system",
+      "Optimize images and assets for fast page loads",
+      "Coordinate with developers to implement designs accurately",
+      "Incorporate client feedback quickly with professional polish",
+    ],
+    experience: "Fresher to 3 years — portfolio required",
+  },
+  "Digital Marketing": {
+    qualification: "Any degree; digital marketing certification preferred",
+    skills:
+      "SEO, Google & Meta Ads, social media management, content planning, Google Analytics, copywriting",
+    tools: "Google Ads, Meta Business Suite, GA4, SEMrush/Ahrefs, Canva",
+    description: [
+      "Plan and run SEO, Google Ads and Meta ad campaigns end to end",
+      "Manage social media calendars and grow organic engagement",
+      "Write crisp ad copy, captions and simple landing-page content",
+      "Track conversions in GA4 and report ROI to clients monthly",
+      "Do keyword research and on-page optimization for client sites",
+      "A/B test creatives and scale winning campaigns",
+    ],
+    experience: "Fresher to 3 years — freshers with certification welcome",
+  },
+  "Software Development": {
+    qualification: "Degree in Computer Science or related field",
+    skills:
+      "Python/Java/C#, OOP, REST APIs, SQL, data structures, problem solving",
+    tools: "Git, VS Code, Postman, Docker, SQL Server/PostgreSQL",
+    description: [
+      "Build custom business applications from requirement to deployment",
+      "Write clean, testable, well-documented backend code",
+      "Design REST APIs and integrate third-party services",
+      "Debug production issues and ship fixes fast",
+      "Participate in code reviews and sprint planning",
+      "Maintain and improve legacy client systems safely",
+    ],
+    experience: "Fresher to 4 years — strong fundamentals matter more than stack",
+  },
+  "Machine Learning": {
+    qualification: "Degree in CS/Data Science/Math or related field",
+    skills:
+      "Python, pandas/scikit-learn, model training & evaluation, statistics, basic deep learning",
+    tools: "Python, Jupyter, TensorFlow/PyTorch, scikit-learn, SQL, Git",
+    description: [
+      "Clean data and build ML pipelines for real client problems",
+      "Train, evaluate and tune models (classification, forecasting, NLP)",
+      "Deploy models as APIs and monitor them in production",
+      "Run computer-vision experiments for quality-check automation",
+      "Document experiments so results are reproducible",
+      "Present findings clearly to non-technical stakeholders",
+    ],
+    experience: "Fresher to 3 years — project portfolio or Kaggle preferred",
   },
 };
 

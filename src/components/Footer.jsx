@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { COMPANY } from "../data/content.js";
 
@@ -9,24 +9,28 @@ const QUICK_LINKS = [
   { label: "HR Services", to: "/hr-services" },
   { label: "BPO", to: "/bpo" },
   { label: "Careers", to: "/careers" },
+  { label: "Internship", to: "/internship" },
   { label: "Contact Us", to: "/contact" },
-];
-
-const POPULAR_LINKS = [
-  { label: "Web Development", to: "/services/web-development" },
-  { label: "Software Development", to: "/services/software-development" },
-  { label: "Digital Marketing", to: "/services/digital-marketing" },
-  { label: "Data Entry", to: "/bpo/data-entry" },
-  { label: "Voice Process", to: "/bpo/voice-process" },
-  { label: "UI / UX Design", to: "/services/ui-ux" },
 ];
 
 export default function Footer() {
   const [subscribed, setSubscribed] = useState(false);
+  const subscribeTimer = useRef(null);
+
+  useEffect(
+    () => () => window.clearTimeout(subscribeTimer.current),
+    []
+  );
 
   const onSubscribe = (e) => {
     e.preventDefault();
+    e.currentTarget.reset();
     setSubscribed(true);
+    window.clearTimeout(subscribeTimer.current);
+    subscribeTimer.current = window.setTimeout(
+      () => setSubscribed(false),
+      4000
+    );
   };
 
   return (
@@ -80,19 +84,19 @@ export default function Footer() {
             </li>
             <li>
               <i className="bi bi-telephone"></i>
-              <span>{COMPANY.phone}</span>
-            </li>
-            <li>
-              <i className="bi bi-telephone"></i>
               <span>
                 <a href={`tel:${COMPANY.phoneRaw}`}>{COMPANY.phone}</a>
-                {" · "}
                 <a
-                  href={`https://wa.me/${COMPANY.whatsapp}`}
+                  className="wa-chip"
+                  href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
+                    "Hi TCT! I have an enquiry."
+                  )}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="Chat with us on WhatsApp"
+                  title="Chat with us on WhatsApp"
                 >
-                  WhatsApp
+                  <i className="bi bi-whatsapp"></i> WhatsApp
                 </a>
               </span>
             </li>

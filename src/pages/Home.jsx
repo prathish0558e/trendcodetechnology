@@ -1,13 +1,18 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Reveal, SectionHead, useCountUp } from "../components/Reveal.jsx";
 import QuoteForm from "../components/QuoteForm.jsx";
 import ToTop from "../components/ToTop.jsx";
+import CookieConsent from "../components/CookieConsent.jsx";
+import Journey from "../components/Journey.jsx";
+import TechStack from "../components/TechStack.jsx";
 import {
   STATS,
   SERVICES,
   FEATURES,
   PROCESS,
   TESTIMONIALS,
+  COMPANY,
 } from "../data/content.js";
 
 function Stat({ value, suffix, label }) {
@@ -23,36 +28,176 @@ function Stat({ value, suffix, label }) {
   );
 }
 
+/* Creative side panel for the About teaser — a live "delivery console"
+   that cycles through real TCT proof points (instead of repeating the stats
+   band above). */
+const DELIVERY_LINES = [
+  { icon: "bi-globe2", tag: "WEBSITE LAUNCHED", text: "Manufacturing portal — Coimbatore" },
+  { icon: "bi-phone", tag: "APP SHIPPED", text: "Delivery tracking app — v2.4" },
+  { icon: "bi-headset", tag: "BPO LIVE", text: "12 agents onboarded — Voice desk" },
+  { icon: "bi-graph-up-arrow", tag: "CAMPAIGN WON", text: "3.2× leads in 90 days — Retail SEO" },
+  { icon: "bi-cpu", tag: "IOT DEPLOYED", text: "Machine monitoring — Textile unit" },
+  { icon: "bi-patch-check", tag: "CLIENT SIGNED", text: "Annual support retainer renewed" },
+];
+
+function LiveDeliveryPanel() {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const t = window.setInterval(
+      () => setTick((v) => v + 1),
+      2600
+    );
+    return () => window.clearInterval(t);
+  }, []);
+
+  // window of 4 lines, sliding through the list
+  const visible = [0, 1, 2, 3].map(
+    (i) => DELIVERY_LINES[(tick + i) % DELIVERY_LINES.length]
+  );
+
+  return (
+    <div className="delivery-panel">
+      <div className="dp-head">
+        <span className="dp-dots">
+          <i></i><i></i><i></i>
+        </span>
+        <span className="dp-title">tct — live delivery feed</span>
+        <span className="dp-live">
+          <i className="bi bi-broadcast"></i> LIVE
+        </span>
+      </div>
+      <div className="dp-body">
+        {visible.map((l, i) => (
+          <div className={`dp-line ${i === 0 ? "dp-new" : ""}`} key={`${tick}-${i}`}>
+            <span className="dp-ic">
+              <i className={`bi ${l.icon}`}></i>
+            </span>
+            <span className="dp-text">
+              <small>{l.tag}</small>
+              {l.text}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="dp-foot">
+        <i className="bi bi-activity"></i>
+        Shipping since 2019 — <strong>1,150+ projects delivered</strong> across Tamil Nadu
+      </div>
+    </div>
+  );
+}
+
+/* Premium "partner card" for the hero side — like a bank card for trust.
+   Shows what TCT guarantees instead of repeating the stats band. */
 function HeroFacts() {
   return (
     <aside className="hero-facts">
-      <div className="fact-head">
-        <span>TCT at a glance</span>
-        <span className="live"><i className="bi bi-circle-fill"></i> Active</span>
+      <div className="tc-flip">
+        {/* FRONT — card face */}
+        <div className="trust-card tc-face tc-front">
+        <div className="tc-top">
+          <div className="tc-brand">
+            <span className="tc-logo">TCT</span>
+            <span className="tc-sub">DELIVERY PARTNER CARD</span>
+          </div>
+          <i className="bi bi-patch-check-fill tc-verified"></i>
+        </div>
+
+        <div className="tc-chip-row">
+          <span className="tc-chip">
+            <i className="bi bi-cpu-fill"></i>
+          </span>
+          <span className="tc-contactless">
+            <i className="bi bi-wifi" style={{ transform: "rotate(90deg)" }}></i>
+          </span>
+        </div>
+
+        <div className="tc-number">2019 · TND · 0641006</div>
+
+        <div className="tc-meta">
+          <div>
+            <small>CARD HOLDER</small>
+            <strong>TREND CODE TECHNOLOGY</strong>
+          </div>
+          <div>
+            <small>VALID THRU</small>
+            <strong>24/7 × 365</strong>
+          </div>
+        </div>
+
+        <div className="tc-guarantees">
+          <span><i className="bi bi-lightning-charge-fill"></i> Reply in 24 hrs</span>
+          <span><i className="bi bi-cash-coin"></i> Transparent pricing</span>
+          <span><i className="bi bi-shield-fill-check"></i> NDA on request</span>
+        </div>
+
+        <div className="tc-meter">
+          <div className="tc-meter-head">
+            <small>ON-TIME DELIVERY SCORE</small>
+            <strong>98.4%</strong>
+          </div>
+          <div className="tc-meter-bar">
+            <span style={{ width: "98.4%" }}></span>
+          </div>
+        </div>
+
+        <div className="tc-bottom">
+          <span className="tc-code">5417 · 8842 · TCT · 2019</span>
+          <span className="tc-taps">
+            <i className="bi bi-star-fill"></i>
+            <i className="bi bi-star-fill"></i>
+            <i className="bi bi-star-fill"></i>
+            <i className="bi bi-star-fill"></i>
+            <i className="bi bi-star-half"></i>
+          </span>
+        </div>
+        <span className="tc-flip-hint">
+          <i className="bi bi-arrow-repeat"></i> hover to flip
+        </span>
       </div>
-      <div className="fact-row">
-        <span className="k"><i className="bi bi-geo-alt"></i> Headquarters</span>
-        <span className="v">Coimbatore, TN</span>
+
+      {/* BACK — what you get when you partner with TCT */}
+      <div className="trust-card tc-face tc-back">
+        <div className="tc-top">
+          <div className="tc-brand">
+            <span className="tc-logo">TCT</span>
+            <span className="tc-sub">WHY PARTNERS CHOOSE US</span>
+          </div>
+          <i className="bi bi-qr-code tc-verified" style={{ color: "#7da9f8", filter: "none" }}></i>
+        </div>
+
+        <ul className="tc-backlist">
+          <li><i className="bi bi-rocket-takeoff-fill"></i><div><strong>Weekly demos</strong><small>See progress every sprint, not monthly</small></div></li>
+          <li><i className="bi bi-people-fill"></i><div><strong>Dedicated team</strong><small>Same engineers own your project</small></div></li>
+          <li><i className="bi bi-headset"></i><div><strong>24×7 support desk</strong><small>Phone answered at any hour</small></div></li>
+          <li><i className="bi bi-graph-up-arrow"></i><div><strong>Growth mindset</strong><small>1,200+ clients scaled with us</small></div></li>
+        </ul>
+
+        <div className="tc-bottom tc-bottom-back">
+          <Link to="/contact" className="btn btn-primary btn-sm tc-cta">
+            Start a Project <i className="bi bi-arrow-right"></i>
+          </Link>
+          <span className="tc-code">EST. 2019</span>
+        </div>
       </div>
-      <div className="fact-row">
-        <span className="k"><i className="bi bi-calendar-check"></i> Founded</span>
-        <span className="v">2019</span>
-      </div>
-      <div className="fact-row">
-        <span className="k"><i className="bi bi-emoji-smile"></i> Happy clients</span>
-        <span className="v">1,200+</span>
-      </div>
-      <div className="fact-row">
-        <span className="k"><i className="bi bi-patch-check"></i> Projects delivered</span>
-        <span className="v">1,150+</span>
-      </div>
-      <div className="fact-row">
-        <span className="k"><i className="bi bi-headset"></i> Support</span>
-        <span className="v">24 × 7</span>
-      </div>
-      <div className="fact-row">
-        <span className="k"><i className="bi bi-envelope-open"></i> Email</span>
-        <span className="v" style={{ fontSize: 12.5 }}>trendcodetechnology2026@gmail.com</span>
+    </div>
+
+      <div className="trust-mini">
+        <div className="tm-item">
+          <i className="bi bi-geo-alt-fill"></i>
+          <div>
+            <strong>Ganapathy, Coimbatore</strong>
+            <small>Visit our office anytime</small>
+          </div>
+        </div>
+        <div className="tm-item">
+          <i className="bi bi-telephone-fill"></i>
+          <div>
+            <strong>{COMPANY.phone}</strong>
+            <small>Answered around the clock</small>
+          </div>
+        </div>
       </div>
     </aside>
   );
@@ -134,40 +279,14 @@ export default function Home() {
                 <Link to="/about" className="btn btn-outline">
                   More About Us <i className="bi bi-arrow-right"></i>
                 </Link>
-                <a href="tel:+919384847922" className="btn btn-outline">
+                <a href={`tel:${COMPANY.phoneRaw}`} className="btn btn-outline">
                   <i className="bi bi-telephone"></i> Call Us
                 </a>
               </div>
             </Reveal>
 
             <Reveal delay={120}>
-              <div className="stat-panel">
-                <div className="sp-head">
-                  <span>TCT by the numbers</span>
-                </div>
-                <div className="sp-body">
-                  <div className="sp-row">
-                    <span className="sp-num">7+</span>
-                    <span className="sp-lbl">Years of experience</span>
-                  </div>
-                  <div className="sp-row">
-                    <span className="sp-num">1,200+</span>
-                    <span className="sp-lbl">Happy clients</span>
-                  </div>
-                  <div className="sp-row">
-                    <span className="sp-num">1,150+</span>
-                    <span className="sp-lbl">Projects delivered</span>
-                  </div>
-                  <div className="sp-row">
-                    <span className="sp-num">500+</span>
-                    <span className="sp-lbl">Awards won</span>
-                  </div>
-                  <div className="sp-row">
-                    <span className="sp-num">24×7</span>
-                    <span className="sp-lbl">Support coverage</span>
-                  </div>
-                </div>
-              </div>
+              <LiveDeliveryPanel />
             </Reveal>
           </div>
         </div>
@@ -220,27 +339,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ---------- Process (dark) ---------- */}
-      <section className="section dark">
+      {/* ---------- Process (dark, curved journey timeline) ---------- */}
+      <section className="section dark journey-section">
         <div className="container">
           <SectionHead
             eyebrow="How We Work"
             title="A Simple, Proven Delivery Process"
             text="Clear milestones, weekly demos and zero surprises from kickoff to launch."
           />
-          <div className="steps">
-            {PROCESS.map((p, i) => (
-              <Reveal key={p.step} delay={i * 90}>
-                <div className="step-card" style={{ height: "100%" }}>
-                  <div className="num">{p.step}</div>
-                  <h3>{p.title}</h3>
-                  <p>{p.text}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <Journey steps={PROCESS} />
         </div>
       </section>
+
+      {/* ---------- Tech stack ---------- */}
+      <TechStack />
 
       {/* ---------- Testimonials ---------- */}
       <section className="section soft">
@@ -316,7 +428,7 @@ export default function Home() {
                   <div className="ic"><i className="bi bi-telephone"></i></div>
                   <div>
                     <h5>Call to ask any question</h5>
-                    <p>+91 93848 47922 (Call & WhatsApp)</p>
+                    <p>{COMPANY.phone} (Call &amp; WhatsApp)</p>
                   </div>
                 </div>
                 <div className="contact-line">
@@ -334,6 +446,7 @@ export default function Home() {
       </section>
 
       <ToTop />
+      <CookieConsent />
     </>
   );
 }

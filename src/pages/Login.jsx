@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { postLogin } from "../api.js";
+import { useNavigate } from "react-router-dom";
+import { postLogin, setSession } from "../api.js";
+import { COMPANY } from "../data/content.js";
 
 export default function Login() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [status, setStatus] = useState({ state: "idle", msg: "" });
   const [busy, setBusy] = useState(false);
@@ -12,7 +15,8 @@ export default function Login() {
     setStatus({ state: "idle", msg: "" });
     try {
       const res = await postLogin(form);
-      setStatus({ state: "ok", msg: res.message || "Signed in." });
+      setSession(res.token, res.user);
+      navigate("/admin", { replace: true });
     } catch (err) {
       setStatus({ state: "err", msg: err.message || "Login failed." });
     } finally {
@@ -80,16 +84,8 @@ export default function Login() {
 
           <p className="form-note" style={{ textAlign: "center" }}>
             Trouble signing in? Email{" "}
-            <a href={`mailto:${"trendcodetechnology2026@gmail.com"}`}>
-              trendcodetechnology2026@gmail.com
-            </a>
+            <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>
           </p>
-
-          <div className="demo-note">
-            <i className="bi bi-info-circle me-1"></i>
-            Demo credentials: <code>admin@trendcode.com</code> /{" "}
-            <code>admin123</code>
-          </div>
         </form>
       </div>
     </div>

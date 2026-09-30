@@ -14,12 +14,26 @@ import BpoDetail from "./pages/BpoDetail.jsx";
 import Careers from "./pages/Careers.jsx";
 import CareerCategory from "./pages/CareerCategory.jsx";
 import Contact from "./pages/Contact.jsx";
+import Internship from "./pages/Internship.jsx";
 import Login from "./pages/Login.jsx";
+import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+
+  useEffect(() => {
+    // Route changes must jump to the top instantly — "smooth" scrolling here
+    // animates from the bottom of the previous page and feels broken.
+    const html = document.documentElement;
+    html.classList.add("no-smooth-scroll");
+    window.scrollTo(0, 0);
+    const raf = requestAnimationFrame(() =>
+      html.classList.remove("no-smooth-scroll")
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [pathname]);
+
   return null;
 }
 
@@ -39,9 +53,11 @@ export default function App() {
           <Route path="/bpo" element={<Bpo />} />
           <Route path="/bpo/:slug" element={<BpoDetail />} />
           <Route path="/careers" element={<Careers />} />
+          <Route path="/internship" element={<Internship />} />
           <Route path="/careers/:track" element={<CareerCategory />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

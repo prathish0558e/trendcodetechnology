@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { postLead } from "../api.js";
 
 const SERVICES_OPTIONS = [
@@ -15,14 +15,22 @@ const SERVICES_OPTIONS = [
   "Other",
 ];
 
-export default function QuoteForm() {
+export default function QuoteForm({ prefillMessage = "" }) {
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     service: "",
-    message: "",
+    message: prefillMessage,
   });
+
+  // Keep the message in sync when a prefill (e.g. job role) changes
+  useEffect(() => {
+    if (prefillMessage) {
+      setForm((f) => ({ ...f, message: prefillMessage }));
+    }
+  }, [prefillMessage]);
+
   const [status, setStatus] = useState({ state: "idle", msg: "" });
   const [busy, setBusy] = useState(false);
 

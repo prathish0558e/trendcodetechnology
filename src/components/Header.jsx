@@ -43,6 +43,14 @@ export default function Header() {
     };
   }, [menuOpen]);
 
+  // Close the drawer with the Escape key
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   return (
     <>
       {/* Topbar — same info and dark strip as the original site */}
@@ -136,7 +144,11 @@ export default function Header() {
         <div className="mobile-panel">
           <div className="mobile-panel-head">
             <span className="brand">
-              <span className="brand-mark">TC</span>
+              <img
+                src="/tct-logo.jpeg"
+                alt="Trend Code Technology logo"
+                className="brand-img"
+              />
               <span className="brand-text">Trend Code Technology</span>
             </span>
             <button

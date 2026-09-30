@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Reveal, PageHero } from "../components/Reveal.jsx";
 import QuoteForm from "../components/QuoteForm.jsx";
@@ -7,16 +6,7 @@ import { COMPANY } from "../data/content.js";
 export default function Contact() {
   const [params] = useSearchParams();
   const role = params.get("role");
-
-  useEffect(() => {
-    if (role) {
-      const note = document.getElementById("qf-msg");
-      if (note) {
-        note.value = `Application for the ${role} role at TCT.`;
-        note.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    }
-  }, [role]);
+  const prefill = role ? `Application for the ${role} role at TCT.` : "";
 
   return (
     <>
@@ -74,7 +64,7 @@ export default function Contact() {
             </Reveal>
 
             <Reveal delay={120}>
-              <QuoteForm />
+              <QuoteForm prefillMessage={prefill} />
             </Reveal>
           </div>
 

@@ -8,6 +8,11 @@ export function Reveal({ children, delay = 0, className = "" }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Older browsers without IntersectionObserver: show content immediately
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -66,6 +71,10 @@ export function useCountUp(target, duration = 1400) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setValue(target);
+      return;
+    }
     let raf;
     const io = new IntersectionObserver(
       ([entry]) => {
