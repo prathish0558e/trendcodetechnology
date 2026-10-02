@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Reveal } from "./Reveal.jsx";
 /*
  * Curved "journey" timeline 2.0 — cards alternate above/below a dashed SVG
  * path with numbered badges + per-step glyph icons, and an animated pulse
  * travels along the path to feel like work flowing through the pipeline.
+ * When the section scrolls into view the steps pop in one by one, each with
+ * a blue → light-blue → orange colour flash, in step order.
  */
 
 const GLYPHS = [
@@ -21,24 +22,88 @@ const GLYPHS = [
   "M4 13a8 8 0 0 1 16 0m-16 0v3a2 2 0 0 0 2 2h1v-6H4zm16 0h-3v6h1a2 2 0 0 0 2-2v-3z",
 ];
 
-function Card({ step, title, text, glyph, delay }) {
+function Card({ step, title, text, glyph }) {
   return (
-    <Reveal delay={delay}>
-      <div className="journey-card">
-        <span className="journey-chip">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d={glyph} />
-          </svg>
-          Step {step}
-        </span>
-        <h3>{title}</h3>
-        <p>{text}</p>
-      </div>
-    </Reveal>
+    <div className="journey-card">
+      <span className="journey-chip">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d={glyph} />
+        </svg>
+        Step {step}
+      </span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </div>
   );
 }
 
+/* How far ahead of a card (px) the pulse starts its anticipation wiggle */
+const NEAR_PAD = 110;
+const NEAR_Y_PAD = 60;
+
+function TrainCollision({ journeyRef, trainRef }) {
+  useEffect(() => {
+    let frameId;
+
+    const checkCollisions = () => {
+      const train = trainRef.current;
+      const journey = journeyRef.current;
+
+      if (train && journey) {
+        const trainRect = train.getBoundingClientRect();
+        const trainCenterX = trainRect.left + trainRect.width / 2;
+        const trainCenterY = trainRect.top + trainRect.height / 2;
+        let activeBox = null;
+        const nearBoxes = [];
+
+        journey.querySelectorAll(".journey-card").forEach((box) => {
+          const boxRect = box.getBoundingClientRect();
+          const intersects =
+            trainRect.left < boxRect.right &&
+            trainRect.right > boxRect.left &&
+            trainRect.top < boxRect.bottom &&
+            trainRect.bottom > boxRect.top;
+
+          if (intersects && !activeBox) {
+            activeBox = box;
+            box.style.setProperty("--train-x", `${trainCenterX - boxRect.left}px`);
+            box.style.setProperty("--train-y", `${trainCenterY - boxRect.top}px`);
+          } else if (!intersects) {
+            // Anticipation: train coming from the left, same row band —
+            // the card shivers a little before the pulse arrives.
+            const approaching =
+              trainCenterX <= boxRect.left &&
+              trainCenterX > boxRect.left - NEAR_PAD &&
+              trainCenterY > boxRect.top - NEAR_Y_PAD &&
+              trainCenterY < boxRect.bottom + NEAR_Y_PAD;
+            if (approaching) nearBoxes.push(box);
+          }
+        });
+
+        journey.querySelectorAll(".journey-card.train-active").forEach((box) => {
+          if (box !== activeBox) box.classList.remove("train-active");
+        });
+        if (activeBox) activeBox.classList.add("train-active");
+
+        journey.querySelectorAll(".journey-card.train-near").forEach((box) => {
+          if (!nearBoxes.includes(box)) box.classList.remove("train-near");
+        });
+        nearBoxes.forEach((box) => box.classList.add("train-near"));
+      }
+
+      frameId = requestAnimationFrame(checkCollisions);
+    };
+
+    frameId = requestAnimationFrame(checkCollisions);
+    return () => cancelAnimationFrame(frameId);
+  }, [journeyRef, trainRef]);
+
+  return null;
+}
+
 export default function Journey({ steps }) {
+  const journeyRef = useRef(null);
+  const trainRef = useRef(null);
   const n = steps.length;
   const W = 1360;
   const H = 220;
@@ -53,10 +118,6 @@ export default function Journey({ steps }) {
     d += ` Q ${prevMid} ${y} ${x} ${H / 2}`;
   }
 
-  /* Hover "map" effect: one lit path is drawn on top of the dashed one —
-     visible length = (hovered step / n) × real path length (measured after
-     mount via getTotalLength so the fill is exact). */
-  const [hovered, setHovered] = useState(0);
   const [totalLen, setTotalLen] = useState(0);
   const basePathRef = useRef(null);
   useEffect(() => {
@@ -66,14 +127,35 @@ export default function Journey({ steps }) {
       /* SVG not ready yet */
     }
   }, []);
-  const litLen = (hovered / n) * totalLen;
-
   // Two glowing pulses loop along the dashed path forever.
   const [pathSet, setPathSet] = useState(false);
   useEffect(() => setPathSet(true), []);
 
+  // Sequential colour-pop entrance — arms once the journey scrolls into view,
+  // then each step pops in order (Step 1 → 6) with a blue→orange flash.
+  const [play, setPlay] = useState(false);
+  useEffect(() => {
+    const el = journeyRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setPlay(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setPlay(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -15% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="journey">
+    <div className={`journey${play ? " play" : ""}`} ref={journeyRef}>
+      <TrainCollision journeyRef={journeyRef} trainRef={trainRef} />
       <svg
         className="journey-path"
         viewBox={`0 0 ${W} ${H}`}
@@ -82,13 +164,26 @@ export default function Journey({ steps }) {
       >
         <defs>
           <linearGradient id="journey-pulse" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#22d3ee" />
-            <stop offset="100%" stopColor="#4f7cff" />
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="55%" stopColor="#06b6d4" />
+            <stop offset="100%" stopColor="#f97316" />
           </linearGradient>
           <linearGradient id="journey-lit" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#22d3ee" />
-            <stop offset="60%" stopColor="#4f7cff" />
-            <stop offset="100%" stopColor="#7c3aed" />
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="55%" stopColor="#06b6d4" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+          <linearGradient
+            id="journey-flow"
+            gradientUnits="userSpaceOnUse"
+            x1="0"
+            y1="0"
+            x2={W}
+            y2="0"
+          >
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="55%" stopColor="#06b6d4" />
+            <stop offset="100%" stopColor="#f97316" />
           </linearGradient>
         </defs>
         <path
@@ -100,24 +195,21 @@ export default function Journey({ steps }) {
           strokeDasharray="7 9"
           strokeLinecap="round"
         />
-        {/* lit progress trail — fills up to the hovered step like a route map */}
+        {/* the dotted line itself flows — gradient dashes march blue → light
+            blue → orange along the path, no mouse needed */}
         <path
           d={d}
           fill="none"
-          stroke="url(#journey-lit)"
-          strokeWidth="4"
+          stroke="url(#journey-flow)"
+          strokeWidth="2.5"
+          strokeDasharray="7 9"
           strokeLinecap="round"
-          className="journey-lit-path"
-          style={
-            totalLen
-              ? { strokeDasharray: `${litLen} ${totalLen}` }
-              : { opacity: 0 }
-          }
+          className="journey-flow-path"
         />
         {/* travelling pulses — visible only on wide screens */}
         {pathSet && (
           <g className="journey-pulses">
-            <circle r="5" fill="url(#journey-pulse)">
+            <circle ref={trainRef} className="train-scanner" r="5" fill="url(#journey-pulse)">
               <animateMotion dur="9s" repeatCount="indefinite" path={d} />
             </circle>
             <circle r="3.5" fill="url(#journey-pulse)" opacity="0.7">
@@ -131,9 +223,8 @@ export default function Journey({ steps }) {
         {steps.map((s, i) => (
           <li
             key={s.title}
-            className={`journey-item ${i % 2 === 0 ? "up" : "down"} ${hovered === i + 1 ? "hovered" : ""}`}
-            onMouseEnter={() => setHovered(i + 1)}
-            onMouseLeave={() => setHovered(0)}
+            className={`journey-item ${i % 2 === 0 ? "up" : "down"}`}
+            style={{ "--i": i }}
           >
             <span className="journey-dot">{i + 1}</span>
             <Card
@@ -141,7 +232,6 @@ export default function Journey({ steps }) {
               title={s.title}
               text={s.text}
               glyph={GLYPHS[i % GLYPHS.length]}
-              delay={i * 90}
             />
           </li>
         ))}

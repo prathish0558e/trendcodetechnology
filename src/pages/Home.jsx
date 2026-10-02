@@ -6,6 +6,7 @@ import ToTop from "../components/ToTop.jsx";
 import CookieConsent from "../components/CookieConsent.jsx";
 import Journey from "../components/Journey.jsx";
 import TechStack from "../components/TechStack.jsx";
+import TeamCard, { TEAM } from "../components/TeamCard.jsx";
 import {
   STATS,
   SERVICES,
@@ -62,7 +63,7 @@ function LiveDeliveryPanel() {
         <span className="dp-dots">
           <i></i><i></i><i></i>
         </span>
-        <span className="dp-title">tct — live delivery feed</span>
+        <span className="dp-title">TCT — Live Delivery Feed</span>
         <span className="dp-live">
           <i className="bi bi-broadcast"></i> LIVE
         </span>
@@ -85,121 +86,6 @@ function LiveDeliveryPanel() {
         Shipping since 2019 — <strong>1,150+ projects delivered</strong> across Tamil Nadu
       </div>
     </div>
-  );
-}
-
-/* Premium "partner card" for the hero side — like a bank card for trust.
-   Shows what TCT guarantees instead of repeating the stats band. */
-function HeroFacts() {
-  return (
-    <aside className="hero-facts">
-      <div className="tc-flip">
-        {/* FRONT — card face */}
-        <div className="trust-card tc-face tc-front">
-        <div className="tc-top">
-          <div className="tc-brand">
-            <span className="tc-logo">TCT</span>
-            <span className="tc-sub">DELIVERY PARTNER CARD</span>
-          </div>
-          <i className="bi bi-patch-check-fill tc-verified"></i>
-        </div>
-
-        <div className="tc-chip-row">
-          <span className="tc-chip">
-            <i className="bi bi-cpu-fill"></i>
-          </span>
-          <span className="tc-contactless">
-            <i className="bi bi-wifi" style={{ transform: "rotate(90deg)" }}></i>
-          </span>
-        </div>
-
-        <div className="tc-number">2019 · TND · 0641006</div>
-
-        <div className="tc-meta">
-          <div>
-            <small>CARD HOLDER</small>
-            <strong>TREND CODE TECHNOLOGY</strong>
-          </div>
-          <div>
-            <small>VALID THRU</small>
-            <strong>24/7 × 365</strong>
-          </div>
-        </div>
-
-        <div className="tc-guarantees">
-          <span><i className="bi bi-lightning-charge-fill"></i> Reply in 24 hrs</span>
-          <span><i className="bi bi-cash-coin"></i> Transparent pricing</span>
-          <span><i className="bi bi-shield-fill-check"></i> NDA on request</span>
-        </div>
-
-        <div className="tc-meter">
-          <div className="tc-meter-head">
-            <small>ON-TIME DELIVERY SCORE</small>
-            <strong>98.4%</strong>
-          </div>
-          <div className="tc-meter-bar">
-            <span style={{ width: "98.4%" }}></span>
-          </div>
-        </div>
-
-        <div className="tc-bottom">
-          <span className="tc-code">5417 · 8842 · TCT · 2019</span>
-          <span className="tc-taps">
-            <i className="bi bi-star-fill"></i>
-            <i className="bi bi-star-fill"></i>
-            <i className="bi bi-star-fill"></i>
-            <i className="bi bi-star-fill"></i>
-            <i className="bi bi-star-half"></i>
-          </span>
-        </div>
-        <span className="tc-flip-hint">
-          <i className="bi bi-arrow-repeat"></i> hover to flip
-        </span>
-      </div>
-
-      {/* BACK — what you get when you partner with TCT */}
-      <div className="trust-card tc-face tc-back">
-        <div className="tc-top">
-          <div className="tc-brand">
-            <span className="tc-logo">TCT</span>
-            <span className="tc-sub">WHY PARTNERS CHOOSE US</span>
-          </div>
-          <i className="bi bi-qr-code tc-verified" style={{ color: "#7da9f8", filter: "none" }}></i>
-        </div>
-
-        <ul className="tc-backlist">
-          <li><i className="bi bi-rocket-takeoff-fill"></i><div><strong>Weekly demos</strong><small>See progress every sprint, not monthly</small></div></li>
-          <li><i className="bi bi-people-fill"></i><div><strong>Dedicated team</strong><small>Same engineers own your project</small></div></li>
-          <li><i className="bi bi-headset"></i><div><strong>24×7 support desk</strong><small>Phone answered at any hour</small></div></li>
-          <li><i className="bi bi-graph-up-arrow"></i><div><strong>Growth mindset</strong><small>1,200+ clients scaled with us</small></div></li>
-        </ul>
-
-        <div className="tc-bottom tc-bottom-back">
-          <Link to="/contact" className="btn btn-primary btn-sm tc-cta">
-            Start a Project <i className="bi bi-arrow-right"></i>
-          </Link>
-          <span className="tc-code">EST. 2019</span>
-        </div>
-      </div>
-    </div>
-
-      <div className="trust-mini">
-        <div className="tm-item">
-          <i className="bi bi-geo-alt-fill"></i>
-          <div>
-            <strong>Ganapathy, Coimbatore</strong>
-            <small>Visit our office anytime</small>
-          </div>
-        </div>
-        <div className="tm-item">
-          <i className="bi bi-telephone-fill"></i>
-          <div>
-            <strong>{COMPANY.phone}</strong>
-            <small>Answered around the clock</small>
-          </div>
-        </div>
-      </div>
-    </aside>
   );
 }
 
@@ -262,44 +148,105 @@ function ClientsShowcase() {
   );
 }
 
+/* ---------- Home hero slider — full-bleed photo slides ---------- */
+const SLIDES = [
+  {
+    img: "/hero/slide-1.jpg",
+    eyebrow: "Creative & Innovative",
+    title: "Empowering Brands with Smart, Stunning & Scalable Digital Experiences",
+  },
+  {
+    img: "/hero/slide-2.jpg",
+    eyebrow: "Creative & Innovative",
+    title: "Modern, Creative & Innovative Digital Solutions",
+  },
+];
+
+function HeroSlider() {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  // Auto-advance every 6.5s — pauses while the visitor hovers the slider
+  useEffect(() => {
+    if (paused) return undefined;
+    const t = window.setInterval(
+      () => setIndex((v) => (v + 1) % SLIDES.length),
+      6500
+    );
+    return () => window.clearInterval(t);
+  }, [paused]);
+
+  const go = (dir) =>
+    setIndex((v) => (v + dir + SLIDES.length) % SLIDES.length);
+
+  return (
+    <section
+      className="hero-slider"
+      aria-label="TCT highlights"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {SLIDES.map((s, i) => (
+        <div
+          key={s.img}
+          className={`hero-slide${i === index ? " current" : ""}`}
+          aria-hidden={i !== index}
+        >
+          <img src={s.img} alt="" loading={i === 0 ? "eager" : "lazy"} />
+          <div className="hero-slide-shade"></div>
+          <div className="container hero-slide-content">
+            <span className="eyebrow on-dark">{s.eyebrow}</span>
+            {i === 0 ? (
+              <h1 className="hero-slide-title">{s.title}</h1>
+            ) : (
+              <h2 className="hero-slide-title">{s.title}</h2>
+            )}
+            <div className="hero-slide-actions">
+              <Link to="/contact" className="btn btn-primary btn-lg">
+                Get Free Quote <i className="bi bi-arrow-right"></i>
+              </Link>
+              <Link to="/contact" className="btn btn-lg hs-ghost">
+                Contact Us
+              </Link>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <button
+        className="hero-arrow prev"
+        onClick={() => go(-1)}
+        aria-label="Previous slide"
+      >
+        <i className="bi bi-chevron-left"></i>
+      </button>
+      <button
+        className="hero-arrow next"
+        onClick={() => go(1)}
+        aria-label="Next slide"
+      >
+        <i className="bi bi-chevron-right"></i>
+      </button>
+
+      <div className="hero-dots">
+        {SLIDES.map((_, i) => (
+          <button
+            key={i}
+            className={`hero-dot${i === index ? " on" : ""}`}
+            onClick={() => setIndex(i)}
+            aria-label={`Go to slide ${i + 1}`}
+          ></button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   return (
     <>
-      {/* ---------- Hero ---------- */}
-      <section className="hero">
-        <div className="container">
-          <div className="hero-wrap">
-            <div className="hero-inner">
-              <span className="eyebrow">IT Company · Coimbatore</span>
-              <h1>
-                Software, web and BPO services,{" "}
-                <span className="grad">delivered properly.</span>
-              </h1>
-              <p className="lead">
-                Trend Code Technology is a Coimbatore-based IT company building
-                websites, applications and back-office operations for
-                businesses across Tamil Nadu — with clear pricing, weekly
-                demos and support that answers the phone.
-              </p>
-              <div className="hero-actions">
-                <Link to="/contact" className="btn btn-primary btn-lg">
-                  Start a Project <i className="bi bi-arrow-right"></i>
-                </Link>
-                <Link to="/services" className="btn btn-call btn-lg">
-                  View Services
-                </Link>
-              </div>
-              <div className="hero-points">
-                <span><i className="bi bi-patch-check-fill"></i> Since 2019</span>
-                <span><i className="bi bi-patch-check-fill"></i> 1,200+ clients</span>
-                <span><i className="bi bi-patch-check-fill"></i> 24/7 support</span>
-                <span><i className="bi bi-patch-check-fill"></i> Ganapathy, Coimbatore</span>
-              </div>
-            </div>
-            <HeroFacts />
-          </div>
-        </div>
-      </section>
+      {/* ---------- Hero slider ---------- */}
+      <HeroSlider />
 
       {/* ---------- Stats ---------- */}
       <div className="stats">
@@ -352,7 +299,7 @@ export default function Home() {
       </section>
 
       {/* ---------- Why choose us ---------- */}
-      <section className="section soft">
+      <section className="section soft why-choose-section">
         <div className="container">
           <SectionHead
             eyebrow="Why Choose TCT"
@@ -393,7 +340,7 @@ export default function Home() {
                   <h3>{s.title}</h3>
                   <p>{s.blurb}</p>
                   <Link className="more" to={`/services/${s.slug}`}>
-                    Learn more <i className="bi bi-arrow-right"></i>
+                    Learn More <i className="bi bi-arrow-right"></i>
                   </Link>
                 </div>
               </Reveal>
@@ -471,6 +418,24 @@ export default function Home() {
               </p>
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* ---------- Leadership (CEO & MD) ---------- */}
+      <section className="section">
+        <div className="container">
+          <SectionHead
+            eyebrow="Leadership"
+            title="Meet the People Leading Trend Code Technology"
+            text="Hands-on leadership — every project gets direct attention from the top."
+          />
+          <div className="team-grid">
+            {TEAM.map((m, i) => (
+              <Reveal key={m.name} delay={i * 110}>
+                <TeamCard member={m} />
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 

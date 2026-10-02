@@ -37,9 +37,11 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="container footer-main">
         <div className="footer-about">
-          <img src="/tct-logo.png" alt="Trend Code Technology logo" className="brand-img" />
+          <span className="logo-art">
+            <img src="/tct-logo.png" alt="Trend Code Technology logo" className="brand-img" />
+          </span>
           <h3>Trend Code Technology</h3>
-          <p className="tag">Software · Digital · BPO · Talent</p>
+          <p className="tag">We Build Your Future · Software · Digital · BPO</p>
           <p>
             Trend Code Technology is a new media design company providing
             highly scalable conceptual and functional solutions to companies
@@ -94,19 +96,31 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Chat with us on WhatsApp"
-                  title="Chat with us on WhatsApp"
+                  title="WhatsApp"
                 >
-                  <i className="bi bi-whatsapp"></i> WhatsApp
+                  <i className="bi bi-whatsapp"></i>
                 </a>
               </span>
             </li>
           </ul>
           <div className="footer-social">
             {COMPANY.socials.map((s) => (
-              <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+              <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label} title={s.label}>
                 <i className={`bi ${s.icon}`}></i>
               </a>
             ))}
+          </div>
+        </div>
+
+        <div className="footer-col footer-map-col">
+          <h4>Find Us</h4>
+          <div className="footer-map-frame">
+            <iframe
+              title="Trend Code Technology location"
+              src={COMPANY.mapEmbed}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            ></iframe>
           </div>
         </div>
       </div>
@@ -118,7 +132,7 @@ export default function Footer() {
             <Link to="/">trendcodetechnology.com</Link>. All Rights Reserved.
           </span>
           <span>
-            Designed &amp; engineered by Trend Code Technology
+            Designed &amp; Engineered by Trend Code Technology
           </span>
         </div>
       </div>

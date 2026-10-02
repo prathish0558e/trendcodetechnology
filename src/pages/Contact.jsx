@@ -76,6 +76,28 @@ export default function Contact() {
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             ></iframe>
+            <div className="map-card">
+              <h4>
+                <span className="pin">
+                  <i className="bi bi-geo-alt-fill"></i>
+                </span>
+                Trend Code Technology
+              </h4>
+              <p>{COMPANY.address}</p>
+              <div className="map-actions">
+                <a
+                  className="dir"
+                  href="https://www.google.com/maps/dir/?api=1&destination=Trend+Code+Technology,+Ganapathy,+Coimbatore"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <i className="bi bi-signpost-2-fill"></i> Directions
+                </a>
+                <a className="call" href={`tel:${COMPANY.phoneRaw}`}>
+                  <i className="bi bi-telephone-fill"></i> Call Us
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>

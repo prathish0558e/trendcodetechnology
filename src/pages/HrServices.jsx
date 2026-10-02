@@ -32,7 +32,7 @@ export default function HrServices() {
                     ))}
                   </ul>
                   <Link className="more" to={`/hr-services/${h.slug}`}>
-                    Learn more <i className="bi bi-arrow-right"></i>
+                    Learn More <i className="bi bi-arrow-right"></i>
                   </Link>
                 </div>
               </Reveal>

@@ -32,7 +32,7 @@ export default function Bpo() {
                     ))}
                   </ul>
                   <Link className="more" to={`/bpo/${b.slug}`}>
-                    Learn more <i className="bi bi-arrow-right"></i>
+                    Learn More <i className="bi bi-arrow-right"></i>
                   </Link>
                 </div>
               </Reveal>
