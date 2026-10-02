@@ -27,7 +27,7 @@ export default function Login() {
   return (
     <div className="auth-wrap">
       <div className="auth-side">
-        <img src="/tct-logo.jpeg" alt="Trend Code Technology logo" className="brand-img" />
+        <img src="/tct-logo.png" alt="Trend Code Technology logo" className="brand-img" />
         <span className="eyebrow on-dark">Client Portal</span>
         <h2>Welcome back to Trend Code Technology</h2>
         <p>

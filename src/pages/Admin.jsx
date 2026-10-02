@@ -8,7 +8,9 @@ import {
   getInternships,
   getLeads,
   getSavedUser,
+  getSessions,
   postLogout,
+  postRevokeSession,
 } from "../api.js";
 
 function fmtDate(iso) {
@@ -154,6 +156,7 @@ function InternshipsTable({ rows }) {
 const EVENT_META = {
   login: { icon: "bi-box-arrow-in-right", label: "Login", cls: "ok" },
   logout: { icon: "bi-box-arrow-left", label: "Logout", cls: "muted" },
+  "force-logout": { icon: "bi-shield-x", label: "Force logout", cls: "warn" },
   failed: { icon: "bi-shield-exclamation", label: "Failed attempt", cls: "err" },
 };
 
@@ -175,6 +178,7 @@ function AuthLogTable({ rows }) {
             <th>Email used</th>
             <th>Device</th>
             <th>IP address</th>
+            <th>Location</th>
           </tr>
         </thead>
         <tbody>
@@ -189,11 +193,67 @@ function AuthLogTable({ rows }) {
                   </span>
                 </td>
                 <td>{e.email || "—"}</td>
-                <td>{e.deviceSummary}</td>
+                <td>{e.device || e.deviceSummary || "—"}</td>
                 <td className="admin-date">{e.ip || "—"}</td>
+                <td className="admin-date">{e.location || "Resolving…"}</td>
               </tr>
             );
           })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SessionsPanel({ sessions, currentTokenPreview, onRevoke, busyPreview }) {
+  if (!sessions.length) {
+    return (
+      <div className="admin-empty">
+        <i className="bi bi-hdd-network"></i> No active sessions.
+      </div>
+    );
+  }
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>IP address</th>
+            <th>Location</th>
+            <th>Signed in</th>
+            <th>Last active</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sessions.map((s) => (
+            <tr key={s.tokenPreview}>
+              <td>
+                <strong>{s.device}</strong>
+                {s.current && <span className="authpill ok" style={{ marginLeft: 8 }}><i className="bi bi-person-check"></i> This device</span>}
+              </td>
+              <td className="admin-date">{s.ip}</td>
+              <td className="admin-date">{s.location || "Resolving…"}</td>
+              <td className="admin-date">{fmtDate(s.createdAt)}</td>
+              <td className="admin-date">{fmtDate(s.lastSeenAt)}</td>
+              <td>
+                {s.current ? (
+                  <span className="admin-date">—</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    disabled={busyPreview === s.tokenPreview}
+                    onClick={() => onRevoke(s.tokenPreview)}
+                  >
+                    <i className="bi bi-box-arrow-right"></i>{" "}
+                    {busyPreview === s.tokenPreview ? "Logging out…" : "Force logout"}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -251,6 +311,8 @@ export default function Admin() {
   const [apps, setApps] = useState(null);
   const [leads, setLeads] = useState(null);
   const [authlog, setAuthlog] = useState(null);
+  const [sessions, setSessions] = useState(null);
+  const [revoking, setRevoking] = useState("");
   const [interns, setInterns] = useState(null);
   const [error, setError] = useState("");
 
@@ -264,6 +326,9 @@ export default function Admin() {
       .catch(() => {});
     getAuthLog()
       .then(setAuthlog)
+      .catch(() => {});
+    getSessions()
+      .then(setSessions)
       .catch(() => {});
     getInternships()
       .then(setInterns)
@@ -302,6 +367,17 @@ export default function Admin() {
     postLogout().catch(() => {}); // record logout event server-side
     clearSession();
     setUser(null);
+  };
+
+  const revokeSession = (tokenPreview) => {
+    setRevoking(tokenPreview);
+    postRevokeSession(tokenPreview)
+      .then(() => {
+        setSessions((prev) => (prev || []).filter((s) => s.tokenPreview !== tokenPreview));
+        getAuthLog().then(setAuthlog).catch(() => {}); // refresh activity log
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setRevoking(""));
   };
 
   if (checking) {
@@ -432,7 +508,27 @@ export default function Admin() {
               <i className="bi bi-hourglass-split"></i> Loading…
             </div>
           ) : (
-            <AuthLogTable rows={authlog} />
+            <>
+              <h3 className="careers-col-title" style={{ fontSize: "1.05rem", marginTop: 6 }}>
+                <i className="bi bi-hdd-network"></i> Active Sessions
+              </h3>
+              {sessions === null ? (
+                <div className="admin-empty">
+                  <i className="bi bi-hourglass-split"></i> Loading…
+                </div>
+              ) : (
+                <SessionsPanel
+                  sessions={sessions}
+                  onRevoke={revokeSession}
+                  busyPreview={revoking}
+                />
+              )}
+
+              <h3 className="careers-col-title" style={{ fontSize: "1.05rem", marginTop: 26 }}>
+                <i className="bi bi-clock-history"></i> Login Activity
+              </h3>
+              <AuthLogTable rows={authlog} />
+            </>
           )}
         </div>
       </section>

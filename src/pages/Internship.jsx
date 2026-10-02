@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PageHero, Reveal } from "../components/Reveal.jsx";
-import { COMPANY } from "../data/content.js";
+import { COMPANY, INTERNSHIP_JDS } from "../data/content.js";
+
+/*
+ * Internships page in the same style as the careers pages: every internship
+ * domain gets its own detailed JD accordion card, and a dedicated apply form
+ * with resume upload. "Apply" on a card pre-selects that domain in the form
+ * and scrolls to it. Domain keys mirror /api/internship/domains exactly.
+ */
 
 const DURATIONS = ["1 Month", "2 Months", "3 Months", "6 Months"];
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "Final Year", "Graduate"];
@@ -13,14 +20,72 @@ const PERKS = [
 ];
 
 const STEPS = [
-  { n: "1", title: "Apply online", text: "Fill the form below with your resume." },
+  { n: "1", title: "Pick a domain & apply", text: "Open the JD that fits you and fill the form with your resume." },
   { n: "2", title: "Screening call", text: "A short HR call within 3–5 working days." },
   { n: "3", title: "Task / interview", text: "A small domain task or technical chat." },
   { n: "4", title: "Offer letter", text: "Confirmed interns get an official offer." },
 ];
 
-function InternshipForm() {
-  const [domains, setDomains] = useState([]);
+function InternshipJdCard({ domain, jd, open, onToggle, onApply }) {
+  return (
+    <div className="job-card">
+      <button
+        type="button"
+        className="job-card-head"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className="job-card-title">{domain}</span>
+        <span className="job-toggle">{open ? "−" : "+"}</span>
+      </button>
+
+      {open && (
+        <div className="job-card-body">
+          <table className="job-table">
+            <tbody>
+              <tr>
+                <td>Qualification</td>
+                <td>{jd.qualification}</td>
+              </tr>
+              <tr>
+                <td>Skills You'll Learn</td>
+                <td>{jd.skills}</td>
+              </tr>
+              <tr>
+                <td>Tools</td>
+                <td>{jd.tools}</td>
+              </tr>
+              <tr>
+                <td>What You'll Do</td>
+                <td>
+                  <ul className="job-points">
+                    {jd.description.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                </td>
+              </tr>
+              <tr>
+                <td>Duration</td>
+                <td>{jd.duration}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div className="job-card-foot">
+            Interested in this domain?{" "}
+            <button type="button" className="link-btn" onClick={onApply}>
+              Apply for {domain} Internship <i className="bi bi-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Internship() {
+  const domains = useMemo(() => Object.keys(INTERNSHIP_JDS), []);
+  const [openDomain, setOpenDomain] = useState(domains[0]);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -28,22 +93,22 @@ function InternshipForm() {
     college: "",
     degree: "",
     year: "",
-    domain: "",
+    domain: domains[0],
     duration: "",
     message: "",
   });
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState({ state: "idle", msg: "" });
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/internship/domains")
-      .then((r) => r.json())
-      .then(setDomains)
-      .catch(() => {});
-  }, []);
+  const applyRef = useRef(null);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const scrollToApply = (domain) => {
+    setOpenDomain(domain);
+    setForm((f) => ({ ...f, domain }));
+    applyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -59,7 +124,7 @@ function InternshipForm() {
       if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
 
       setStatus({ state: "ok", msg: body.message || "Application received!" });
-      setForm({ name: "", email: "", phone: "", college: "", degree: "", year: "", domain: "", duration: "", message: "" });
+      setForm({ name: "", email: "", phone: "", college: "", degree: "", year: "", domain: domains[0], duration: "", message: "" });
       setFile(null);
       e.target.reset();
     } catch (err) {
@@ -69,130 +134,6 @@ function InternshipForm() {
     }
   };
 
-  return (
-    <form className="form-card apply-form internship-form" onSubmit={onSubmit}>
-      <h3 style={{ marginBottom: 6 }}>Internship Application</h3>
-      <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0, marginBottom: 18 }}>
-        Fill this once — our HR team calls every eligible applicant.
-      </p>
-
-      {status.state === "ok" && (
-        <div className="banner ok"><i className="bi bi-check-circle me-1"></i> {status.msg}</div>
-      )}
-      {status.state === "err" && (
-        <div className="banner err"><i className="bi bi-exclamation-triangle me-1"></i> {status.msg}</div>
-      )}
-
-      <div className="form-row two">
-        <div className="field">
-          <label htmlFor="in-name">Full Name *</label>
-          <input id="in-name" type="text" required value={form.name} onChange={set("name")} placeholder="Your full name" />
-        </div>
-        <div className="field">
-          <label htmlFor="in-phone">WhatsApp Number *</label>
-          <input id="in-phone" type="tel" required value={form.phone} onChange={set("phone")} placeholder="+91 ..." />
-        </div>
-      </div>
-
-      <div className="field">
-        <label htmlFor="in-email">Email *</label>
-        <input id="in-email" type="email" required value={form.email} onChange={set("email")} placeholder="you@example.com" />
-      </div>
-
-      <div className="form-row two">
-        <div className="field">
-          <label htmlFor="in-college">College / Institution *</label>
-          <input id="in-college" type="text" required value={form.college} onChange={set("college")} placeholder="e.g. PSG Tech, Coimbatore" />
-        </div>
-        <div className="field">
-          <label htmlFor="in-degree">Degree / Department</label>
-          <input id="in-degree" type="text" value={form.degree} onChange={set("degree")} placeholder="e.g. B.E. CSE" />
-        </div>
-      </div>
-
-      <div className="form-row two">
-        <div className="field">
-          <label htmlFor="in-year">Year of Study *</label>
-          <select id="in-year" required value={form.year} onChange={set("year")}>
-            <option value="">Select year</option>
-            {YEARS.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="in-dur">Preferred Duration *</label>
-          <select id="in-dur" required value={form.duration} onChange={set("duration")}>
-            <option value="">Select duration</option>
-            {DURATIONS.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="field">
-        <label htmlFor="in-domain">Internship Domain *</label>
-        <select id="in-domain" required value={form.domain} onChange={set("domain")}>
-          <option value="">Choose a domain…</option>
-          {(domains.length
-            ? domains
-            : [
-                "Software Development",
-                "Web Development",
-                "App Development",
-                "Digital Marketing",
-                "IoT Solutions",
-                "ML / Python",
-                "AI / Robotics",
-                "UI / UX Design",
-                "Software Testing",
-                "Cloud Computing",
-                "Data Entry",
-                "Voice Process",
-              ]
-          ).map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="field">
-        <label htmlFor="in-res">Upload Resume * (PDF / DOC, max 5 MB)</label>
-        <input
-          id="in-res"
-          type="file"
-          required
-          accept=".pdf,.doc,.docx"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-        />
-      </div>
-
-      <div className="field">
-        <label htmlFor="in-msg">Anything we should know? (optional)</label>
-        <textarea
-          id="in-msg"
-          rows={3}
-          value={form.message}
-          onChange={set("message")}
-          placeholder="Skills, links to your work, availability…"
-        ></textarea>
-      </div>
-
-      <button className="btn btn-primary btn-block btn-lg" disabled={busy}>
-        {busy ? "Submitting…" : "Apply for Internship"}
-        {!busy && <i className="bi bi-arrow-right"></i>}
-      </button>
-
-      <p className="form-note" style={{ textAlign: "center" }}>
-        <i className="bi bi-shield-lock me-1"></i>
-        Your details stay private — HR replies within 3–5 working days.
-      </p>
-    </form>
-  );
-}
-
-export default function Internship() {
   return (
     <>
       <PageHero
@@ -219,15 +160,157 @@ export default function Internship() {
         </div>
       </section>
 
-      {/* Form + process */}
+      {/* Domains (JD accordion) + dedicated apply form */}
       <section className="section" style={{ paddingTop: 10 }}>
         <div className="container">
-          <div className="internship-grid">
+          <div className="careers-grid">
             <div>
-              <h2 className="careers-col-title"><i className="bi bi-send"></i> Apply for Internship</h2>
-              <InternshipForm />
+              <h2 className="careers-col-title">
+                <i className="bi bi-briefcase"></i> Internship Domains
+              </h2>
+              <div className="job-list">
+                {domains.map((d, i) => (
+                  <Reveal key={d} delay={i * 60}>
+                    <InternshipJdCard
+                      domain={d}
+                      jd={INTERNSHIP_JDS[d]}
+                      open={openDomain === d}
+                      onToggle={() => setOpenDomain((cur) => (cur === d ? null : d))}
+                      onApply={() => scrollToApply(d)}
+                    />
+                  </Reveal>
+                ))}
+              </div>
             </div>
 
+            <div ref={applyRef}>
+              <h2 className="careers-col-title">
+                <i className="bi bi-send"></i> Apply for Internship
+              </h2>
+              <form className="form-card apply-form" onSubmit={onSubmit}>
+                {status.state === "ok" && (
+                  <div className="banner ok"><i className="bi bi-check-circle me-1"></i> {status.msg}</div>
+                )}
+                {status.state === "err" && (
+                  <div className="banner err"><i className="bi bi-exclamation-triangle me-1"></i> {status.msg}</div>
+                )}
+
+                <div className="form-row two">
+                  <div className="field">
+                    <label htmlFor="in-name">Full Name *</label>
+                    <input id="in-name" type="text" required value={form.name} onChange={set("name")} placeholder="Your full name" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="in-phone">WhatsApp Number *</label>
+                    <input id="in-phone" type="tel" required value={form.phone} onChange={set("phone")} placeholder="+91 ..." />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="in-email">Email *</label>
+                  <input id="in-email" type="email" required value={form.email} onChange={set("email")} placeholder="you@example.com" />
+                </div>
+
+                <div className="form-row two">
+                  <div className="field">
+                    <label htmlFor="in-college">College / Institution *</label>
+                    <input id="in-college" type="text" required value={form.college} onChange={set("college")} placeholder="e.g. PSG Tech, Coimbatore" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="in-degree">Degree / Department</label>
+                    <input id="in-degree" type="text" value={form.degree} onChange={set("degree")} placeholder="e.g. B.E. CSE" />
+                  </div>
+                </div>
+
+                <div className="form-row two">
+                  <div className="field">
+                    <label htmlFor="in-year">Year of Study *</label>
+                    <select id="in-year" required value={form.year} onChange={set("year")}>
+                      <option value="">Select year</option>
+                      {YEARS.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="in-dur">Preferred Duration *</label>
+                    <select id="in-dur" required value={form.duration} onChange={set("duration")}>
+                      <option value="">Select duration</option>
+                      {DURATIONS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="in-domain">Internship Domain *</label>
+                  <select
+                    id="in-domain"
+                    required
+                    value={form.domain}
+                    onChange={(e) => {
+                      set("domain")(e);
+                      setOpenDomain(e.target.value);
+                    }}
+                  >
+                    {domains.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="in-res">Upload Resume * (PDF / DOC, max 5 MB)</label>
+                  <input
+                    id="in-res"
+                    type="file"
+                    required
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="in-msg">Anything we should know? (optional)</label>
+                  <textarea
+                    id="in-msg"
+                    rows={3}
+                    value={form.message}
+                    onChange={set("message")}
+                    placeholder="Skills, links to your work, availability…"
+                  ></textarea>
+                </div>
+
+                <div className="form-buttons">
+                  <button className="btn btn-primary" disabled={busy}>
+                    {busy ? "Submitting…" : "Submit Application"}
+                    {!busy && <i className="bi bi-arrow-right"></i>}
+                  </button>
+                  <button
+                    type="reset"
+                    className="btn btn-outline"
+                    onClick={() => setStatus({ state: "idle", msg: "" })}
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <p className="form-note">
+                  <i className="bi bi-shield-lock me-1"></i>
+                  Your details stay private — HR replies within 3–5 working days. Questions?{" "}
+                  <a href={`tel:${COMPANY.phoneRaw}`}>{COMPANY.phone}</a>
+                </p>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works + who can apply */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="container">
+          <div className="internship-grid">
             <div>
               <h2 className="careers-col-title"><i className="bi bi-signpost-2"></i> How It Works</h2>
               <div className="isteps">
@@ -241,8 +324,10 @@ export default function Internship() {
                   </div>
                 ))}
               </div>
+            </div>
 
-              <div className="info-card" style={{ marginTop: 22 }}>
+            <div>
+              <div className="info-card">
                 <h3 style={{ fontSize: "1.05rem", marginBottom: 8 }}>
                   <i className="bi bi-people-fill"></i> Who can apply?
                 </h3>

@@ -1,6 +1,68 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Reveal, SectionHead, PageHero } from "../components/Reveal.jsx";
 import { COMPANY, VALUES, PROCESS } from "../data/content.js";
+
+const TEAM = [
+  {
+    name: "Bharath T",
+    role: "Chief Executive Officer (CEO)",
+    photo: "/team/bharath.jpg",
+    initials: "BT",
+  },
+  {
+    name: "Mohanapriya K",
+    role: "Managing Director (MD)",
+    photo: "/team/mohanapriya.jpg",
+    initials: "MP",
+  },
+];
+
+/* Profile photo uses /team/<file>.jpg when present. Until the real photos
+   are dropped into public/team/, a branded initials avatar shows instead —
+   adding the photo later needs no code change. */
+function TeamCard({ member }) {
+  const [photoOk, setPhotoOk] = useState(true);
+  return (
+    <article className="team-card">
+      <div className="team-photo">
+        {photoOk ? (
+          <img
+            src={member.photo}
+            alt={`${member.name} — ${member.role}`}
+            loading="lazy"
+            onError={() => setPhotoOk(false)}
+          />
+        ) : (
+          <>
+            <span className="team-ring" aria-hidden="true"></span>
+            <span className="team-initials">{member.initials}</span>
+          </>
+        )}
+      </div>
+      <div className="team-body">
+        <h3>{member.name}</h3>
+        <span className="team-role">{member.role}</span>
+        <div className="team-social">
+          <a href={`mailto:${COMPANY.email}`} aria-label={`Email ${member.name}`}>
+            <i className="bi bi-envelope"></i>
+          </a>
+          <a href={`tel:${COMPANY.phoneRaw}`} aria-label={`Call ${member.name}`}>
+            <i className="bi bi-telephone"></i>
+          </a>
+          <a
+            href={`https://wa.me/${COMPANY.whatsapp}`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`WhatsApp ${member.name}`}
+          >
+            <i className="bi bi-whatsapp"></i>
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export default function About() {
   return (
@@ -90,6 +152,24 @@ export default function About() {
         </div>
       </section>
 
+      {/* ---------- Team Members ---------- */}
+      <section className="section">
+        <div className="container">
+          <SectionHead
+            eyebrow="Team Members"
+            title="Professional Stuffs Ready to Help Your Business"
+            text="The people behind every project we ship — reachable, accountable and hands-on."
+          />
+          <div className="team-grid">
+            {TEAM.map((m, i) => (
+              <Reveal key={m.name} delay={i * 110}>
+                <TeamCard member={m} />
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="section dark">
         <div className="container">
           <SectionHead
@@ -98,9 +178,9 @@ export default function About() {
           />
           <div className="steps">
             {PROCESS.map((p, i) => (
-              <Reveal key={p.step} delay={i * 80}>
+              <Reveal key={p.title} delay={i * 80}>
                 <div className="step-card" style={{ height: "100%" }}>
-                  <div className="num">{p.step}</div>
+                  <div className="num">{i + 1}</div>
                   <h3>{p.title}</h3>
                   <p>{p.text}</p>
                 </div>

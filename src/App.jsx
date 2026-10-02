@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
@@ -18,6 +18,12 @@ import Internship from "./pages/Internship.jsx";
 import Login from "./pages/Login.jsx";
 import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
+
+/*
+ * "Codey" is replaced by the 3D TCT Assistant mascot (src/mascot/) —
+ * lazy-loaded so three.js never touches the initial bundle.
+ */
+const TctMascot = lazy(() => import("./mascot/TctMascot.jsx"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -63,6 +69,9 @@ export default function App() {
       </main>
       <Footer />
       <WhatsAppFloat />
+      <Suspense fallback={null}>
+        <TctMascot />
+      </Suspense>
     </>
   );
 }

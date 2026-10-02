@@ -62,6 +62,8 @@ export const SERVICES = [
   {
     slug: "software-development",
     icon: "bi-code-slash",
+    tint: "#2563eb",
+    glyph: "M9 4 3 12l6 8m6-16 6 8-6 8",
     title: "Software Development",
     blurb: "Custom web and enterprise applications engineered around your workflows — from first wireframe to production launch.",
     points: [
@@ -74,6 +76,8 @@ export const SERVICES = [
   {
     slug: "web-development",
     icon: "bi-globe2",
+    tint: "#0891b2",
+    glyph: "M2 12h20M12 2c3 3.6 3 16.4 0 20M12 2c-3 3.6-3 16.4 0 20M4 6h16M4 18h16",
     title: "Web Development",
     blurb: "Fast, secure, SEO-ready websites and portals that look sharp on every device and convert visitors into customers.",
     points: [
@@ -86,6 +90,8 @@ export const SERVICES = [
   {
     slug: "app-development",
     icon: "bi-phone",
+    tint: "#7c3aed",
+    glyph: "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm2 16h4m-5-11 2-2 2 2m-4 5 2 2 2-2",
     title: "App Development",
     blurb: "Native and cross-platform mobile apps with offline-first architecture, built for performance and store readiness.",
     points: [
@@ -98,6 +104,8 @@ export const SERVICES = [
   {
     slug: "digital-marketing",
     icon: "bi-megaphone",
+    tint: "#ea580c",
+    glyph: "M3 11v2l12 5V6L3 11zm12-5 6-2v16l-6-2M7 13.5V19a2 2 0 0 0 4 0v-4",
     title: "Digital Marketing",
     blurb: "Full-funnel campaigns across search, social and email — backed by analytics that prove every rupee spent.",
     points: [
@@ -110,6 +118,8 @@ export const SERVICES = [
   {
     slug: "iot",
     icon: "bi-cpu",
+    tint: "#0d9488",
+    glyph: "M7 7h10v10H7V7zm5-5v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.2 2.2m9.8 9.8 2.2 2.2M19.1 4.9l-2.2 2.2M7.1 16.9l-2.2 2.2",
     title: "IoT Solutions",
     blurb: "Connected devices and real-time dashboards that automate operations, cut downtime and surface actionable data.",
     points: [
@@ -122,6 +132,8 @@ export const SERVICES = [
   {
     slug: "ml-python",
     icon: "bi-graph-up-arrow",
+    tint: "#d97706",
+    glyph: "M4 20V10m5 10V4m5 16v-7m5 7V8m1 12H3",
     title: "ML / Python",
     blurb: "Machine-learning pipelines in Python that forecast demand, classify documents and automate decisions.",
     points: [
@@ -134,6 +146,8 @@ export const SERVICES = [
   {
     slug: "ai-robotics",
     icon: "bi-robot",
+    tint: "#dc2626",
+    glyph: "M12 2v4m-5 2h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3zm2.5 5.5v1m5-1v1M9 16h6",
     title: "AI / Robotics",
     blurb: "Conversational AI, RPA and vision-based automation that remove repetitive work from your teams' day.",
     points: [
@@ -146,6 +160,8 @@ export const SERVICES = [
   {
     slug: "ui-ux",
     icon: "bi-vector-pen",
+    tint: "#db2777",
+    glyph: "M4 20c1-6 4-12 8-16 4 4 7 10 8 16M8.5 14h7M12 4v16",
     title: "UI / UX Design",
     blurb: "Research-driven interface design and design systems that make products intuitive, accessible and beautiful.",
     points: [
@@ -158,6 +174,8 @@ export const SERVICES = [
   {
     slug: "software-testing",
     icon: "bi-bug",
+    tint: "#4f46e5",
+    glyph: "M12 8a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0v-3a4 4 0 0 1 4-4zm-6 4H3m18 0h-3M5.6 6.6 8 9m8 2.4 2.4-2.4M5.6 17.4 8 15m8 0 2.4 2.4M12 8V5m-3 0h6",
     title: "Software Testing",
     blurb: "Manual and automated QA that catches issues before your users do — functional, API and performance testing.",
     points: [
@@ -170,6 +188,8 @@ export const SERVICES = [
   {
     slug: "cloud",
     icon: "bi-cloud-check",
+    tint: "#0284c7",
+    glyph: "M6 18a4 4 0 0 1 0-8 6 6 0 0 1 11.6-1.5A4.5 4.5 0 0 1 17.5 18H6zm6-11v10m0-10-3 3m3-3 3 3m-3 7-3-3m3 3 3-3",
     title: "Cloud Computing",
     blurb: "Cloud architecture, migration and DevOps on AWS, Azure and GCP — resilient, observable and cost-aware.",
     points: [
@@ -182,6 +202,8 @@ export const SERVICES = [
   {
     slug: "data-entry",
     icon: "bi-keyboard",
+    tint: "#64748b",
+    glyph: "M3 7h18v10H3V7zm3 3h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M6 13h.01M18 13h.01M9 13h6",
     title: "Data Entry",
     blurb: "Accurate, fast document processing and database upkeep handled by trained operators with multi-level QC.",
     points: [
@@ -194,6 +216,8 @@ export const SERVICES = [
   {
     slug: "voice-process",
     icon: "bi-headset",
+    tint: "#16a34a",
+    glyph: "M4 13a8 8 0 0 1 16 0m-16 0v3a2 2 0 0 0 2 2h1v-6H4zm16 0h-3v6h1a2 2 0 0 0 2-2v-3zM12 21h3a2 2 0 0 0 2-2",
     title: "Voice Process",
     blurb: "Professional call-center teams for inbound support, outbound sales and customer success — measured on CSAT.",
     points: [
@@ -530,6 +554,168 @@ export const ROLE_JDS = {
   },
 };
 
+/* Per-domain detailed internship JDs — keyed by the exact domain names the
+   backend serves at /api/internship/domains. Each gets its own accordion
+   card + pre-selected dedicated apply form on the /internship page. */
+export const INTERNSHIP_JDS = {
+  "Software Development": {
+    qualification: "B.E./B.Tech/MCA students (2nd year onwards) or recent graduates",
+    skills: "Core programming (Python/Java/C#/JS), OOP basics, SQL fundamentals, problem solving",
+    tools: "Git, VS Code, Postman, SQL databases",
+    description: [
+      "Build features for live client applications under a senior mentor",
+      "Write clean, documented backend/frontend code",
+      "Debug issues and write simple unit tests",
+      "Join daily standups and sprint reviews like a real team member",
+      "Ship at least one production feature by internship end",
+    ],
+    duration: "2–6 months — full-time or part-time (college-friendly)",
+  },
+  "Web Development": {
+    qualification: "Any degree/diploma student with HTML/CSS/JS basics",
+    skills: "HTML5, CSS3, JavaScript, React basics, responsive design, REST APIs",
+    tools: "Git, VS Code, Chrome DevTools, Figma, npm",
+    description: [
+      "Develop responsive pages and components for client websites",
+      "Convert Figma designs into pixel-perfect HTML/CSS/React",
+      "Integrate APIs and fix UI bugs reported by QA",
+      "Learn performance and SEO best practices on real sites",
+      "Build a portfolio-grade live project you can showcase",
+    ],
+    duration: "1–6 months — stipend review at 3 months",
+  },
+  "App Development": {
+    qualification: "B.E./B.Tech/BCA/MCA students with Java or JS basics",
+    skills: "React Native or Flutter, JavaScript/Dart, mobile UI patterns, API consumption",
+    tools: "Android Studio, Xcode simulator, Git, Firebase console",
+    description: [
+      "Build screens and flows for iOS/Android client apps",
+      "Connect apps to REST APIs and handle offline states",
+      "Test on real devices and fix layout/performance issues",
+      "Assist with Play Store build and release checklists",
+      "Own one complete app module end to end",
+    ],
+    duration: "2–6 months — mobile device provided for testing",
+  },
+  "Digital Marketing": {
+    qualification: "Any degree — BBA/MBA/B.Com/marketing students preferred",
+    skills: "SEO basics, social media handling, content writing, Google Analytics curiosity",
+    tools: "Google Ads, Meta Business Suite, GA4, Canva, SEMrush",
+    description: [
+      "Run real SEO and social campaigns for TCT and client brands",
+      "Schedule posts, write captions and short ad copy",
+      "Do keyword research and on-page fixes for client sites",
+      "Track campaign numbers in GA4 and prepare weekly reports",
+      "Assist live ad campaigns with budget and A/B testing",
+    ],
+    duration: "1–3 months — certification guidance included",
+  },
+  "IoT Solutions": {
+    qualification: "ECE/EEE/Instrumentation or CS students with electronics interest",
+    skills: "Basic embedded C/Python, sensors, circuits, keen hardware curiosity",
+    tools: "Arduino/ESP32, Raspberry Pi, MQTT, breadboards & sensors kit",
+    description: [
+      "Wire sensors and microcontrollers for client automation pilots",
+      "Push device data to real-time dashboards",
+      "Test and calibrate devices in our in-house IoT lab",
+      "Document wiring diagrams and setup guides",
+      "Demo a working prototype at internship end",
+    ],
+    duration: "2–6 months — hardware kit provided in office",
+  },
+  "ML / Python": {
+    qualification: "CS/Data Science/Maths students with Python basics",
+    skills: "Python, pandas/numpy, statistics basics, eagerness to learn scikit-learn",
+    tools: "Python, Jupyter, scikit-learn, pandas, Git, SQL basics",
+    description: [
+      "Clean and explore real client datasets with pandas",
+      "Train simple classification/forecasting models with a mentor",
+      "Evaluate models and present results in plain English",
+      "Automate one manual reporting task with a Python script",
+      "Document your experiments so others can reproduce them",
+    ],
+    duration: "2–6 months — ideal for final-year project conversion",
+  },
+  "AI / Robotics": {
+    qualification: "CS/ECE/Robotics students with strong fundamentals",
+    skills: "Python, prompt engineering basics, OpenCV curiosity, logical thinking",
+    tools: "Python, OpenCV, ChatGPT/Claude APIs, RPA tools, ESP32 kits",
+    description: [
+      "Build a working chatbot or automation for a real business need",
+      "Experiment with computer-vision demos in our lab",
+      "Script simple RPA flows that remove repetitive office work",
+      "Benchmark AI tools and write short internal notes",
+      "Present a live AI demo to the team at internship end",
+    ],
+    duration: "2–6 months — lab access during office hours",
+  },
+  "UI / UX Design": {
+    qualification: "Any degree — design/visual communication students preferred",
+    skills: "Figma basics, typography, color theory, empathy for users, attention to detail",
+    tools: "Figma, Photoshop/Illustrator, pen & paper, Miro",
+    description: [
+      "Design app/website screens under a senior product designer",
+      "Create wireframes and clickable prototypes in Figma",
+      "Maintain our design system components and icon sets",
+      "Join user feedback sessions and iterate on designs",
+      "Build a mini design case study for your portfolio",
+    ],
+    duration: "1–6 months — portfolio review at interview",
+  },
+  "Software Testing": {
+    qualification: "Any degree/diploma student — CS preferred but not mandatory",
+    skills: "Attention to detail, basic SQL, clear bug reporting, manual testing mindset",
+    tools: "Chrome DevTools, Postman, Jira/Trello, Selenium basics, Excel",
+    description: [
+      "Write and execute test cases for live web and mobile apps",
+      "Find, log and retest bugs with clear reproduction steps",
+      "Run API tests in Postman and record responses",
+      "Learn automation basics by extending a Selenium suite",
+      "Sign off releases alongside the QA lead",
+    ],
+    duration: "1–3 months — freshers strongly encouraged",
+  },
+  "Cloud Computing": {
+    qualification: "CS/IT students with networking fundamentals",
+    skills: "Linux basics, networking concepts, virtualization curiosity, command line comfort",
+    tools: "AWS free tier, Docker, Git, VS Code, cPanel/Vercel dashboards",
+    description: [
+      "Deploy and monitor real projects on cloud infrastructure",
+      "Set up domains, SSL and environment configurations",
+      "Write simple CI/CD deploy scripts with guidance",
+      "Practice Docker containers on internal services",
+      "Work toward an AWS/Azure certification path",
+    ],
+    duration: "2–6 months — certification exam guidance included",
+  },
+  "Data Entry": {
+    qualification: "Any degree/diploma — 12th pass with fast typing also considered",
+    skills: "Typing speed 30+ WPM, MS Excel/Word, accuracy, focus on repetitive quality work",
+    tools: "MS Office, Google Sheets, in-house CRM/ERP software",
+    description: [
+      "Enter and verify customer records in CRM with high accuracy",
+      "Digitise physical forms and documents daily",
+      "Meet daily target volumes within turnaround time",
+      "Flag data discrepancies to your supervisor",
+      "Learn real office discipline — attendance, TAT and reporting",
+    ],
+    duration: "1–3 months — performance-based retention offered",
+  },
+  "Voice Process": {
+    qualification: "Any degree/diploma student — fluent Tamil + basic English",
+    skills: "Clear communication, friendly phone manner, patience, listening skills",
+    tools: "CRM software, dialer, headset, call QA sheets",
+    description: [
+      "Shadow senior agents on live inbound/outbound calls",
+      "Handle customer queries politely with scripted guidance",
+      "Log every call in the CRM with correct disposition",
+      "Practice voice & accent sessions with the QA team",
+      "Hit supervised call-quality targets before certification",
+    ],
+    duration: "1–3 months — paid training during internship",
+  },
+};
+
 export const VALUES = [
   {
     icon: "bi-shield-check",
@@ -552,3 +738,397 @@ export const VALUES = [
     text: "Clients, employees and freshers grow together — training and mentorship are built in.",
   },
 ];
+
+/* ---------- Rich per-service detail data (used by /services/:slug) ----------
+   overview  — the 3-sentence pitch shown under the page hero
+   deliverables — what the client actually receives, line by line
+   techs     — tools & technology chips
+   facts     — quick facts strip (timeline / engagement / support)
+   faqs      — the questions clients ask before starting
+   -------------------------------------------------------------------------- */
+export const SERVICE_DETAILS = {
+  "software-development": {
+    overview:
+      "Off-the-shelf software forces your business to work around its limits. We build custom web and enterprise applications around your exact workflows — so the tool fits the team, not the other way round. From first wireframe to production launch you get weekly demos, clean documented code and a dedicated engineer who knows your business.",
+    deliverables: [
+      "Requirement study & product roadmap with milestone timelines",
+      "UI/UX wireframes and clickable prototypes for sign-off",
+      "Custom web / enterprise application on your preferred stack",
+      "REST APIs & third-party integrations — payments, SMS, ERP, CRM",
+      "Automated testing, security hardening & performance tuning",
+      "Deployment, admin training and 30 days of free post-launch support",
+    ],
+    techs: ["React", "Node.js", "Python", "PostgreSQL", "MongoDB", "AWS / Azure", "Docker", "REST APIs"],
+    facts: [
+      { k: "Timeline", v: "6–14 weeks typical MVP", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Fixed price or dedicated team", icon: "bi-diagram-3" },
+      { k: "Support", v: "24×7 desk + SLA maintenance", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "How much does custom software cost?",
+        a: "Every build is scoped individually — after a free requirement call you get a clear, fixed quote with milestone-wise pricing. No hidden charges, ever.",
+      },
+      {
+        q: "Who owns the source code?",
+        a: "You do. Full IP transfer, a documented codebase and deployment access are part of every handover.",
+      },
+      {
+        q: "Can you take over an existing half-built project?",
+        a: "Yes — we start with a code and infrastructure audit, stabilise what works, then rebuild or extend the rest with a clear migration plan.",
+      },
+    ],
+  },
+  "web-development": {
+    overview:
+      "Your website is your hardest-working salesperson — it never sleeps. We design and build fast, secure, SEO-ready websites and portals that look sharp on every device and turn visitors into enquiries. Corporate sites, e-commerce stores and customer portals — all shipped with weekly demos and clear pricing.",
+    deliverables: [
+      "Business & competitor study with sitemap and content plan",
+      "Custom UI design — mobile-first, on-brand, with revisions",
+      "Responsive build: React / Node full-stack or headless CMS",
+      "On-page SEO — metadata, schema, sitemap, Core Web Vitals tuning",
+      "Contact forms, live chat and WhatsApp integration wired to your team",
+      "Hosting, SSL, domain setup and a launch-day walkthrough",
+    ],
+    techs: ["React", "Vite", "Node.js", "Express", "MySQL", "Headless CMS", "Google Analytics", "Cloudflare"],
+    facts: [
+      { k: "Timeline", v: "2–6 weeks", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Fixed price per scope", icon: "bi-diagram-3" },
+      { k: "Support", v: "Post-launch care plan available", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Will my website rank on Google?",
+        a: "Every build ships with technical SEO done right — speed, schema, sitemaps and mobile-first design. For competitive keywords we run ongoing SEO campaigns as a separate service.",
+      },
+      {
+        q: "Can I update the content myself?",
+        a: "Yes — we can wire a headless CMS so your team edits text, images and products without touching code, with a training session included.",
+      },
+      {
+        q: "Do you redesign existing websites?",
+        a: "Absolutely. We audit what's working, protect your SEO equity with proper redirects, and rebuild the experience on a modern, fast stack.",
+      },
+    ],
+  },
+  "app-development": {
+    overview:
+      "Customers live on their phones — your business should too. We build native-quality iOS and Android apps with offline-first architecture, push notifications and store-ready release support. One codebase or fully native — we recommend what fits your budget and roadmap, not what pads our bill.",
+    deliverables: [
+      "Product discovery: user journeys, feature map and technical plan",
+      "UI/UX design for every screen with a clickable prototype",
+      "React Native / Flutter build — or native Swift/Kotlin where it matters",
+      "Backend, APIs, push notifications and analytics integration",
+      "Testing on real devices + Play Store / App Store release handling",
+      "Crash monitoring, update pipeline and version-upgrade support",
+    ],
+    techs: ["React Native", "Flutter", "Swift", "Kotlin", "Firebase", "Node.js", "Play Store / App Store", "Push & analytics SDKs"],
+    facts: [
+      { k: "Timeline", v: "8–16 weeks", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Milestone-based", icon: "bi-diagram-3" },
+      { k: "Support", v: "Store releases & updates covered", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "One app for both Android and iOS?",
+        a: "Usually yes — React Native or Flutter gives you both platforms from one codebase at roughly 60% of the cost of two native builds. We advise going native only when hardware-level performance demands it.",
+      },
+      {
+        q: "Do you publish the app for us?",
+        a: "Yes — developer account setup, store listing, screenshots, review handling and the release itself are all part of the package.",
+      },
+      {
+        q: "What about maintenance after launch?",
+        a: "We offer annual care plans covering OS updates, bug fixes, crash monitoring and feature releases — quoted upfront, no surprises.",
+      },
+    ],
+  },
+  "digital-marketing": {
+    overview:
+      "Marketing that can't be measured is just expense. We run full-funnel campaigns across search, social and email — backed by analytics that prove every rupee spent. From SEO foundations to ad creative to landing pages, one team owns your entire growth pipeline and reports on it monthly.",
+    deliverables: [
+      "Digital audit: website, competitors and keyword landscape",
+      "SEO — technical fixes, on-page optimisation and content plan",
+      "Google Ads & Meta ad campaigns with creative design included",
+      "Social media calendar — posts, reels and community management",
+      "Landing pages built and A/B tested for conversion",
+      "Monthly ROI report in plain English — spend, leads, cost per lead",
+    ],
+    techs: ["Google Ads", "Meta Business Suite", "GA4", "Search Console", "SEMrush / Ahrefs", "Canva & Figma", "WhatsApp Business", "Mailchimp"],
+    facts: [
+      { k: "Timeline", v: "Results in 60–90 days", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Monthly retainer", icon: "bi-diagram-3" },
+      { k: "Support", v: "Dedicated account manager", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "How soon will I see results?",
+        a: "Paid ads bring enquiries within the first weeks once campaigns optimise; SEO compounds over 2–3 months. Either way you see the numbers — spend, clicks, leads — from month one in a clear report.",
+      },
+      {
+        q: "Is ad spend included in the price?",
+        a: "No — our management fee is separate and transparent. Your ad budget goes directly to Google/Meta from your own accounts, so you keep full ownership of the data.",
+      },
+      {
+        q: "Can you work with our in-house team?",
+        a: "Yes — many clients keep marketing in-house and use us for the specialist layers: SEO technicals, ad optimisation, landing pages and analytics.",
+      },
+    ],
+  },
+  iot: {
+    overview:
+      "Machines that report problems before they fail are the new baseline for manufacturing. We connect your sensors, devices and machines to real-time dashboards — so downtime, energy waste and manual data collection disappear. From a single-line pilot to a full plant, we build the hardware integration and the software together.",
+    deliverables: [
+      "Pilot study: which machines, sensors and data points matter",
+      "Sensor & gateway selection, wiring and on-site installation",
+      "Edge / cloud data pipeline with MQTT or Modbus integration",
+      "Real-time dashboard — live readings, alerts and trends",
+      "Predictive maintenance rules and automated reports",
+      "Operator training, documentation and AMC support",
+    ],
+    techs: ["ESP32 / Arduino", "Raspberry Pi", "MQTT", "Modbus", "Node.js", "Timeseries DB", "Grafana-style dashboards", "AWS IoT"],
+    facts: [
+      { k: "Timeline", v: "4–10 weeks per phase", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Pilot first, then scale", icon: "bi-diagram-3" },
+      { k: "Support", v: "AMC with on-site visits", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Do we need to replace our machines?",
+        a: "No — most machines give out data through existing ports, current transformers or simple bolt-on sensors. We retrofit; you keep your equipment.",
+      },
+      {
+        q: "What does a pilot cost?",
+        a: "A single-line pilot — one machine, sensors, gateway, dashboard — typically starts small and delivers proof within weeks. You get a fixed quote after a free floor walkthrough.",
+      },
+      {
+        q: "Does the dashboard work on mobile?",
+        a: "Yes — responsive dashboards plus WhatsApp / SMS alerts for thresholds, so supervisors act without sitting in front of a screen.",
+      },
+    ],
+  },
+  "ml-python": {
+    overview:
+      "Your business already produces the data — reports, invoices, machines, customers. Our Python and machine-learning pipelines turn that raw data into forecasts, classifications and automated decisions. Document processing that took hours finishes in minutes; demand planning runs on numbers, not gut feel.",
+    deliverables: [
+      "Data audit: sources, quality check and a practical use-case shortlist",
+      "Data pipelines & ETL — collect, clean and centralise your data",
+      "Predictive models — forecasting, classification, recommendation",
+      "Computer vision / NLP for documents, images and text automation",
+      "Model deployment as APIs with monitoring dashboards",
+      "Handover documentation and team upskilling sessions",
+    ],
+    techs: ["Python", "pandas / numpy", "scikit-learn", "TensorFlow / PyTorch", "OpenCV", "FastAPI", "PostgreSQL", "Docker"],
+    facts: [
+      { k: "Timeline", v: "4–12 weeks per use case", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Proof-of-value first", icon: "bi-diagram-3" },
+      { k: "Support", v: "Model monitoring included", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "We don't have 'big data' — is ML still useful?",
+        a: "Often yes. Even a few thousand records — invoices, service tickets, sales history — can power forecasting or document automation. The audit tells you honestly if the data is ready or not.",
+      },
+      {
+        q: "Where does our data stay?",
+        a: "Wherever you choose — your own cloud, on-premise servers or our managed infrastructure. NDAs and data-handling agreements are standard for every engagement.",
+      },
+      {
+        q: "What if the model accuracy isn't good enough?",
+        a: "We run a fixed-scope proof-of-value first: if the agreed accuracy target isn't met on your real data, you don't pay for the full build — you keep the audit findings either way.",
+      },
+    ],
+  },
+  "ai-robotics": {
+    overview:
+      "Repetitive work is where teams lose their day — and where AI is at its best. We build conversational assistants, process automation (RPA) and vision-based quality checks that remove the boring work from your team's schedule. Practical, measured deployments — not sci-fi demos that never reach production.",
+    deliverables: [
+      "Automation audit: which tasks are worth automating first",
+      "Conversational AI assistant — website, WhatsApp or internal desk",
+      "RPA flows for data entry, reporting and back-office processes",
+      "Vision-based quality checks with camera + model integration",
+      "Robotics / hardware integration where the floor demands it",
+      "Accuracy reports, guardrails and staff handover training",
+    ],
+    techs: ["Python", "OpenCV", "LLM APIs", "RPA tools", "ESP32", "TensorFlow", "FastAPI", "WhatsApp Business API"],
+    facts: [
+      { k: "Timeline", v: "3–10 weeks per workflow", icon: "bi-clock-history" },
+      { k: "Engagement", v: "One workflow at a time", icon: "bi-diagram-3" },
+      { k: "Support", v: "Tuning & retraining included", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Will AI replace our staff?",
+        a: "In practice it replaces tasks, not people — your team stops copy-pasting and starts on work that needs judgement. Every deployment includes staff training so the tool lands well.",
+      },
+      {
+        q: "How accurate are vision quality checks?",
+        a: "Typically 95%+ on well-lit, fixed-camera setups after tuning. We run a paid pilot on your real samples first and show measured accuracy before you commit to a full line.",
+      },
+      {
+        q: "Can the chatbot speak Tamil?",
+        a: "Yes — assistants handle Tamil and English (Tanglish included), and hand over to a human on WhatsApp when the question needs one.",
+      },
+    ],
+  },
+  "ui-ux": {
+    overview:
+      "Users judge your product in seconds — design decides whether they stay. We do research-driven interface design and build design systems that make products intuitive, accessible and beautiful. Wireframes to clickable prototypes to pixel-perfect handoff — with your users, not our taste, as the judge.",
+    deliverables: [
+      "User research: interviews, personas and journey mapping",
+      "Information architecture and low-fi wireframes",
+      "High-fidelity UI design with 2 structured revision rounds",
+      "Clickable Figma prototype for stakeholder sign-off",
+      "Design system — components, tokens, iconography, guidelines",
+      "Usability testing report and developer handoff specs",
+    ],
+    techs: ["Figma", "FigJam", "Maze / usability kits", "Adobe CC", "Design tokens", "WCAG 2.1", "Prototyping", "Zeplin"],
+    facts: [
+      { k: "Timeline", v: "2–8 weeks by scope", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Per project or on retainer", icon: "bi-diagram-3" },
+      { k: "Support", v: "Dev handoff support included", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Can you redesign just a few screens?",
+        a: "Yes — targeted redesigns are welcome. We audit the current screens, fix the friction points and deliver updated designs that slot into your existing product.",
+      },
+      {
+        q: "Do you hand over Figma source files?",
+        a: "Always — full source files, organised layers, component library and a developer handoff spec are yours at project end.",
+      },
+      {
+        q: "Do you also build what you design?",
+        a: "Yes — most clients take design + development together so nothing is lost in translation. Design-only engagements are equally fine.",
+      },
+    ],
+  },
+  "software-testing": {
+    overview:
+      "A bug that reaches your customer costs ten times more than one caught in testing. Our manual and automated QA catches issues before your users do — functional, API and performance testing with clear, reproducible bug reports. Ship releases with evidence, not hope.",
+    deliverables: [
+      "Test strategy and detailed test cases for every feature",
+      "Manual functional testing across devices and browsers",
+      "API testing with Postman collections and automated suites",
+      "Performance / load testing with bottleneck reports",
+      "Regression suite you can re-run before every release",
+      "CI/CD quality gates so broken builds never ship",
+    ],
+    techs: ["Selenium", "Playwright", "Postman", "JMeter", "BrowserStack", "Jira / Trello", "Git & CI/CD", "Chrome DevTools"],
+    facts: [
+      { k: "Timeline", v: "Per release cycle", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Per release or monthly QA", icon: "bi-diagram-3" },
+      { k: "Support", v: "Release sign-off reports", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Can you test our existing app?",
+        a: "Yes — we start with a one-cycle health check: functional, cross-device and API testing with a prioritised bug list. You keep the report even if you don't continue.",
+      },
+      {
+        q: "Manual or automation — what do we need?",
+        a: "New or fast-changing features need manual exploratory testing first; stable, repetitive flows are worth automating. We advise the mix that pays back, not the biggest invoice.",
+      },
+      {
+        q: "How do you report bugs?",
+        a: "Every bug comes with steps to reproduce, screenshots/video, severity and the environment — logged in your tracker, with a daily summary during test cycles.",
+      },
+    ],
+  },
+  cloud: {
+    overview:
+      "Cloud bills grow quietly and outages get expensive loudly. We architect, migrate and run your workloads on AWS, Azure and GCP — resilient, observable and cost-aware. Whether it's your first server or a messy legacy setup, we bring order: infrastructure as code, CI/CD pipelines and 24/7 monitoring.",
+    deliverables: [
+      "Cloud readiness assessment and architecture blueprint",
+      "AWS / Azure / GCP setup — accounts, networking, security baseline",
+      "Migration of apps, databases and files with zero-downtime cutover",
+      "CI/CD pipelines — automated build, test and deploy",
+      "Cost review with rightsizing and monthly optimisation report",
+      "24/7 monitoring, alerting and incident response runbooks",
+    ],
+    techs: ["AWS", "Azure", "Google Cloud", "Docker", "Kubernetes", "Terraform", "GitHub Actions", "Grafana / Prometheus"],
+    facts: [
+      { k: "Timeline", v: "2–8 weeks per migration", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Project or managed monthly", icon: "bi-diagram-3" },
+      { k: "Support", v: "24/7 monitoring & on-call", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Our cloud bill keeps growing — can you help?",
+        a: "That's one of our most common calls. A cost review typically finds 20–40% savings in rightsizing, storage tiers and idle resources — with a report you can action even without us.",
+      },
+      {
+        q: "Can you migrate without downtime?",
+        a: "Yes — we stage the new environment, replicate data, then cut over in a low-traffic window with a tested rollback plan. Downtime is minutes, not days.",
+      },
+      {
+        q: "Do we stay locked in with one provider?",
+        a: "No — we use open formats, infrastructure-as-code and standard tooling so you can move or run multi-cloud if you ever choose to.",
+      },
+    ],
+  },
+  "data-entry": {
+    overview:
+      "Data work fails on accuracy and discipline, not typing speed. Our trained operators handle high-volume, high-accuracy data operations with multi-level QC and strict confidentiality — online, offline and document digitisation. You get daily accuracy and TAT reporting, so quality is measured, not assumed.",
+    deliverables: [
+      "Dedicated trained operators with backup staff for every seat",
+      "Online & offline data entry into CRM / ERP / spreadsheets",
+      "Document digitisation — scanning, indexing and file naming",
+      "Database creation, cleansing and maintenance",
+      "Multi-level QC: operator → checker → supervisor",
+      "Daily accuracy % and turnaround-time (TAT) reports",
+    ],
+    techs: ["MS Excel / Word", "Google Sheets", "CRM / ERP systems", "OCR tooling", "Custom QC scripts", "Secure FTP", "Data validation rules", "Scanning & DMS"],
+    facts: [
+      { k: "Timeline", v: "Team live in 1–2 weeks", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Per record, seat or project", icon: "bi-diagram-3" },
+      { k: "Support", v: "Supervisor + daily reporting", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "How accurate is the work?",
+        a: "We commit to 99%+ accuracy with multi-level QC — and prove it with daily accuracy reports rather than claims. A pilot batch lets you verify before you scale.",
+      },
+      {
+        q: "How do you protect our data?",
+        a: "NDAs, restricted-floor access, no-phone policy on the ops floor and secure transfer channels — the same discipline our BPO clients audit us on every year.",
+      },
+      {
+        q: "Can you scale up quickly for seasonal work?",
+        a: "Yes — seat-based engagement scales from a few operators to a full team within days, and scales back down when the season ends.",
+      },
+    ],
+  },
+  "voice-process": {
+    overview:
+      "Every call is your brand speaking — we make sure it says the right thing. Professional call-center teams handle inbound support, outbound sales and customer success in Tamil and English, coached continuously and measured on CSAT. You get call analytics and QA audits, so quality never drifts.",
+    deliverables: [
+      "Trained voice team with dedicated supervisor and QA auditor",
+      "Inbound customer support and helpdesk handling",
+      "Outbound calling — telesales, surveys, renewals and follow-ups",
+      "Multilingual agents — Tamil, English, Hindi on request",
+      "Call recordings, QA audits and CSAT scorecards",
+      "Daily MIS reports — volumes, dispositions, quality trends",
+    ],
+    techs: ["Cloud telephony / dialer", "CRM software", "Call QA tools", "IVR design", "Headsets & VoIP", "MIS reporting", "WhatsApp support", "CSAT surveys"],
+    facts: [
+      { k: "Timeline", v: "Team live in 2–3 weeks", icon: "bi-clock-history" },
+      { k: "Engagement", v: "Per seat / per minute", icon: "bi-diagram-3" },
+      { k: "Support", v: "QA coaching continuous", icon: "bi-headset" },
+    ],
+    faqs: [
+      {
+        q: "Can agents handle Tamil and English?",
+        a: "Yes — that's our home ground. Tamil and English are standard; Hindi and other languages can be added for specific campaigns.",
+      },
+      {
+        q: "How fast can a team start?",
+        a: "Typically 2–3 weeks: recruitment, paid voice & accent training, CRM setup and a shadow period on live calls — then the team goes full volume.",
+      },
+      {
+        q: "How do you keep quality consistent?",
+        a: "Every agent gets weekly QA scorecards from recorded call audits, plus coaching sessions. You see the same scorecards we do — monthly and on request weekly.",
+      },
+    ],
+  },
+};

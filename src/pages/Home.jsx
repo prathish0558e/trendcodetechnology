@@ -203,6 +203,65 @@ function HeroFacts() {
   );
 }
 
+/* 9 client logos — originals live in /clients, served from /public/clients.
+   Drop more files in public/clients/ and add them to this list. */
+const CLIENT_LOGOS = Array.from(
+  { length: 9 },
+  (_, i) => `/clients/vendor-${i + 1}.jpg`
+);
+const CLIENT_ROWS = [CLIENT_LOGOS.slice(0, 5), CLIENT_LOGOS.slice(5)];
+
+function MarqueeRow({ logos, duration = 30, reverse = false }) {
+  return (
+    <div
+      className={`cl-row${reverse ? " rev" : ""}`}
+      style={{ "--cl-dur": `${duration}s` }}
+    >
+      <div className="cl-track">
+        {[logos, logos].map((group, gi) => (
+          <div className="cl-group" key={gi} aria-hidden={gi === 1}>
+            {group.map((src, i) => (
+              <div className="cl-card" key={`${gi}-${i}`}>
+                <img
+                  src={src}
+                  alt={`TCT client logo ${i + 1}`}
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Bottom-of-home client showcase — two infinite logo marquee rows that
+   scroll in opposite directions, pause on hover and pop into full colour. */
+function ClientsShowcase() {
+  return (
+    <section className="section soft clients-section">
+      <div className="container">
+        <SectionHead
+          eyebrow="Our Clients"
+          title="Brands That Trust Trend Code Technology"
+          text="From manufacturing floors to retail counters — a glimpse of the businesses we deliver for every day."
+        />
+      </div>
+      <div className="cl-rows">
+        <MarqueeRow logos={CLIENT_ROWS[0]} duration={32} />
+        <MarqueeRow logos={CLIENT_ROWS[1]} duration={36} reverse />
+      </div>
+      <div className="container">
+        <p className="cl-note">
+          …and <strong>1,200+ more businesses</strong> across Tamil Nadu run on
+          TCT.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   return (
     <>
@@ -326,7 +385,11 @@ export default function Home() {
             {SERVICES.map((s, i) => (
               <Reveal key={s.slug} delay={(i % 3) * 90}>
                 <div className="card" style={{ height: "100%" }}>
-                  <div className="icon"><i className={`bi ${s.icon}`}></i></div>
+                  <div className="svc-icon" style={{ "--tint": s.tint }}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={s.glyph} />
+                    </svg>
+                  </div>
                   <h3>{s.title}</h3>
                   <p>{s.blurb}</p>
                   <Link className="more" to={`/services/${s.slug}`}>
@@ -410,6 +473,9 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+
+      {/* ---------- Clients (animated logo marquee) ---------- */}
+      <ClientsShowcase />
 
       {/* ---------- Quote band ---------- */}
       <section className="section" style={{ paddingTop: 24 }}>

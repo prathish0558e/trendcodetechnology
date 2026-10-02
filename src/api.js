@@ -81,5 +81,13 @@ export const getInternships = () => request("/api/admin/internships");
 
 export const getAuthLog = () => request("/api/admin/authlog");
 
+export const getSessions = () => request("/api/admin/sessions");
+
+export const postRevokeSession = (tokenPreview) =>
+  request("/api/admin/sessions/revoke", {
+    method: "POST",
+    body: JSON.stringify({ tokenPreview }),
+  });
+
 export const postLogout = () =>
   request("/api/logout", { method: "POST", body: "{}" });

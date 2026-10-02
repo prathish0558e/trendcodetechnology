@@ -37,7 +37,7 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="container footer-main">
         <div className="footer-about">
-          <img src="/tct-logo.jpeg" alt="Trend Code Technology logo" className="brand-img" />
+          <img src="/tct-logo.png" alt="Trend Code Technology logo" className="brand-img" />
           <h3>Trend Code Technology</h3>
           <p className="tag">Software · Digital · BPO · Talent</p>
           <p>

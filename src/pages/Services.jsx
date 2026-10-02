@@ -21,7 +21,11 @@ export default function Services() {
             {SERVICES.map((s, i) => (
               <Reveal key={s.slug} delay={(i % 3) * 80}>
                 <div className="card" style={{ height: "100%" }}>
-                  <div className="icon"><i className={`bi ${s.icon}`}></i></div>
+                  <div className="svc-icon" style={{ "--tint": s.tint }}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={s.glyph} />
+                    </svg>
+                  </div>
                   <h3>{s.title}</h3>
                   <p>{s.blurb}</p>
                   <Link className="more" to={`/services/${s.slug}`}>

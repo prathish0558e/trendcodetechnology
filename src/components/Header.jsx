@@ -80,7 +80,7 @@ export default function Header() {
       <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
         <div className="container nav-inner">
           <Link to="/" className="brand">
-            <img src="/tct-logo.jpeg" alt="Trend Code Technology logo" className="brand-img" />
+            <img src="/tct-logo.png" alt="Trend Code Technology logo" className="brand-img" />
             <span className="brand-text">
               Trend Code Technology
               <small>Software · Digital · BPO</small>
@@ -145,7 +145,7 @@ export default function Header() {
           <div className="mobile-panel-head">
             <span className="brand">
               <img
-                src="/tct-logo.jpeg"
+                src="/tct-logo.png"
                 alt="Trend Code Technology logo"
                 className="brand-img"
               />

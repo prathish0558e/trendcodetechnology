@@ -311,15 +311,15 @@ app.post("/api/apply", uploadResume.single("resume"), (req, res) => {
   });
 });
 
-// ---------- admin auth guard ----------
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "demo-token";
-
+// ---------- admin auth guard (session-token based) ----------
 function requireAdmin(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token || token !== ADMIN_TOKEN) {
+  const session = getSession(token);
+  if (!session) {
     return res.status(401).json({ error: "Unauthorized. Please sign in again." });
   }
+  req.adminSession = session;
   next();
 }
 
@@ -347,13 +347,14 @@ app.get("/api/admin/resume/:file", (req, res) => {
 });
 
 // Short-lived key so the resume URL is not usable forever or guessable.
+const RESUME_KEY_SECRET = process.env.ADMIN_TOKEN || "tct-resume-key-v1";
 function resumeLinkKey(file) {
   // rotate daily: links from yesterday still work today, then expire
   const day = new Date().toISOString().slice(0, 10);
   const prev = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-  return crypto.createHash("sha256").update(`${file}|${ADMIN_TOKEN}|${day}`).digest("hex").slice(0, 32)
+  return crypto.createHash("sha256").update(`${file}|${RESUME_KEY_SECRET}|${day}`).digest("hex").slice(0, 32)
     + "." +
-    crypto.createHash("sha256").update(`${file}|${ADMIN_TOKEN}|${prev}`).digest("hex").slice(0, 32);
+    crypto.createHash("sha256").update(`${file}|${RESUME_KEY_SECRET}|${prev}`).digest("hex").slice(0, 32);
 }
 
 app.get("/api/admin/applications", requireAdmin, (req, res) => {
@@ -367,39 +368,93 @@ app.get("/api/admin/applications", requireAdmin, (req, res) => {
   res.json(withLinks);
 });
 
-// ---------- login activity log + brute-force lockout ----------
+// ---------- admin auth: sessions, login activity, force-logout ----------
 const FILES_AUTHLOG = path.join(DATA_DIR, "authlog.json");
+const FILES_SESSIONS = path.join(DATA_DIR, "sessions.json");
 const MAX_LOGIN_ATTEMPTS = 5; // failed tries before lockout
 const LOCKOUT_MINUTES = 15; // lock window
+const SESSION_TTL_HOURS = 12; // auto-expiry for admin sessions
 
-function readAuthLog() {
+function readJson(file, fallback) {
+  if (IS_SERVERLESS) {
+    const key = path.basename(file, ".json");
+    return MEMORY[key] || fallback;
+  }
   try {
-    return JSON.parse(fs.readFileSync(FILES_AUTHLOG, "utf8"));
+    return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
-    return [];
+    return fallback;
   }
 }
 
-function writeAuthLog(list) {
+function writeJson(file, list) {
+  if (IS_SERVERLESS) {
+    const key = path.basename(file, ".json");
+    MEMORY[key] = list;
+    return;
+  }
   try {
-    fs.writeFileSync(FILES_AUTHLOG, JSON.stringify(list, null, 2));
+    fs.writeFileSync(file, JSON.stringify(list, null, 2));
   } catch (err) {
     console.warn("[authlog] persist failed:", err.message);
   }
 }
 
+// Sessions replace the old static ADMIN_TOKEN — each login mints its own
+// token so the admin can kick a device remotely via force logout.
+const readSessions = () => readJson(FILES_SESSIONS, []);
+const writeSessions = (list) => writeJson(FILES_SESSIONS, list);
+
+function createSession(req, email) {
+  const token = crypto.randomBytes(24).toString("hex");
+  const list = readSessions();
+  list.push({
+    token,
+    email,
+    ip: clientIp(req),
+    device: deviceSummary(req.headers["user-agent"]),
+    userAgent: String(req.headers["user-agent"] || "").slice(0, 220),
+    location: lookupLocation(clientIp(req)),
+    createdAt: new Date().toISOString(),
+    lastSeenAt: new Date().toISOString(),
+  });
+  // prune expired (older than TTL) — keeps the file small
+  const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
+  writeSessions(list.filter((s) => new Date(s.createdAt).getTime() > cutoff));
+  return token;
+}
+
+function getSession(token) {
+  if (!token) return null;
+  const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
+  const list = readSessions().filter((s) => new Date(s.createdAt).getTime() > cutoff);
+  const found = list.find((s) => s.token === token);
+  if (found) {
+    found.lastSeenAt = new Date().toISOString();
+    writeSessions(list);
+  }
+  return found || null;
+}
+
+function revokeSession(token) {
+  const list = readSessions().filter((s) => s.token !== token);
+  writeSessions(list);
+}
+
+// Login activity log + persistence
+const readAuthLog = () => readJson(FILES_AUTHLOG, []);
+const writeAuthLog = (list) => writeJson(FILES_AUTHLOG, list);
+
 function logAuthEvent(type, req, extra = {}) {
+  const ip = clientIp(req);
   const entry = {
     id: `${Date.now()}`,
-    type, // login | logout | failed
+    type, // login | logout | failed | force-logout
     email: String(extra.email || "").slice(0, 120),
-    ip: (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "")
-      .toString()
-      .split(",")[0]
-      .trim()
-      .slice(0, 60),
-    device: String(req.headers["user-agent"] || "")
-      .slice(0, 220),
+    ip,
+    location: lookupLocation(ip),
+    device: deviceSummary(req.headers["user-agent"]),
+    userAgent: String(req.headers["user-agent"] || "").slice(0, 220),
     ...extra,
     createdAt: new Date().toISOString(),
   };
@@ -407,7 +462,20 @@ function logAuthEvent(type, req, extra = {}) {
   list.push(entry);
   // keep the log bounded (latest 500 events)
   writeAuthLog(list.slice(-500));
+  // resolve location in the background (entry is updated for future reads)
+  geoLookupAsync(ip);
   return entry;
+}
+
+function clientIp(req) {
+  return (
+    (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "")
+      .toString()
+      .split(",")[0]
+      .trim()
+      .replace(/^::ffff:/, "")
+      .replace(/^::1$/, "127.0.0.1")
+  );
 }
 
 function deviceSummary(ua) {
@@ -426,7 +494,67 @@ function deviceSummary(ua) {
     : /Mac OS X/.test(s) ? "macOS"
     : /Linux/.test(s) ? "Linux"
     : "Unknown OS";
-  return `${browser} · ${os}`;
+  const type = /Mobile|Android|iPhone/.test(s) ? "Mobile" : "Desktop";
+  return `${browser} · ${os} · ${type}`;
+}
+
+// IP → approximate location. Uses ip-api.com (free, no key, 45 req/min);
+// results are cached so repeated logins don't re-hit the API. Private IPs
+// (localhost / LAN) return a local label. On serverless there is no cache
+// persistence — each lookup is a best-effort fetch.
+const geoCache = new Map(); // ip -> { city, region, country, fetchedAt }
+function lookupLocation(ip) {
+  if (!ip) return null;
+  if (
+    /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.)/.test(ip) ||
+    ip === "::1" || ip === "localhost"
+  ) {
+    return { city: "Local network", region: "", country: "", flag: "🏠" };
+  }
+  const cached = geoCache.get(ip);
+  if (cached && Date.now() - cached.fetchedAt < 24 * 3600 * 1000) return cached;
+  return null; // resolved async by geoLookupAsync on first sight
+}
+
+function geoLookupAsync(ip) {
+  if (!ip || geoCache.has(ip)) return;
+  if (
+    /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.)/.test(ip) ||
+    ip === "::1"
+  ) {
+    geoCache.set(ip, { city: "Local network", region: "", country: "", flag: "🏠", fetchedAt: Date.now() });
+    return;
+  }
+  geoCache.set(ip, { city: null, region: null, country: null, flag: null, fetchedAt: Date.now() }); // in-flight marker
+  const timeout = AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined;
+  fetch(`http://ip-api.com/json/${ip}?fields=city,regionName,country,countryCode`)
+    .then((r) => r.json())
+    .then((g) => {
+      if (g && g.country) {
+        geoCache.set(ip, {
+          city: g.city || "",
+          region: g.regionName || "",
+          country: g.country || "",
+          flag: g.countryCode ? countryCodeFlag(g.countryCode) : null,
+          fetchedAt: Date.now(),
+        });
+      } else {
+        geoCache.delete(ip); // allow retry later
+      }
+    })
+    .catch(() => geoCache.delete(ip));
+}
+
+function countryCodeFlag(cc) {
+  if (!cc || cc.length !== 2) return "";
+  return String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 127397 + c.charCodeAt(0)));
+}
+
+function locationText(loc) {
+  if (!loc) return "Resolving…";
+  if (!loc.city && !loc.country) return "Unknown";
+  const parts = [loc.city, loc.region].filter(Boolean);
+  return `${loc.flag || "📍"} ${parts.join(", ")}${loc.country ? (parts.length ? ", " : "") + loc.country : ""}`;
 }
 
 function isLockedOut(req) {
@@ -438,13 +566,6 @@ function isLockedOut(req) {
       (e.ip === clientIp(req) || e.email === "admin@trendcode.com")
   );
   return fails.length >= MAX_LOGIN_ATTEMPTS ? fails.length : 0;
-}
-
-function clientIp(req) {
-  return (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "")
-    .toString()
-    .split(",")[0]
-    .trim();
 }
 
 app.post("/api/login", (req, res) => {
@@ -470,10 +591,11 @@ app.post("/api/login", (req, res) => {
     ? bcrypt.compareSync(password, ADMIN_PASS_HASH)
     : password === (process.env.ADMIN_PASS || "TCT@2026");
   if (email.toLowerCase() === ADMIN_USER.toLowerCase() && passOk) {
+    const token = createSession(req, ADMIN_USER);
     logAuthEvent("login", req, { email });
     return res.json({
       ok: true,
-      token: ADMIN_TOKEN,
+      token,
       user: { name: "TCT Admin", role: "admin" },
     });
   }
@@ -499,8 +621,52 @@ app.post("/api/login", (req, res) => {
 });
 
 app.post("/api/logout", (req, res) => {
-  logAuthEvent("logout", req, { email: "admin@trendcode.com" });
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  const session = getSession(token);
+  if (session) revokeSession(token);
+  logAuthEvent("logout", req, { email: session?.email || "admin@trendcode.com" });
   res.json({ ok: true });
+});
+
+// Active admin sessions — the Login Activity tab lists these with device,
+// IP and location, each with a "Force logout" button.
+app.get("/api/admin/sessions", requireAdmin, (req, res) => {
+  const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
+  const list = readSessions()
+    .filter((s) => new Date(s.createdAt).getTime() > cutoff)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .map((s) => ({
+      tokenPreview: s.token.slice(0, 12),
+      email: s.email,
+      ip: s.ip,
+      location: locationText(lookupLocation(s.ip) || s.location),
+      device: s.device,
+      createdAt: s.createdAt,
+      lastSeenAt: s.lastSeenAt,
+      current: s.token === (req.adminSession?.token || ""),
+    }));
+  res.json(list);
+});
+
+// Force logout another admin session by token prefix (never accepts the
+// caller's own session — use normal logout for that).
+app.post("/api/admin/sessions/revoke", requireAdmin, (req, res) => {
+  const { tokenPreview } = req.body || {};
+  if (!tokenPreview) return res.status(400).json({ error: "tokenPreview required." });
+  if (tokenPreview === req.adminSession?.token.slice(0, 12)) {
+    return res.status(400).json({ error: "Use Logout to end your own session." });
+  }
+  const list = readSessions();
+  const target = list.find((s) => s.token.slice(0, 12) === tokenPreview);
+  if (!target) return res.status(404).json({ error: "Session not found (maybe already ended)." });
+  writeSessions(list.filter((s) => s.token !== target.token));
+  logAuthEvent("force-logout", req, {
+    email: target.email,
+    targetIp: target.ip,
+    targetDevice: target.device,
+  });
+  res.json({ ok: true, message: `Logged out ${target.device} (${target.ip}).` });
 });
 
 // ---------- Internship applications ----------
@@ -587,7 +753,7 @@ app.post(
             subject: `🎓 Internship application — ${app_.name} (${app_.domain})`,
             text,
             replyTo: app_.email,
-            attachments: buildResumeAttachment(app_, resumeBuffer),
+            attachments: buildResumeAttachment(app_, app_.resumeBuffer),
           });
           console.log(`[internship] emailed notification for ${app_.name}`);
         } catch (err) {
@@ -626,6 +792,16 @@ app.get("/api/admin/internships", requireAdmin, (_req, res) => {
 app.get("/api/admin/authlog", requireAdmin, (_req, res) => {
   const list = readAuthLog()
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .map((e) => {
+      // enrich older entries with freshly-resolved geo data
+      geoLookupAsync(e.ip);
+      return {
+        ...e,
+        location: locationText(lookupLocation(e.ip) || e.location),
+        // older entries stored the raw UA in `device` — parse it nicely
+        device: deviceSummary(e.userAgent || e.device),
+      };
+    })
     .slice(0, 100)
     .map((e) => ({ ...e, deviceSummary: deviceSummary(e.device) }));
   res.json(list);

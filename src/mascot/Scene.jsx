@@ -1,0 +1,936 @@
+import { forwardRef, useCallback, useEffect, useMemo, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { state } from "./store.js";
+import { glowTexture, beamTexture, gridTexture, zzzTexture, shadowTexture } from "./textures.js";
+import Robot from "./Robot.jsx";
+
+/*
+ * Timer-driven ResizeObserver stand-in. In occluded/embedded webviews the
+ * real ResizeObserver callbacks (like rAF) can stall forever, which would
+ * keep react-three-fiber from ever measuring its container. Polling with a
+ * timer keeps the canvas measurable everywhere; in normal browsers this
+ * simply no-ops after the size stops changing.
+ */
+class TimerResizeObserver {
+  constructor(cb) {
+    this.cb = cb;
+    this.els = new Set();
+    this.sizes = new WeakMap();
+    this.iv = setInterval(() => {
+      this.els.forEach((el) => this.measure(el));
+    }, 220);
+  }
+  measure(el) {
+    if (!el.isConnected) return;
+    const rect = el.getBoundingClientRect();
+    const previous = this.sizes.get(el);
+    // Polling is only a fallback for webviews where ResizeObserver delivery
+    // can stall. Re-notifying unchanged dimensions makes R3F repeatedly
+    // resize its renderer and can look like a small camera/character shake.
+    if (
+      previous &&
+      Math.abs(previous.width - rect.width) < 0.25 &&
+      Math.abs(previous.height - rect.height) < 0.25
+    ) return;
+    this.sizes.set(el, { width: rect.width, height: rect.height });
+    this.cb([{ target: el, contentRect: rect }]);
+  }
+  observe(el) {
+    this.els.add(el);
+    this.measure(el);
+  }
+  unobserve(el) {
+    this.els.delete(el);
+    this.sizes.delete(el);
+  }
+  disconnect() {
+    this.els.clear();
+    clearInterval(this.iv);
+  }
+}
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easeOutBack = (t) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+
+/* ---------------------------- Camera rig ---------------------------- */
+function CameraRig() {
+  const { camera } = useThree();
+  const look = useRef(new THREE.Vector3(0, 0.8, 0));
+  useFrame((_, dt) => {
+    const r = state.rig;
+    const k = 1 - Math.exp(-dt * 6);
+    camera.position.x = lerp(camera.position.x, r.x, k);
+    camera.position.y = lerp(camera.position.y, r.y, k);
+    camera.position.z = lerp(camera.position.z, r.z, k);
+    look.current.x = lerp(look.current.x, r.x * 0.35, k);
+    look.current.y = lerp(look.current.y, r.y - 0.08, k);
+    camera.lookAt(look.current);
+  });
+  return null;
+}
+
+/* Neutral studio reflections make the ceramic shell, visor and metal joints
+ * read as PBR surfaces. This environment belongs to this transparent canvas;
+ * it never changes the website's CSS background or lighting. */
+function StudioReflections() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const generator = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const target = generator.fromScene(room, 0.04);
+    const previousEnvironment = scene.environment;
+    const previousIntensity = scene.environmentIntensity;
+    scene.environment = target.texture;
+    scene.environmentIntensity = 0.62;
+    return () => {
+      scene.environment = previousEnvironment;
+      scene.environmentIntensity = previousIntensity;
+      target.dispose();
+      generator.dispose();
+      room.dispose();
+    };
+  }, [gl, scene]);
+  return null;
+}
+
+/* A restrained contact shadow keeps the white cloud readable on the site's
+ * light sections without tinting or covering the surrounding page. */
+function CloudContactShadow() {
+  const shadow = useRef();
+  const opacity = useRef(0);
+  const tex = useMemo(() => shadowTexture(), []);
+  const material = useMemo(() => new THREE.SpriteMaterial({
+    map: tex,
+    color: "#25324a",
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    toneMapped: false,
+  }), [tex]);
+
+  useFrame((_, dt) => {
+    const L = state.layout;
+    if (!L || !shadow.current) return;
+    const visible = ["sleep", "waking", "stretch", "settle"].includes(state.phase);
+    const target = state.phase === "transform" ? 1 - easeInOut(state.t)
+      : state.phase === "board" ? easeInOut(state.t)
+      : visible ? 1 : 0;
+    opacity.current = lerp(opacity.current, target * 0.18, 1 - Math.exp(-dt * 3));
+    shadow.current.position.set(L.home.x, L.home.y - L.cloudR * 0.55, -0.38);
+    shadow.current.scale.set(L.cloudR * 3.35, L.cloudR * 1.15, 1);
+    material.opacity = opacity.current;
+  });
+
+  useEffect(() => () => material.dispose(), [material]);
+  return <sprite ref={shadow} material={material} renderOrder={0} />;
+}
+
+/* ------------------------------ Lights ------------------------------ */
+function Lights() {
+  const stageLight = useRef();
+  const homeLight = useRef();
+  const sun = useRef();
+  useFrame((_, dt) => {
+    const L = state.layout;
+    if (!L) return;
+    if (stageLight.current) {
+      stageLight.current.position.set(L.stage.x + 0.6, L.stage.y + 1.4, 1.6);
+      const on = ["arrive", "chat", "goodnight", "dissolve"].includes(state.phase);
+      stageLight.current.intensity = lerp(
+        stageLight.current.intensity,
+        on ? (state.thinking ? 4.2 : 3.2) : 0,
+        1 - Math.exp(-dt * 3)
+      );
+    }
+    if (homeLight.current) {
+      homeLight.current.position.set(L.home.x + 1.2, L.home.y + 1.6, 1.6);
+      const vis = ["sleep", "waking", "stretch", "board", "settle"].includes(state.phase);
+      homeLight.current.intensity = lerp(homeLight.current.intensity, vis ? 1.2 : 0.2, 0.05);
+    }
+  });
+  return (
+    <>
+      <ambientLight intensity={0.72} color="#fffaf4" />
+      <hemisphereLight args={["#eaf4ff", "#737d98", 0.42]} />
+      <directionalLight
+        ref={sun}
+        position={[3.5, 6, 4]}
+        intensity={1.45}
+        color="#ffffff"
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-6}
+        shadow-camera-right={6}
+        shadow-camera-top={6}
+        shadow-camera-bottom={-4}
+        shadow-camera-near={1}
+        shadow-camera-far={24}
+        shadow-normalBias={0.035}
+      />
+      <pointLight position={[-4, 2, -3]} intensity={0.8} distance={9} color="#8b9cff" />
+      {/* cyan rim light that kisses the cloud + robot from the right */}
+      <pointLight position={[3.2, 1.2, -1.5]} intensity={1.25} distance={8} color="#38bdf8" />
+      <pointLight ref={homeLight} distance={6} color="#6366f1" intensity={1.2} />
+      <pointLight ref={stageLight} distance={7} color="#22d3ee" intensity={0} />
+    </>
+  );
+}
+
+/* --------------------- Volumetric fluffy cloud ---------------------- */
+function VolumetricCloud() {
+  const group = useRef();
+  const inner = useRef(); // squash is applied to this wrapper
+  const puffs = useRef([]);
+  const logoGroup = useRef();
+  const squash = useRef(1);
+  const bounce = useRef({ t0: -10 });
+  const lastPhase = useRef("sleep");
+
+  const R = state.layout ? state.layout.cloudR : 0.85;
+
+  /* three shells of overlapping spheres = a fluffy volumetric mass */
+  const defs = useMemo(() => {
+    const out = [];
+    const base = [
+      [0, 0, 0, 0.56], [-0.55, -0.06, 0.06, 0.4], [0.55, -0.05, 0.05, 0.42],
+      [-0.95, -0.14, -0.05, 0.3], [0.92, -0.12, -0.08, 0.32], [0, -0.16, 0.12, 0.42],
+      [-0.3, 0.14, -0.08, 0.36], [0.3, 0.16, -0.06, 0.34], [0, 0.02, -0.22, 0.46],
+      [-0.15, -0.04, 0.22, 0.34], [0.42, 0.05, 0.18, 0.3], [-0.42, 0.02, 0.2, 0.28],
+      [0.72, 0.1, 0.02, 0.26], [-0.72, 0.08, -0.12, 0.25], [0.12, -0.24, -0.05, 0.3], [-0.2, -0.22, 0.1, 0.28],
+    ];
+    base.forEach(([x, y, z, s], i) =>
+      out.push({ p: [x * R, y * R, z * R], s: s * R, d: (i % 8) * 0.045, shell: 0 })
+    );
+    const fluff = [
+      [-0.62, 0.3, -0.1, 0.2], [0.66, 0.28, 0.0, 0.21], [0.15, 0.34, 0.05, 0.19], [-0.25, 0.32, -0.2, 0.17],
+      [0.45, -0.28, 0.1, 0.19], [-0.5, -0.26, -0.05, 0.18], [0.05, -0.34, -0.1, 0.2], [-0.85, -0.02, 0.15, 0.17],
+      [0.88, 0.02, -0.15, 0.18], [-0.1, 0.1, 0.32, 0.22], [0.3, 0.12, 0.3, 0.18], [-0.35, 0.06, 0.3, 0.17],
+      [0.2, -0.12, 0.32, 0.2], [-0.18, -0.14, -0.32, 0.2], [0.5, 0.2, -0.2, 0.16], [-0.55, 0.18, -0.22, 0.16],
+      [0.75, -0.18, 0.12, 0.15], [-0.78, -0.16, -0.18, 0.15], [0.0, 0.28, 0.18, 0.18], [0.35, 0.3, -0.12, 0.15],
+    ];
+    fluff.forEach(([x, y, z, s], i) =>
+      out.push({ p: [x * R, y * R, z * R], s: s * R, d: 0.3 + (i % 10) * 0.04, shell: 1 })
+    );
+    const far = [
+      [-0.4, 0.18, -0.38, 0.26], [0.42, 0.16, -0.35, 0.27], [0.1, 0.05, -0.42, 0.3],
+      [-0.68, -0.1, -0.3, 0.2], [0.68, -0.08, -0.28, 0.2],
+    ];
+    far.forEach(([x, y, z, s], i) =>
+      out.push({ p: [x * R, y * R, z * R], s: s * R, d: 0.55 + i * 0.03, shell: 2 })
+    );
+    // Fine rounded lobes break up the silhouette so the cloud reads as soft
+    // piled-up vapor instead of a handful of large spheres.
+    for (let i = 0; i < 28; i++) {
+      const a = (i / 28) * Math.PI * 2;
+      const wobble = Math.sin(i * 12.7) * 0.045;
+      const rx = 0.96 + wobble;
+      const ry = 0.38 + Math.cos(i * 7.1) * 0.045;
+      const radius = 0.105 + ((i * 17) % 7) * 0.012;
+      out.push({
+        p: [Math.cos(a) * rx * R, Math.sin(a) * ry * R, (Math.sin(i * 3.4) * 0.16 + 0.08) * R],
+        s: radius * R,
+        d: 0.7 + (i % 8) * 0.025,
+        shell: 2,
+      });
+    }
+    return out;
+  }, [R]);
+
+  const mats = useMemo(() => {
+    const core = new THREE.MeshStandardMaterial({
+      color: "#cbd8ee", roughness: 0.96, metalness: 0,
+      emissive: "#7286bf", emissiveIntensity: 0.08, transparent: true,
+    });
+    const fluff = new THREE.MeshStandardMaterial({
+      color: "#e2ebfa", roughness: 0.95, metalness: 0,
+      emissive: "#7f94cc", emissiveIntensity: 0.08, transparent: true,
+    });
+    // small puffs on the lit side catch a soft cyan rim
+    const rim = new THREE.MeshStandardMaterial({
+      color: "#d5e5fb", roughness: 0.9, metalness: 0,
+      emissive: "#41d3f7", emissiveIntensity: 0.16, transparent: true,
+    });
+    return { core, fluff, rim };
+  }, []);
+
+  const matFor = (d) => (d.shell === 0 ? mats.core : d.shell === 1 ? mats.fluff : mats.rim);
+
+  const logoTex = useMemo(() => {
+    const tex = new THREE.TextureLoader().load("/tct-logo.png");
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, []);
+
+  useEffect(() => {
+    group.current?.traverse((o) => {
+      if (o.isMesh) o.receiveShadow = true;
+    });
+  }, []);
+
+  useFrame((st, dt) => {
+    const s = state;
+    const L = s.layout;
+    if (!L || !group.current) return;
+    const clock = st.clock.elapsedTime;
+    const g = group.current;
+
+    // IMPORTANT: this bob must stay in exact sync with the robot's own bob
+    // (same 0.55 rad/s, same 0.02 amp in Robot.jsx) so the robot always
+    // rests ON the drifting cloud instead of sliding up and down its surface.
+    g.position.set(L.home.x, L.home.y + Math.sin(clock * 0.55) * 0.02, 0);
+    const base = L.cloudR / R;
+    g.scale.setScalar(base);
+
+    // phase-entry bounce
+    if (s.phase !== lastPhase.current) {
+      if (s.phase === "stretch" || s.phase === "board") bounce.current.t0 = clock;
+      lastPhase.current = s.phase;
+    }
+    const bt = clock - bounce.current.t0;
+    // soft, quickly-decaying cushion pulse when the robot lands/launches
+    const amp = Math.exp(-Math.max(bt, 0) * 3.2) * 0.05 * (bt > 0 ? 1 : 0);
+
+    // weight: the cloud compresses softly while the robot rests on it
+    let load = 0;
+    if (["sleep", "waking", "stretch", "settle"].includes(s.phase)) load = 1;
+    else if (s.phase === "board") load = easeInOut(s.t);
+    squash.current = lerp(squash.current, load, 1 - Math.exp(-dt * 4));
+    const sq = squash.current;
+
+    let vis = 1;
+    if (s.phase === "transform") vis = 1 - easeInOut(s.t);
+    else if (["walk", "walkback", "arrive", "chat", "goodnight", "dissolve"].includes(s.phase)) vis = 0;
+    else if (s.phase === "board") vis = easeInOut(s.t);
+    mats.core.opacity = vis;
+    mats.fluff.opacity = vis;
+    mats.rim.opacity = vis;
+
+    puffs.current.forEach((m, i) => {
+      if (!m) return;
+      const def = defs[i];
+      const stagger = clamp((s.phase === "board" ? 1 - s.t : s.t) * 1.6 - def.d * 4, 0, 1);
+      const sc = s.phase === "board" ? 0.2 + 0.8 * (1 - stagger) : lerp(1, 0.2, stagger);
+      m.scale.setScalar(Math.max(0.001, def.s * sc));
+      m.position.y = def.p[1] + Math.sin(clock * 0.8 + i * 1.7) * 0.009 * (1 + sq);
+      if (s.phase === "transform") {
+        m.position.y += easeInOut(s.t) * 0.5 * (i % 2 ? 1 : -1) * 0.5;
+      }
+    });
+
+    g.scale.set(
+      base * (1 + amp * 0.6 + sq * 0.055),
+      base * (1 - amp - sq * 0.085 + Math.sin(clock * 2.2) * 0.002 * sq),
+      base * (1 + amp * 0.6 + sq * 0.055)
+    );
+    if (logoGroup.current) {
+      logoGroup.current.visible = vis > 0.5;
+      logoGroup.current.position.set(R * 0.58, R * 0.18 - sq * 0.05, R * 0.58);
+    }
+  });
+
+  return (
+    <group ref={group}>
+      <group ref={inner}>
+        {defs.map((d, i) => (
+          <mesh
+            key={i}
+            ref={(el) => (puffs.current[i] = el)}
+            material={matFor(d)}
+            position={d.p}
+            castShadow={d.shell === 0}
+          >
+            <sphereGeometry args={[1, 22, 18]} />
+          </mesh>
+        ))}
+        <group ref={logoGroup} position={[R * 0.58, R * 0.18, R * 0.58]}>
+          <mesh position={[0, 0, 0]}>
+            <circleGeometry args={[0.17, 24]} />
+            <meshStandardMaterial color="#101830" roughness={0.4} metalness={0.3} transparent />
+          </mesh>
+          <mesh position={[0, 0, 0.005]}>
+            <planeGeometry args={[0.22, 0.18]} />
+            <meshBasicMaterial map={logoTex} transparent depthWrite={false} />
+          </mesh>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+/* --------------- Glowing footstep puffs (pooled) -------------------- */
+const StepPuffs = forwardRef(function StepPuffs(_, ref) {
+  const COUNT = 14;
+  const sprites = useRef([]);
+  const live = useRef(
+    Array.from({ length: COUNT }, () => ({ t: 0, max: 0.9, big: false, x: 0, y: 0, z: 0 }))
+  );
+
+  const mat = useMemo(
+    () =>
+      new THREE.SpriteMaterial({
+        map: glowTexture(), color: "#e9fbff", transparent: true, opacity: 0,
+        blending: THREE.NormalBlending, depthWrite: false,
+      }),
+    []
+  );
+
+  useFrame((st, dt) => {
+    const L = state.layout;
+    if (!L) return;
+    live.current.forEach((p, i) => {
+      const sp = sprites.current[i];
+      if (!sp) return;
+      if (p.t >= p.max) { sp.material.opacity = 0; return; }
+      p.t += dt;
+      const k = p.t / p.max;
+      const s0 = p.big ? 0.42 : 0.17;
+      const sc = s0 * (0.45 + k * 1.2);
+      sp.position.set(p.x, p.y + k * (p.big ? 0.28 : 0.12), p.z + 0.02);
+      sp.scale.set(sc, sc * 0.62, sc);
+      sp.material.opacity = (p.big ? 0.58 : 0.4) * Math.sin(Math.PI * Math.min(k, 1));
+    });
+  });
+
+  useImperativeExpose(ref, {
+    spawn(pos, big = false) {
+      const slot =
+        live.current.find((p) => p.t >= p.max) ||
+        live.current.reduce((a, b) => (a.t / a.max > b.t / b.max ? a : b));
+      slot.t = 0;
+      slot.max = big ? 1.3 : 0.9;
+      slot.big = big;
+      slot.x = pos.x; slot.y = pos.y; slot.z = pos.z;
+    },
+  });
+
+  return (
+    <group>
+      {Array.from({ length: COUNT }, (_, i) => (
+        <sprite key={i} ref={(el) => (sprites.current[i] = el)} material={mat.clone()} />
+      ))}
+    </group>
+  );
+});
+
+function useImperativeExpose(ref, api) {
+  useEffect(() => {
+    if (!ref) return;
+    if (typeof ref === "function") ref(api);
+    else ref.current = api;
+    return () => { if (ref && typeof ref !== "function") ref.current = null; };
+  }, []);
+}
+
+/* --------------------- Burst particles (reuse) ---------------------- */
+function Burst() {
+  const ref = useRef();
+  const life = useRef({ active: false, t: 0, max: 1.6, mode: "out", origin: new THREE.Vector3() });
+  const lastPhase = useRef("sleep");
+  const COUNT = 90;
+
+  const { positions, vels } = useMemo(() => {
+    const positions = new Float32Array(COUNT * 3);
+    const vels = new Float32Array(COUNT * 3);
+    return { positions, vels };
+  }, []);
+
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    return g;
+  }, [positions]);
+
+  const mat = useMemo(
+    () =>
+      new THREE.PointsMaterial({
+        color: "#8ff3ff",
+        size: 0.055,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true,
+      }),
+    []
+  );
+
+  const ignite = (origin, mode) => {
+    const l = life.current;
+    l.active = true;
+    l.t = 0;
+    l.mode = mode;
+    l.origin.copy(origin);
+    for (let i = 0; i < COUNT; i++) {
+      const i3 = i * 3;
+      if (mode === "out") {
+        positions[i3] = origin.x; positions[i3 + 1] = origin.y; positions[i3 + 2] = origin.z;
+        const th = Math.random() * Math.PI * 2;
+        const ph = Math.acos(2 * Math.random() - 1);
+        const sp = 0.8 + Math.random() * 1.6;
+        vels[i3] = Math.sin(ph) * Math.cos(th) * sp;
+        vels[i3 + 1] = Math.cos(ph) * sp * 0.8 + 0.4;
+        vels[i3 + 2] = Math.sin(ph) * Math.sin(th) * sp * 0.5;
+      } else {
+        const th = Math.random() * Math.PI * 2;
+        const ph = Math.acos(2 * Math.random() - 1);
+        const r = 1.2 + Math.random() * 0.8;
+        positions[i3] = origin.x + Math.sin(ph) * Math.cos(th) * r;
+        positions[i3 + 1] = origin.y + Math.cos(ph) * r;
+        positions[i3 + 2] = origin.z + Math.sin(ph) * Math.sin(th) * r * 0.5;
+        vels[i3] = -Math.sin(ph) * Math.cos(th) * 1.4;
+        vels[i3 + 1] = -Math.cos(ph) * 1.4;
+        vels[i3 + 2] = -Math.sin(ph) * Math.sin(th) * 0.7;
+      }
+    }
+    geo.attributes.position.needsUpdate = true;
+  };
+
+  useFrame((st, dt) => {
+    const s = state;
+    const L = s.layout;
+    if (!L) return;
+    if (s.phase !== lastPhase.current) {
+      if (s.phase === "transform") ignite(new THREE.Vector3(L.home.x, L.home.y + 0.2, 0.1), "out");
+      if (s.phase === "dissolve") ignite(new THREE.Vector3(L.beamAnchor.x, L.beamAnchor.y, 0.4), "out");
+      if (s.phase === "board") ignite(new THREE.Vector3(L.home.x, L.home.y + 0.2, 0.1), "in");
+      lastPhase.current = s.phase;
+    }
+    const l = life.current;
+    if (!l.active) return;
+    l.t += dt;
+    const k = l.t / l.max;
+    mat.opacity = Math.max(0, 1 - k) * 0.85;
+    for (let i = 0; i < COUNT * 3; i++) {
+      positions[i] += vels[i] * dt;
+      vels[i] *= 0.985;
+    }
+    geo.attributes.position.needsUpdate = true;
+    if (k >= 1) { l.active = false; mat.opacity = 0; }
+  });
+
+  return <points ref={ref} geometry={geo} material={mat} frustumCulled={false} />;
+}
+
+/* ------------------- Stars + drifting dust motes -------------------- */
+function NightSky() {
+  const L = state.layout;
+  const starA = useRef();
+  const starB = useRef();
+  const dust = useRef();
+
+  const starGeo = useMemo(() => {
+    const n = L && L.mobile ? 90 : 150;
+    const pos = new Float32Array(n * 3);
+    const hw = (L ? L.halfW : 6) * 1.6;
+    for (let i = 0; i < n; i++) {
+      pos[i * 3] = (Math.random() * 2 - 1) * hw;
+      pos[i * 3 + 1] = (L ? L.camY : 0.9) + (Math.random() * 2 - 1) * 4.2;
+      pos[i * 3 + 2] = -3 - Math.random() * 5;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    return g;
+  }, [L]);
+
+  const dustGeo = useMemo(() => {
+    const n = L && L.mobile ? 26 : 46;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      pos[i * 3] = (Math.random() * 2 - 1) * (L ? L.halfW * 0.9 : 5);
+      pos[i * 3 + 1] = -1.5 + Math.random() * 4;
+      pos[i * 3 + 2] = -1 + Math.random() * 3;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    return g;
+  }, [L]);
+
+  const starMat = useMemo(
+    () =>
+      new THREE.PointsMaterial({
+        color: "#9db4ff", size: 0.05, transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    []
+  );
+  const dustMat = useMemo(
+    () =>
+      new THREE.PointsMaterial({
+        color: "#22d3ee", size: 0.045, transparent: true, opacity: 0.22,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    []
+  );
+
+  useFrame((st, dt) => {
+    const c = st.clock.elapsedTime;
+    if (starA.current) starA.current.material.opacity = 0.3 + 0.22 * Math.sin(c * 0.7);
+    if (starB.current) starB.current.material.opacity = 0.38 + 0.2 * Math.sin(c * 0.53 + 2);
+    if (dust.current) {
+      const pos = dust.current.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let y = pos.getY(i) + dt * 0.07;
+        if (y > 2.8) y = -1.6;
+        pos.setY(i, y);
+        pos.setX(i, pos.getX(i) + Math.sin(c * 0.4 + i) * dt * 0.02);
+      }
+      pos.needsUpdate = true;
+      dust.current.material.opacity = 0.14 + 0.08 * Math.sin(c * 0.8);
+    }
+  });
+
+  return (
+    <>
+      <points ref={starA} geometry={starGeo} material={starMat} frustumCulled={false} />
+      <points ref={starB} geometry={starGeo} material={starMat.clone()} frustumCulled={false} />
+      <points ref={dust} geometry={dustGeo} material={dustMat} frustumCulled={false} />
+    </>
+  );
+}
+
+/* --------------------------- ZZZ sprites ---------------------------- */
+function Zzz() {
+  const group = useRef();
+  const sprites = useRef([]);
+  const op = useRef(0);
+  const tex = useMemo(() => zzzTexture(), []);
+  const mat = useMemo(
+    () =>
+      new THREE.SpriteMaterial({
+        map: tex, transparent: true, opacity: 0, depthWrite: false,
+      }),
+    [tex]
+  );
+
+  useFrame((st, dt) => {
+    const s = state;
+    const L = s.layout;
+    if (!L || !group.current) return;
+    const clock = st.clock.elapsedTime;
+    let target = 0;
+    if (s.phase === "sleep") target = 1;
+    else if (s.phase === "settle") target = seg(s.t, 0.72, 1);
+    else if (s.phase === "waking") target = 1 - easeInOut(s.t);
+    op.current = lerp(op.current, target, 1 - Math.exp(-dt * 3.5));
+
+    const hx = L.home.x + (L.mobile ? 0.2 : 0.12);
+    const hy = L.cloudTop + 0.28;
+    group.current.position.set(hx, hy, 0.3);
+    sprites.current.forEach((sp, i) => {
+      if (!sp) return;
+      const cyc = (clock * 0.42 + i / 3) % 1;
+      sp.position.set(0.05 + i * 0.09 + cyc * 0.22, cyc * 0.7, 0);
+      const sc = 0.14 + cyc * 0.12;
+      sp.scale.set(sc, sc, sc);
+      sp.material.opacity = op.current * Math.sin(Math.PI * cyc) * 0.9;
+    });
+  });
+
+  return (
+    <group ref={group}>
+      {[0, 1, 2].map((i) => (
+        <sprite key={i} ref={(el) => (sprites.current[i] = el)} material={mat.clone()} />
+      ))}
+    </group>
+  );
+}
+
+/* --------- Volumetric eye beams + hologram HUD + particles ---------- */
+function Hologram() {
+  const beams = useRef();
+  const coneA = useRef();
+  const coneB = useRef();
+  const coreA = useRef();
+  const coreB = useRef();
+  const platform = useRef();
+  const ring2 = useRef();
+  const glow = useRef();
+  const hud = useRef();
+  const holoPts = useRef();
+  const lastPhase = useRef("sleep");
+  const { camera } = useThree();
+
+  const beamMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: beamTexture(), color: "#45dfff", transparent: true, opacity: 0,
+        blending: THREE.NormalBlending, depthWrite: false, side: THREE.DoubleSide,
+        toneMapped: false,
+      }),
+    []
+  );
+  const coreMat = useMemo(
+    () => new THREE.MeshBasicMaterial({
+      color: "#36dfff", transparent: true, opacity: 0,
+      blending: THREE.NormalBlending, depthWrite: false, toneMapped: false,
+    }),
+    []
+  );
+  const ringMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#67e8f9", transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      }),
+    []
+  );
+  const gridMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: gridTexture(), color: "#38bdf8", transparent: true, opacity: 0.14,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      }),
+    []
+  );
+  const glowMat = useMemo(
+    () =>
+      new THREE.SpriteMaterial({
+        map: glowTexture(), color: "#22d3ee", transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    []
+  );
+  const hudMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#7deeff", transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      }),
+    []
+  );
+
+  /* holographic particles hovering in the projection column */
+  const holoGeo = useMemo(() => {
+    const n = 70;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.12 + Math.random() * 0.34;
+      pos[i * 3] = Math.cos(a) * r;
+      pos[i * 3 + 1] = Math.random() * 1.5;
+      pos[i * 3 + 2] = Math.sin(a) * r;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    return g;
+  }, []);
+  const holoMat = useMemo(
+    () =>
+      new THREE.PointsMaterial({
+        color: "#9ff4ff", size: 0.032, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    []
+  );
+
+  const anchor = useMemo(() => new THREE.Vector3(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const projectionPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), -0.45), []);
+  const projectionPoint = useMemo(() => new THREE.Vector3(), []);
+  const from = useMemo(() => new THREE.Vector3(), []);
+  const beamDirection = useMemo(() => new THREE.Vector3(), []);
+  const q = useMemo(() => new THREE.Quaternion(), []);
+  const UP = useMemo(() => new THREE.Vector3(0, 1, 0), []);
+
+  useFrame((st, dt) => {
+    const s = state;
+    const L = s.layout;
+    if (!L || !beams.current) return;
+    const clock = st.clock.elapsedTime;
+    const scale = L.mobile ? 0.82 : 0.95;
+
+    // Each cone starts at its own live eye anchor, so head turns never detach
+    // from the visor. Both rays are aimed at the same screen impact point.
+    const leftEye = state.eyeLeft || { x: L.stage.x - 0.09 * scale, y: L.stage.y + 1.6 * scale, z: 0.4 * scale };
+    const rightEye = state.eyeRight || { x: L.stage.x + 0.09 * scale, y: L.stage.y + 1.6 * scale, z: 0.4 * scale };
+    let hasProjectionPixel = false;
+    if (s.projectionPixel) {
+      ndc.set((s.projectionPixel.x / L.w) * 2 - 1, 1 - (s.projectionPixel.y / L.h) * 2);
+      camera.updateMatrixWorld();
+      raycaster.setFromCamera(ndc, camera);
+      hasProjectionPixel = !!raycaster.ray.intersectPlane(projectionPlane, projectionPoint);
+    }
+    if (hasProjectionPixel) anchor.copy(projectionPoint);
+    else anchor.set(L.beamAnchor.x, L.beamAnchor.y, 0.45);
+
+    [leftEye, rightEye].forEach((eye, i) => {
+      const cone = i === 0 ? coneA.current : coneB.current;
+      const core = i === 0 ? coreA.current : coreB.current;
+      if (!cone || !core) return;
+      from.set(eye.x, eye.y, eye.z);
+      beamDirection.copy(anchor).sub(from);
+      const length = beamDirection.length();
+      if (length < 0.001) return;
+      beamDirection.multiplyScalar(1 / length);
+      q.setFromUnitVectors(UP, beamDirection);
+      cone.position.copy(from).add(anchor).multiplyScalar(0.5);
+      cone.quaternion.copy(q);
+      cone.scale.set(1, length, 1);
+      core.position.copy(cone.position);
+      core.quaternion.copy(q);
+      core.scale.set(1, length, 1);
+    });
+
+    // beam intensity per phase
+    let bo = 0;
+    if (s.phase === "arrive") bo = seg(s.t, 0.45, 0.85) * 0.6;
+    else if (s.phase === "chat") bo = (s.thinking ? 0.65 + Math.sin(clock * 6) * 0.1 : 0.5 + Math.sin(clock * 2.2) * 0.06);
+    else if (s.phase === "goodnight") bo = 0.32;
+    else if (s.phase === "dissolve") bo = (1 - s.t) * 0.45;
+    beamMat.opacity = lerp(beamMat.opacity, bo, 1 - Math.exp(-dt * 8));
+    coreMat.opacity = beamMat.opacity > 0.01 ? 0.82 : 0;
+    beams.current.visible = beamMat.opacity > 0.01;
+
+    // platform
+    const showPh = ["arrive", "chat", "goodnight", "dissolve"].includes(s.phase);
+    let screenProgress = 0;
+    if (s.phase === "arrive") screenProgress = seg(s.t, 0.45, 0.88);
+    else if (s.phase === "chat" || s.phase === "goodnight") screenProgress = 1;
+    else if (s.phase === "dissolve") screenProgress = 1 - seg(s.t, 0, 1);
+    let ps = 0;
+    if (s.phase === "arrive") ps = clamp(easeOutBack(seg(s.t, 0.08, 0.5)), 0, 1.2);
+    else if (showPh) ps = 1;
+    else if (s.phase === "walkback") ps = 1 - seg(s.t, 0, 0.4);
+    if (platform.current) {
+      platform.current.visible = ps > 0.01;
+      platform.current.scale.setScalar(Math.max(0.001, ps));
+      platform.current.position.set(L.stage.x, L.floorY + 0.02, 0);
+      platform.current.rotation.z = clock * 0.25;
+      ringMat.opacity = 0.75 + Math.sin(clock * 2.4) * 0.15;
+      gridMat.opacity = 0.1 + 0.06 * Math.sin(clock * 1.7);
+      gridMat.map.rotation = clock * 0.05;
+    }
+    if (ring2.current && platform.current) {
+      const cyc = (clock * 0.55) % 1;
+      const sc = 1 + cyc * 0.55;
+      ring2.current.scale.set(sc, sc, 1);
+      ring2.current.material.opacity = ps * (1 - cyc) * 0.5;
+    }
+    if (glow.current) {
+      glow.current.position.set(L.stage.x, L.floorY + 0.35, 0.3);
+      glow.current.material.opacity = ps * (0.16 + (s.thinking ? 0.1 : 0) + 0.04 * Math.sin(clock * 2));
+      const gs = 1.7 + Math.sin(clock * 1.3) * 0.08;
+      glow.current.scale.set(gs, gs, gs);
+    }
+
+    // circular HUD billboard at the anchor (behind the DOM chat panel)
+    if (hud.current) {
+      hud.current.visible = screenProgress > 0.01;
+      hud.current.position.copy(anchor);
+      hud.current.quaternion.copy(camera.quaternion);
+      const hs = (0.9 + Math.sin(clock * 1.8) * 0.04) * Math.max(screenProgress, 0.001);
+      hud.current.scale.setScalar(hs);
+      hudMat.opacity = screenProgress * 0.3;
+      hud.current.rotation.z = clock * 0.3;
+    }
+
+    // Holographic particles collect around the exact point where the two
+    // independently aimed eye beams meet the projected chat panel.
+    if (holoPts.current) {
+      holoPts.current.visible = screenProgress > 0.01;
+      holoPts.current.position.set(anchor.x, anchor.y - 0.75, anchor.z + 0.12);
+      holoPts.current.rotation.y = clock * 0.5;
+      holoMat.opacity = screenProgress * (0.4 + Math.sin(clock * 3) * 0.1);
+      const col = holoGeo.attributes.position;
+      for (let i = 0; i < col.count; i++) {
+        let y = col.getY(i) + dt * 0.35;
+        if (y > 1.5) y = 0;
+        col.setY(i, y);
+      }
+      col.needsUpdate = true;
+    }
+  });
+
+  return (
+    <>
+      <group ref={beams} visible={false}>
+        <mesh ref={coneA} material={beamMat}>
+          <cylinderGeometry args={[0.012, 0.05, 1, 10, 1, true]} />
+        </mesh>
+        <mesh ref={coneB} material={beamMat}>
+          <cylinderGeometry args={[0.012, 0.05, 1, 10, 1, true]} />
+        </mesh>
+        <mesh ref={coreA} material={coreMat}>
+          <cylinderGeometry args={[0.009, 0.009, 1, 8]} />
+        </mesh>
+        <mesh ref={coreB} material={coreMat}>
+          <cylinderGeometry args={[0.009, 0.009, 1, 8]} />
+        </mesh>
+      </group>
+      <group ref={platform} visible={false}>
+        <mesh material={ringMat} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.5, 0.56, 48]} />
+        </mesh>
+        <mesh material={gridMat} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.5, 40]} />
+        </mesh>
+        <mesh ref={ring2} material={ringMat.clone()} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.58, 0.6, 48]} />
+        </mesh>
+      </group>
+      <mesh ref={hud} material={hudMat} visible={false}>
+        <ringGeometry args={[0.34, 0.375, 40]} />
+      </mesh>
+      <points ref={holoPts} geometry={holoGeo} material={holoMat} visible={false} frustumCulled={false} />
+      <sprite ref={glow} material={glowMat} />
+    </>
+  );
+}
+
+/* ------------------------------ Scene ------------------------------- */
+
+function SceneContent() {
+  const puffs = useRef(null);
+  const onStep = useCallback((pos, big) => {
+    window.__tctSteps = (window.__tctSteps || 0) + 1; // debug bridge
+    puffs.current && puffs.current.spawn(pos, big);
+  }, []);
+
+  const L = state.layout;
+  const reduced = state.reduced;
+
+  return (
+    <>
+      <StudioReflections />
+      <CameraRig />
+      <Lights />
+      <Zzz />
+      <CloudContactShadow />
+      <VolumetricCloud />
+      <Robot onStep={onStep} />
+      <Hologram />
+      <StepPuffs ref={puffs} />
+      <Burst />
+    </>
+  );
+}
+
+export default function Scene() {
+  return (
+    <Canvas
+      dpr={[1, 1.35]}
+      // Let R3F own one render clock. A second manual rAF/timer driver can
+      // interleave frames with GSAP and produce visible pose/camera jitter.
+      frameloop="always"
+      shadows
+      resize={{ polyfill: TimerResizeObserver }}
+      gl={{ antialias: true, alpha: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, outputColorSpace: THREE.SRGBColorSpace }}
+      camera={{ fov: 42, position: [0, 0.9, 8.6], near: 0.1, far: 60 }}
+      onCreated={({ gl, scene, camera }) => {
+        gl.setClearAlpha(0);
+        window.__tct3dGl = gl;
+        window.__tct3dScene = scene;
+        window.__tct3dCam = camera;
+      }}
+      style={{ pointerEvents: "none" }}
+    >
+      <SceneContent />
+    </Canvas>
+  );
+}
