@@ -412,10 +412,11 @@ export default function Robot({ onStep }) {
     const clock = st.clock.elapsedTime;
     const t = s.t;
     const e = easeInOut(t);
-    // The GLB's boot soles sit just below the root origin, so this small
-    // clearance places the sole bottom directly on the cloud/ground plane.
-    const lift = 0.1;
-    const compactScale = L.compact ? 0.42 : 0.62;
+    const compactScale = L.mascotScale ?? (L.compact ? 0.42 : 0.62);
+    const displayScale = L.activeMascotScale ?? (L.compact ? 0.5 : L.mobile ? 0.68 : 0.95);
+    // The boot soles sit about 0.158 model units below the root; keep that
+    // clearance proportional as the mascot scales to the WhatsApp launcher.
+    const lift = 0.158 * displayScale;
 
     /* ---------------- compute target pose per phase ---------------- */
     const T = basePose();
@@ -425,23 +426,28 @@ export default function Robot({ onStep }) {
     const bob = Math.sin(clock * 0.55) * 0.02;
     const onCloud = ["sleep", "waking", "stretch", "board", "settle"].includes(s.phase);
 
-    /* SLEEP_Y places the recline pivot (the torso center) just above the
-       cloud surface. The character's root is at its feet, so this offset must
-       use the scaled local pivot height; the old unscaled offset sank the
-       torso well below the cloud top. */
-    const SLEEP_Y = L.cloudTop - 1.12 * compactScale + 0.05;
+    /* Place the tilted torso shell directly on the compressed cloud surface.
+       Both terms scale with the responsive model/cloud size, so the contact
+       stays correct on desktop and compact phone layouts. */
+    const sleepAngle = SLEEP.bodyZ;
+    const torsoHalfY = Math.sqrt(
+      (0.43 * Math.sin(sleepAngle)) ** 2 + (0.54 * Math.cos(sleepAngle)) ** 2
+    ) * compactScale;
+    const compressedCloudTop = L.home.y + 0.56 * L.cloudR * 0.915;
+    const restOffset = torsoHalfY - (L.cloudTop - compressedCloudTop);
+    const SLEEP_Y = L.cloudTop - 1.12 * compactScale + restOffset;
 
     if (s.phase === "sleep") {
       Object.assign(T, SLEEP);
       py = SLEEP_Y + bob;
-      px = L.home.x; pz = 0.25;
+      px = L.home.x; pz = 0.18;
       // tiny idle motion on top of the cloud's own bob (kept whisper-quiet)
       T.bodyZ += Math.sin(clock * 0.5) * 0.006;
       T.headZ += Math.sin(clock * 0.35 + 1) * 0.01;
     } else if (s.phase === "waking") {
       Object.assign(T, SLEEP);
       py = SLEEP_Y + bob;
-      px = L.home.x; pz = 0.25;
+      px = L.home.x; pz = 0.18;
       // sit up a little, eyes open with a curious look around
       const up = easeInOut(seg(t, 0.15, 1));
       T.recline = lerp(SLEEP.recline, -0.2, up);
@@ -461,7 +467,7 @@ export default function Robot({ onStep }) {
     } else if (s.phase === "stretch") {
       const sitUp = easeInOut(seg(t, 0, 0.72));
       py = lerp(SLEEP_Y, L.cloudTop - 0.08, sitUp) + bob + 0.04 * Math.sin(Math.PI * t);
-      pz = lerp(0.25, 0.05, e);
+      pz = lerp(0.18, 0.05, e);
       T.recline = lerp(-0.2, 0, e);
       T.yaw = lerp(SLEEP.yaw, 0, e);
       const up = Math.sin(Math.PI * Math.min(t * 1.15, 1)); // arms up & back down
@@ -609,8 +615,8 @@ export default function Robot({ onStep }) {
       // walkback has already brought the robot to the cloud edge; board only
       // performs the short climb-hop and never restarts travel from the stage.
       px = L.home.x;
-      py = lerp(L.cloudTop + lift, L.cloudTop + 0.05, k) + Math.sin(Math.PI * t) * 0.24;
-      pz = lerp(0.05, 0.25, k);
+      py = lerp(L.cloudTop + lift, SLEEP_Y, k) + Math.sin(Math.PI * t) * 0.24;
+      pz = lerp(0.05, 0.18, k);
       T.yaw = lerp(0, SLEEP.yaw, easeInOut(seg(t, 0, 0.3)));
       T.recline = 0.08 * (1 - k);
       T.hipLX = lerp(0.06, 1.1, k); T.hipRX = lerp(0.06, 0.95, k);
@@ -621,8 +627,8 @@ export default function Robot({ onStep }) {
     } else if (s.phase === "settle") {
       Object.assign(T, SLEEP);
       const k = e;
-      py = lerp(L.cloudTop + 0.05, SLEEP_Y, k) + bob;
-      px = L.home.x; pz = 0.25;
+      py = SLEEP_Y + bob;
+      px = L.home.x; pz = 0.18;
       T.eyeOpen = 1 - seg(t, 0.45, 0.82); // eyes slowly close
       T.eyeGlow = lerp(0.8, 0.3, seg(t, 0.45, 1));
       T.antenna = lerp(0.4, 0.12, k);
@@ -677,13 +683,12 @@ export default function Robot({ onStep }) {
     // guarantee the final sleep pose is EXACTLY the initial one
     if (s.phase === "sleep" || (s.phase === "settle" && s.t > 0.995)) {
       for (const key in SLEEP) c[key] = SLEEP[key];
-      c.px = L.home.x; c.py = SLEEP_Y + bob; c.pz = 0.25;
+      c.px = L.home.x; c.py = SLEEP_Y + bob; c.pz = 0.18;
     }
 
     /* ---------------- apply to the scene graph ---------------- */
     root.current.position.set(c.px, c.py, c.pz);
     root.current.rotation.y = c.yaw;
-    const displayScale = L.compact ? 0.5 : L.mobile ? 0.68 : 0.95;
     let scaleGoal = compactScale;
     if (["transform", "walk", "walkback", "arrive", "chat", "goodnight", "dissolve"].includes(s.phase)) {
       scaleGoal = displayScale;

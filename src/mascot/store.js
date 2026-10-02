@@ -77,10 +77,20 @@ export function computeLayout() {
     y: camY + (1 - 2 * fy) * halfH,
   });
 
-  // Cloud home — bottom-left on desktop; right-side on phones so the mascot
-  // clears the fixed WhatsApp launcher and the hero's text/actions.
-  const home = toWorld(compact ? 0.73 : mobile ? 0.62 : 0.115, mobile ? 0.9 : 0.8);
-  const cloudR = compact ? 0.46 : mobile ? 0.58 : 0.66;
+  // Keep the cloud directly above WhatsApp at its actual fixed CSS position.
+  // Reserve a small gap so the two floating controls stay individually tappable.
+  const pixelsPerWorld = h / (2 * halfH);
+  const whatsappBottom = w <= 639 ? 96 : 22;
+  const whatsappSize = 50;
+  const whatsappLeft = 22;
+  const cloudR = Math.min(0.64, Math.max(0.24, 84 / (2.54 * pixelsPerWorld)));
+  const mascotScale = Math.min(0.42, 50 / (2.6 * pixelsPerWorld));
+  const activeMascotScale = Math.min(0.44, mascotScale * 1.55);
+  const cloudHeightPx = 1.16 * cloudR * pixelsPerWorld;
+  const home = toWorld(
+    (whatsappLeft + whatsappSize / 2) / w,
+    (h - whatsappBottom - whatsappSize - 12 - cloudHeightPx / 2) / h
+  );
   const cloudTop = home.y + cloudR * 0.62;
 
   // The robot walks a little ABOVE the floor line so its feet (which hang
@@ -100,7 +110,7 @@ export function computeLayout() {
     : { x: toWorld(0.64, 0).x, y: cloudTop + 1.58 };
 
   state.mobile = mobile;
-  state.layout = { w, h, mobile, compact, halfW, halfH, camY, camZ, home, cloudR, cloudTop, floorY: cloudTop, legLift, stage, beamAnchor };
+  state.layout = { w, h, mobile, compact, halfW, halfH, camY, camZ, home, cloudR, cloudTop, floorY: cloudTop, legLift, stage, beamAnchor, mascotScale, activeMascotScale };
   emit();
   return state.layout;
 }
