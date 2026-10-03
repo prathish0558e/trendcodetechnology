@@ -41,15 +41,10 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
-/* Smooth scrolling is for in-page anchors only — route changes must jump
-   straight to the top, not animate from the bottom of the previous page. */
-html.no-smooth-scroll {
-  scroll-behavior: auto;
-}
+/* NOTE: no global `scroll-behavior: smooth` — in embedded preview browsers
+   smooth scroll animations can freeze and the page then refuses to scroll
+   (stuck at top). Instant scrolling is reliable everywhere, and route changes
+   already jump to the top via <ScrollToTop />. */
 
 /* Visible keyboard focus everywhere (accessibility) */
 :focus-visible {
@@ -65,6 +60,14 @@ body:focus-visible,
   outline: none; /* these already get their own focus ring / styling */
 }
 
+/* No horizontal scrollbar, ever: stray overflow from off-screen drawers,
+   marquees or focus rings is clipped instead of stretching the page.
+   `clip` (not `hidden`) — `hidden` makes <body> a scroll container and
+   unsticks the sticky header. */
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -72,6 +75,7 @@ body {
   background: var(--bg);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 img {
@@ -278,6 +282,31 @@ h1, h2, h3, h4, h5 {
   min-height: 40px;
 }
 
+@media (min-width: 992px) and (max-width: 1149px) {
+  .topbar-inner {
+    gap: 4px;
+  }
+
+  .topbar-inner .topbar-info {
+    gap: 12px;
+  }
+
+  .topbar-inner .topbar-social {
+    gap: 4px;
+    flex: none;
+  }
+
+  .topbar-inner .topbar-social a {
+    width: 30px;
+    height: 32px;
+  }
+
+  .topbar-inner .topbar-social-mark {
+    width: 17px;
+    height: 17px;
+  }
+}
+
 .topbar-info {
   display: flex;
   align-items: center;
@@ -305,29 +334,40 @@ h1, h2, h3, h4, h5 {
 }
 
 .topbar-social a {
-  width: 26px;
-  height: 26px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border: 1px solid #b8d6f5;
-  border-radius: 50%;
+  border: 0;
+  border-radius: 8px;
   color: #1e293b;
-  background: rgba(255, 255, 255, 0.65);
-  font-size: 12px;
-  transition: all 0.2s ease;
+  background: transparent;
+  font-size: 19px;
+  transition: color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
   text-decoration: none;
 }
 
+.topbar-social-mark {
+  display: block;
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+
 .topbar-social a:hover {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  color: #0284c7;
+  transform: translateY(-2px) scale(1.08);
+  filter: drop-shadow(0 3px 5px rgba(14, 165, 233, 0.24))
+    drop-shadow(0 2px 5px rgba(249, 115, 22, 0.14));
 }
 
 /* Header — Light blue matching the footer */
 .site-header {
   position: sticky;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 100;
   background: linear-gradient(90deg, #e3effd 0%, #edf6ff 50%, #e3effd 100%);
   border-bottom: 1px solid #cfe2f8;
@@ -341,17 +381,20 @@ h1, h2, h3, h4, h5 {
 }
 
 .nav-inner {
-  height: 74px;
+  width: 100%;
+  max-width: none;
+  height: 100px;
+  padding-inline: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 13px;
   flex-shrink: 0;
 }
 
@@ -372,7 +415,7 @@ h1, h2, h3, h4, h5 {
 .brand-text {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 20px;
+  font-size: 22px;
   color: var(--ink);
   line-height: 1.15;
   white-space: nowrap;
@@ -381,11 +424,23 @@ h1, h2, h3, h4, h5 {
 .brand-text small {
   display: block;
   font-family: var(--font-body);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #f97316;
+}
+
+/* Share the navbar's restrained blue-to-orange motion with the brand tagline. */
+.site-header .brand .brand-text small {
+  width: max-content;
+  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 25%, #f97316 50%, #fb923c 75%, #0284c7 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: nav-color-shift 3.2s ease-in-out infinite alternate;
 }
 
 .nav-links {
@@ -480,13 +535,28 @@ h1, h2, h3, h4, h5 {
   box-shadow: 0 2px 10px rgba(2, 132, 199, 0.45), 0 2px 12px rgba(249, 115, 22, 0.35);
 }
 
-/* Active (clicked item): NO BOX — only the clean luminous bottom line indicator */
+/* Active (clicked item): animated light-blue ↔ orange glowing gradient text + luminous underline (no box).
+   Same gradient as hover, so hovering an active tab can never blank the text out. */
 .nav-item.active > a,
 .nav-item.active > .nav-drop-btn,
 .nav-item > a.active {
-  color: #0f172a;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: linear-gradient(
+    90deg,
+    #0284c7 0%,
+    #0ea5e9 25%,
+    #f97316 50%,
+    #fb923c 75%,
+    #0284c7 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  box-shadow: none;
+  animation: nav-color-shift 2.4s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 7px rgba(14, 165, 233, 0.45))
+    drop-shadow(0 0 12px rgba(249, 115, 22, 0.3));
 }
 
 .nav-item.active > a::after,
@@ -1690,7 +1760,7 @@ h1, h2, h3, h4, h5 {
 .why-choose-section .card:hover {
   transform: translateY(-6px);
   border-color: transparent;
-  box-shadow: 0 16px 36px rgba(13, 110, 253, 0.15);
+  box-shadow: 0 16px 36px rgba(14, 165, 233, 0.14), 0 7px 20px rgba(249, 115, 22, 0.08);
 }
 
 .why-choose-section .card:hover::before {
@@ -1790,9 +1860,9 @@ h1, h2, h3, h4, h5 {
 }
 
 .card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-md);
-  border-color: #c9dbfc;
+  transform: translateY(-5px);
+  box-shadow: 0 16px 36px rgba(14, 165, 233, 0.13), 0 7px 20px rgba(249, 115, 22, 0.08);
+  border-color: color-mix(in srgb, #38bdf8 56%, #fb923c);
 }
 
 .card .icon {
@@ -1992,12 +2062,14 @@ h1, h2, h3, h4, h5 {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   padding: 26px 22px;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .step-card:hover {
   transform: translateY(-5px);
   background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(56, 189, 248, 0.58);
+  box-shadow: 0 12px 28px rgba(14, 165, 233, 0.14), 0 5px 16px rgba(249, 115, 22, 0.08);
 }
 
 .step-card .num {
@@ -2209,6 +2281,13 @@ h1, h2, h3, h4, h5 {
   padding: 26px 24px;
   box-shadow: var(--shadow-sm);
   height: 100%;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, #38bdf8 56%, #fb923c);
+  box-shadow: 0 14px 32px rgba(14, 165, 233, 0.12), 0 6px 18px rgba(249, 115, 22, 0.07);
 }
 
 .info-card h3 {
@@ -2648,6 +2727,13 @@ h1, h2, h3, h4, h5 {
   border-radius: 14px;
   box-shadow: var(--shadow-md);
   padding: 16px 18px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.map-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, #38bdf8 56%, #fb923c);
+  box-shadow: 0 16px 34px rgba(14, 165, 233, 0.14), 0 6px 18px rgba(249, 115, 22, 0.08);
 }
 
 .map-card h4 {
@@ -2850,6 +2936,64 @@ h1, h2, h3, h4, h5 {
   transform: scale(1.08);
 }
 
+/* ---------- Real WhatsApp logo glyph ----------
+   The bootstrap icon-font outline is swapped for the official WhatsApp mark
+   (phone-in-bubble) via a CSS mask. It inherits currentColor, so it is white
+   on the green float, green on light chips, and adapts on hover by itself. */
+i.bi-whatsapp {
+  position: relative;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  vertical-align: -0.125em;
+}
+
+i.bi-whatsapp::before {
+  content: none;
+}
+
+i.bi-whatsapp::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Header social marks follow the footer's clean, unboxed icon treatment. */
+.topbar-social a[href*="instagram.com"] { color: #e1306c; }
+.topbar-social a[href*="x.com"],
+.topbar-social a[href*="twitter.com"] { color: #111827; }
+.topbar-social a[href*="youtube.com"] { color: #ff0000; }
+.topbar-social a[href*="facebook.com"] { color: #1877f2; }
+.topbar-social a[href*="wa.me"] { color: #25d366; }
+.topbar-social a[href*="instagram.com"]:hover,
+.topbar-social a[href*="x.com"]:hover,
+.topbar-social a[href*="twitter.com"]:hover,
+.topbar-social a[href*="youtube.com"]:hover,
+.topbar-social a[href*="facebook.com"]:hover,
+.topbar-social a[href*="wa.me"]:hover { color: #0284c7; }
+
+.footer-social a[href*="wa.me"] {
+  color: #25d366;
+}
+
+.footer-social a[href*="wa.me"]:hover {
+  color: #1eb85a;
+}
+
+.team-social a[href*="wa.me"] {
+  color: #16a34a;
+}
+
+.team-social a[href*="wa.me"]:hover {
+  background: #25d366;
+  border-color: #25d366;
+  color: #fff;
+}
+
 /* ---------- Reveal animation ---------- */
 .reveal {
   opacity: 0;
@@ -2942,8 +3086,86 @@ h1, h2, h3, h4, h5 {
 }
 
 .site-header .brand img.brand-img {
-  width: 52px;
-  height: 52px;
+  width: 80px;
+  height: 80px;
+}
+
+/* Keep the full desktop navigation inside its container at intermediate widths. */
+@media (min-width: 1150px) and (max-width: 1360px) {
+  .nav-inner {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-text {
+    font-size: 19px;
+  }
+
+  .site-header .brand img.brand-img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .nav-item > a,
+  .nav-item > .nav-drop-btn {
+    padding-inline: 8px;
+    font-size: 12.5px;
+  }
+
+  .nav-cta {
+    gap: 8px;
+  }
+
+  .nav-cta .btn {
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+}
+
+/* Compact the logo row before phones run out of horizontal room. */
+@media (max-width: 640px) {
+  .nav-inner {
+    height: 78px;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-text {
+    font-size: clamp(14px, 4vw, 18px);
+  }
+
+  .brand-text small {
+    font-size: clamp(7px, 2vw, 9px);
+    letter-spacing: 0.1em;
+  }
+
+  .site-header .brand img.brand-img {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 360px) {
+  .nav-inner {
+    padding-inline: 8px;
+  }
+
+  .site-header .brand img.brand-img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .brand-text {
+    font-size: 14px;
+  }
 }
 
 .footer-about img.brand-img {
@@ -3344,15 +3566,235 @@ h1, h2, h3, h4, h5 {
 .journey {
   position: relative;
   margin-top: 40px;
+  /* Reserve a dedicated train lane above the process cards. */
+  padding-top: 80px;
 }
 
 .journey-path {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 0;
   width: 100%;
-  height: 100%;
+  height: 80px;
   pointer-events: none;
+}
+
+.journey-train-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: 80px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.journey-train-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+.journey-track-ties line {
+  stroke: rgba(148, 163, 184, 0.52);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.journey-track-rail {
+  fill: none;
+  stroke: #9fb5cc;
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.42));
+}
+
+.journey-train {
+  /* SVG motion proxy only; the visible train is rendered in the local 3D canvas. */
+  opacity: 0 !important;
+  pointer-events: none;
+  filter: none;
+}
+
+.journey-train-shell {
+  fill: url(#journey-train-shell);
+  stroke: #ccecff;
+  stroke-width: 1.15;
+  stroke-linejoin: round;
+}
+
+.journey-train-underframe {
+  fill: url(#journey-train-metal);
+  stroke: #17283a;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.journey-train-car-blue {
+  fill: url(#journey-train-blue);
+  stroke: #0a79b7;
+  stroke-width: 0.65;
+  stroke-linejoin: round;
+}
+
+.journey-train-car-orange {
+  fill: url(#journey-train-orange);
+  stroke: #df6c27;
+  stroke-width: 0.65;
+  stroke-linejoin: round;
+}
+
+.journey-train-livery-highlight,
+.journey-train-side-highlight,
+.journey-train-lower-highlight,
+.journey-train-body-reflection,
+.journey-train-nose-highlight {
+  fill: none;
+  stroke: url(#journey-train-reflection);
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.journey-train-livery-highlight {
+  stroke-width: 0.8;
+  opacity: 0.78;
+}
+
+.journey-train-side-highlight {
+  stroke: #f5fbff;
+  stroke-width: 0.65;
+  opacity: 0.68;
+}
+
+.journey-train-lower-highlight {
+  stroke: #d5f3ff;
+  stroke-width: 0.55;
+  opacity: 0.65;
+}
+
+.journey-train-body-reflection {
+  stroke-width: 1.2;
+  opacity: 0.8;
+}
+
+.journey-train-nose-highlight {
+  stroke: #fff;
+  stroke-width: 0.75;
+  opacity: 0.76;
+}
+
+.journey-train-window {
+  fill: url(#journey-train-glass);
+  stroke: #a8dbf4;
+  stroke-width: 0.6;
+}
+
+.journey-train-cab-glass {
+  fill: url(#journey-train-glass);
+  stroke: #bceaff;
+  stroke-width: 0.7;
+}
+
+.journey-train-glass-reflection {
+  fill: #e6faff;
+  opacity: 0.53;
+  pointer-events: none;
+}
+
+.journey-train-roof-equipment {
+  fill: url(#journey-train-roof);
+  stroke: #8faec7;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.journey-train-roof-detail {
+  fill: none;
+  stroke: #718ba2;
+  stroke-width: 0.65;
+  stroke-linecap: round;
+}
+
+.journey-train-door-seam {
+  fill: none;
+  stroke: #45657f;
+  stroke-width: 0.75;
+  opacity: 0.8;
+}
+
+.journey-train-door-handle {
+  fill: none;
+  stroke: #e9f8ff;
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+
+.journey-train-joint {
+  fill: none;
+  stroke: #20374b;
+  stroke-width: 1.2;
+  opacity: 0.86;
+}
+
+.journey-train-stripe {
+  fill: none;
+  stroke: #eafaff;
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.84;
+}
+
+.journey-train-stripe-orange {
+  fill: none;
+  stroke: #ff9c4d;
+  stroke-width: 0.65;
+  stroke-linecap: round;
+}
+
+.journey-train-bogie {
+  fill: #354d64;
+  stroke: #17283a;
+  stroke-width: 0.55;
+}
+
+.journey-train-light {
+  fill: url(#journey-train-headlamp);
+  stroke: #fff;
+  stroke-width: 0.35;
+  filter: drop-shadow(0 0 2px rgba(255, 221, 161, 0.72));
+}
+
+.journey-train-light-ray {
+  stroke: #fff2ce;
+  stroke-width: 0.7;
+  stroke-linecap: round;
+  opacity: 0.86;
+}
+
+.journey-train-destination {
+  fill: #14283b;
+  stroke: #8ee5ff;
+  stroke-width: 0.45;
+}
+
+.journey-train-wheel .journey-train-tire {
+  fill: #111d2b;
+  stroke: #90b9d1;
+  stroke-width: 0.8;
+}
+
+.journey-train-wheel .journey-train-hub {
+  fill: url(#journey-train-metal);
+  stroke: #dff6ff;
+  stroke-width: 0.45;
+}
+
+.journey-train-wheel path {
+  stroke: #34536c;
+  stroke-width: 0.45;
 }
 
 /* lit route trail — smooth dash animation as steps are hovered */
@@ -3365,7 +3807,7 @@ h1, h2, h3, h4, h5 {
 /* gradient dashes march along the dotted line (blue → light blue → orange);
    dasharray 7 9 = 16px period → -16px offset per loop = seamless */
 .journey-flow-path {
-  opacity: 0.85;
+  opacity: 0.5;
   animation: journey-dash-march 1.1s linear infinite;
 }
 
@@ -3376,6 +3818,8 @@ h1, h2, h3, h4, h5 {
 }
 
 .journey-grid {
+  position: relative;
+  z-index: 2;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3421,6 +3865,9 @@ h1, h2, h3, h4, h5 {
 .journey-card {
   position: relative;
   z-index: 1;
+  /* focal point for the train spotlight/ripple (defaults if vars are unset) */
+  --train-x: 50%;
+  --train-y: 42%;
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -3542,6 +3989,31 @@ h1, h2, h3, h4, h5 {
   animation: train-border-sweep 1.6s linear infinite;
 }
 
+/* Dwell effect — train oru stop-la nikkum bodhu box-ai suthi light blue ↔
+   orange maari maari maara border + glow vazhum. (Specificity: entrance
+   card-colour-pop-ai vida mel, so idhu dhaan run aagum while stopped.) */
+.journey.play .journey-item .journey-card.train-active {
+  animation: stop-glow-alternate 1.5s ease-in-out infinite;
+}
+
+@keyframes stop-glow-alternate {
+  0%,
+  100% {
+    border-color: rgba(125, 211, 252, 0.95);
+    box-shadow:
+      0 14px 32px rgba(2, 8, 20, 0.45),
+      0 0 18px rgba(56, 189, 248, 0.65),
+      0 0 36px rgba(56, 189, 248, 0.35);
+  }
+  50% {
+    border-color: rgba(249, 115, 22, 0.95);
+    box-shadow:
+      0 14px 32px rgba(2, 8, 20, 0.45),
+      0 0 18px rgba(249, 115, 22, 0.7),
+      0 0 36px rgba(251, 146, 60, 0.45);
+  }
+}
+
 @keyframes train-contact-ripple {
   0% {
     opacity: 0.95;
@@ -3571,6 +4043,25 @@ h1, h2, h3, h4, h5 {
   font-size: 13px;
   line-height: 1.55;
   margin: 0;
+}
+
+/* Linked stop — idhu oru <a>; click panna pudhu tab-la andha domain-ku forward aagum */
+a.journey-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.journey-card:hover,
+a.journey-card:focus-visible {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(249, 115, 22, 0.65);
+  transform: translateY(-4px);
+}
+
+a.journey-card:hover::after,
+a.journey-card:focus-visible::after {
+  opacity: 1;
 }
 
 /* travelling pulses — glowing blue→orange dot rides the dotted path,
@@ -4335,6 +4826,13 @@ h1, h2, h3, h4, h5 {
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.job-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, #38bdf8 56%, #fb923c);
+  box-shadow: 0 14px 30px rgba(14, 165, 233, 0.11), 0 5px 16px rgba(249, 115, 22, 0.07);
 }
 
 .job-card-head {
@@ -4576,19 +5074,52 @@ h1, h2, h3, h4, h5 {
 }
 
 .team-card {
+  --team-accent: #38bdf8;
+  --team-accent-soft: #e0f2fe;
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--team-accent) 34%, var(--line));
   border-radius: var(--radius);
   overflow: hidden;
   text-align: center;
   box-shadow: var(--shadow-sm);
   height: 100%;
+  position: relative;
   transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
 
+.team-card-blue {
+  --team-accent: #38bdf8;
+  --team-accent-soft: #e0f2fe;
+}
+
+.team-card-orange {
+  --team-accent: #f97316;
+  --team-accent-soft: #ffedd5;
+}
+
+.team-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 35%, #fb923c 68%, #f97316 100%);
+  background-size: 200% 100%;
+  animation: team-brand-flow 7s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes team-brand-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
 .team-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  box-shadow: 0 18px 42px rgba(14, 165, 233, 0.14), 0 8px 22px rgba(249, 115, 22, 0.09);
 }
 
 .team-photo {
@@ -4598,45 +5129,65 @@ h1, h2, h3, h4, h5 {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: linear-gradient(165deg, var(--primary-soft) 0%, #dbeafe 55%, #cffafe 100%);
+  background: linear-gradient(165deg, var(--team-accent-soft) 0%, #fff 72%);
+  border-bottom: 1px solid color-mix(in srgb, var(--team-accent) 28%, var(--line));
+  isolation: isolate;
 }
 
 .team-photo::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: 12px;
+  border: 2px solid color-mix(in srgb, var(--team-accent) 72%, white);
+  border-radius: 14px;
   background:
-    radial-gradient(circle at 75% 18%, rgba(13, 110, 253, 0.16), transparent 52%),
-    radial-gradient(circle at 18% 85%, rgba(6, 182, 212, 0.14), transparent 48%);
+    radial-gradient(circle at 75% 18%, color-mix(in srgb, var(--team-accent) 24%, transparent), transparent 52%),
+    radial-gradient(circle at 18% 85%, color-mix(in srgb, var(--team-accent) 18%, transparent), transparent 48%);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, #38bdf8 10%, transparent),
+    0 0 0 10px color-mix(in srgb, #f97316 7%, transparent),
+    0 12px 28px color-mix(in srgb, var(--team-accent) 20%, transparent);
+  z-index: 1;
+  pointer-events: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 /* Professional portrait grade: face-forward crop, gentle contrast & warmth */
 .team-photo img {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  border-radius: 12px;
   object-fit: cover;
   object-position: center 24%;
   filter: saturate(1.06) contrast(1.05) brightness(1.04);
-  transition: transform 0.5s ease, filter 0.4s ease;
+  transition: transform 0.36s cubic-bezier(0.2, 0.75, 0.25, 1), filter 0.3s ease;
+  z-index: 0;
 }
 
 /* Soft studio gradient at the base so the photo melts into the card body */
 .team-photo::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 34%;
-  background: linear-gradient(180deg, transparent, rgba(10, 20, 40, 0.16));
+  inset: 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, transparent 60%, rgba(10, 20, 40, 0.2));
   pointer-events: none;
+  z-index: 1;
 }
 
 .team-card:hover .team-photo img {
-  transform: scale(1.045);
+  transform: scale(1.06);
   filter: saturate(1.1) contrast(1.06) brightness(1.06);
+}
+
+.team-card:hover .team-photo::before {
+  border-color: color-mix(in srgb, var(--team-accent) 82%, white);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, #38bdf8 15%, transparent),
+    0 0 0 10px color-mix(in srgb, #f97316 11%, transparent),
+    0 12px 32px color-mix(in srgb, var(--team-accent) 27%, transparent);
 }
 
 .team-initials {
@@ -4651,8 +5202,8 @@ h1, h2, h3, h4, h5 {
   font-size: 38px;
   letter-spacing: 0.02em;
   color: #fff;
-  background: linear-gradient(135deg, var(--primary) 10%, var(--cyan) 120%);
-  box-shadow: 0 16px 34px rgba(13, 110, 253, 0.32);
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 48%, #fb923c 100%);
+  box-shadow: 0 14px 30px rgba(14, 165, 233, 0.22), 0 6px 18px rgba(249, 115, 22, 0.12);
 }
 
 .team-ring {
@@ -4685,8 +5236,8 @@ h1, h2, h3, h4, h5 {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--primary);
-  background: var(--primary-soft);
+  color: color-mix(in srgb, var(--team-accent) 72%, #132238);
+  background: var(--team-accent-soft);
   padding: 5px 13px;
   border-radius: 999px;
 }
@@ -4711,8 +5262,8 @@ h1, h2, h3, h4, h5 {
 }
 
 .team-social a:hover {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--team-accent);
+  border-color: var(--team-accent);
   color: #fff;
   transform: translateY(-2px);
 }
@@ -4783,8 +5334,8 @@ h1, h2, h3, h4, h5 {
 .cl-card:hover {
   filter: none;
   transform: translateY(-4px);
-  border-color: rgba(13, 110, 253, 0.45);
-  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, #38bdf8 56%, #fb923c);
+  box-shadow: 0 14px 30px rgba(14, 165, 233, 0.13), 0 6px 18px rgba(249, 115, 22, 0.08);
 }
 
 .cl-card img {
@@ -4806,6 +5357,30 @@ h1, h2, h3, h4, h5 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card,
+  .info-card,
+  .step-card,
+  .job-card,
+  .map-card,
+  .team-card,
+  .team-photo img,
+  .team-photo::before,
+  .cl-card,
+  .topbar-social a {
+    transition: none;
+  }
+  .card:hover,
+  .why-choose-section .card:hover,
+  .info-card:hover,
+  .step-card:hover,
+  .job-card:hover,
+  .map-card:hover,
+  .team-card:hover,
+  .team-card:hover .team-photo img,
+  .cl-card:hover,
+  .topbar-social a:hover {
+    transform: none;
+  }
   .cl-track {
     animation: none;
   }
@@ -4817,11 +5392,16 @@ h1, h2, h3, h4, h5 {
   .team-ring {
     animation: none;
   }
+  .team-card::before,
+  .site-header .brand .brand-text small {
+    animation: none;
+  }
   .nav-item:hover > a,
   .nav-item:hover > .nav-drop-btn {
     animation: none;
     background: none;
-    color: #fff;
+    color: #0284c7;
+    -webkit-text-fill-color: #0284c7;
   }
   .nav-item:hover > a::after,
   .nav-item:hover > .nav-drop-btn::after {
@@ -4844,6 +5424,15 @@ h1, h2, h3, h4, h5 {
   .nav-item.active > .nav-drop-btn::after,
   .nav-item > a.active::after {
     animation: none;
+  }
+  .nav-item.active > a,
+  .nav-item.active > .nav-drop-btn,
+  .nav-item > a.active {
+    animation: none;
+    background: none;
+    color: #0284c7;
+    -webkit-text-fill-color: #0284c7;
+    filter: none;
   }
   .hero-slide {
     transition: none;
@@ -4871,6 +5460,7 @@ h1, h2, h3, h4, h5 {
   .journey.play .journey-item,
   .journey.play .journey-item .journey-dot,
   .journey.play .journey-item .journey-card,
+  .journey.play .journey-item .journey-card.train-active,
   .journey.play .journey-item .journey-card.train-near,
   .journey-card.train-near {
     animation: none;

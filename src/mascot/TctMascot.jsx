@@ -107,7 +107,10 @@ export default function TctMascot() {
     const update = () => {
       const L = mstate.layout;
       if (!L) return;
-      const c = projectToScreen(L.home.x, L.home.y + 0.1);
+      // Center the full tap target over the sleeping robot + cloud. The cloud
+      // is above WhatsApp; the extra world-space lift also covers the robot's
+      // head so taps on the character itself wake it reliably.
+      const c = projectToScreen(L.home.x, L.home.y + 0.3);
       setHitPos(c);
       const sc = L.mobile ? 0.82 : 0.95;
       setBubblePos(projectToScreen(L.stage.x, L.stage.y + 1.75 * sc));
@@ -129,7 +132,7 @@ export default function TctMascot() {
   }, [ui.chatOpen]);
 
   useEffect(() => {
-    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
+    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [messages, typing, ui.chatOpen]);
 
   const pushBot = (text, delay = 700) => {

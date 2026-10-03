@@ -41,7 +41,7 @@ export default function TctBot() {
   useEffect(() => {
     if (open) {
       setTeaser(false);
-      bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
+      bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
     }
   }, [messages, typing, open]);
 

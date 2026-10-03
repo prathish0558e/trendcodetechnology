@@ -90,7 +90,7 @@ export default function JobListings({ trackTitle, intro, jobs, showGithubField =
 
   const scrollToApply = (position) => {
     setForm((f) => ({ ...f, position }));
-    applyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    applyRef.current?.scrollIntoView({ block: "start" });
   };
 
   const onSubmit = async (e) => {

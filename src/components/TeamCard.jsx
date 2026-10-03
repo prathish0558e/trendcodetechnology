@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { COMPANY } from "../data/content.js";
+import ceoPhoto from "../../ceo.png";
 
 export const TEAM = [
   {
     name: "Bharath T",
     role: "Chief Executive Officer (CEO)",
-    photo: "/team/bharath.jpg",
+    photo: ceoPhoto,
     initials: "BT",
+    accent: "blue",
   },
   {
     name: "Mohanapriya K",
     role: "Managing Director (MD)",
     photo: "/team/mohanapriya.jpg",
     initials: "MP",
+    accent: "orange",
   },
 ];
 
@@ -22,7 +25,7 @@ export const TEAM = [
 export default function TeamCard({ member }) {
   const [photoOk, setPhotoOk] = useState(true);
   return (
-    <article className="team-card">
+    <article className={`team-card team-card-${member.accent}`}>
       <div className="team-photo">
         {photoOk ? (
           <img
@@ -44,17 +47,6 @@ export default function TeamCard({ member }) {
         <div className="team-social">
           <a href={`mailto:${COMPANY.email}`} aria-label={`Email ${member.name}`}>
             <i className="bi bi-envelope"></i>
-          </a>
-          <a href={`tel:${COMPANY.phoneRaw}`} aria-label={`Call ${member.name}`}>
-            <i className="bi bi-telephone"></i>
-          </a>
-          <a
-            href={`https://wa.me/${COMPANY.whatsapp}`}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`WhatsApp ${member.name}`}
-          >
-            <i className="bi bi-whatsapp"></i>
           </a>
         </div>
       </div>

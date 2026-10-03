@@ -107,7 +107,7 @@ export default function Internship() {
   const scrollToApply = (domain) => {
     setOpenDomain(domain);
     setForm((f) => ({ ...f, domain }));
-    applyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    applyRef.current?.scrollIntoView({ block: "start" });
   };
 
   const onSubmit = async (e) => {

@@ -62,8 +62,14 @@ export function getUi() {
 /* ------------------------------------------------------------------ */
 
 export function computeLayout() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  // Derive scene coordinates from the actual fixed scene host and the actual
+  // WhatsApp launcher rectangle. This keeps the cloud/mascot pixel-aligned
+  // even when a browser reserves width for its scrollbar or mobile safe areas.
+  const hostRect = document.querySelector(".tct3d-wrap")?.getBoundingClientRect();
+  const w = hostRect?.width || document.documentElement.clientWidth || window.innerWidth;
+  const h = hostRect?.height || document.documentElement.clientHeight || window.innerHeight;
+  const hostLeft = hostRect?.left || 0;
+  const hostTop = hostRect?.top || 0;
   const mobile = w < 720;
   const tallMobile = mobile && h > 700;
   const compact = mobile && h < 600;
@@ -80,16 +86,20 @@ export function computeLayout() {
   // Keep the cloud directly above WhatsApp at its actual fixed CSS position.
   // Reserve a small gap so the two floating controls stay individually tappable.
   const pixelsPerWorld = h / (2 * halfH);
-  const whatsappBottom = w <= 639 ? 96 : 22;
-  const whatsappSize = 50;
-  const whatsappLeft = 22;
+  const whatsappRect = document.querySelector(".wa-float")?.getBoundingClientRect();
+  const whatsappSize = whatsappRect?.width || 50;
+  const whatsappLeft = whatsappRect ? whatsappRect.left - hostLeft : 22;
+  const whatsappTop = whatsappRect
+    ? whatsappRect.top - hostTop
+    : h - (w <= 639 ? 96 : 22) - whatsappSize;
   const cloudR = Math.min(0.64, Math.max(0.24, 84 / (2.54 * pixelsPerWorld)));
   const mascotScale = Math.min(0.42, 50 / (2.6 * pixelsPerWorld));
   const activeMascotScale = Math.min(0.44, mascotScale * 1.55);
   const cloudHeightPx = 1.16 * cloudR * pixelsPerWorld;
+  const mascotGapPx = 12;
   const home = toWorld(
     (whatsappLeft + whatsappSize / 2) / w,
-    (h - whatsappBottom - whatsappSize - 12 - cloudHeightPx / 2) / h
+    (whatsappTop - mascotGapPx - cloudHeightPx / 2) / h
   );
   const cloudTop = home.y + cloudR * 0.62;
 
@@ -229,7 +239,7 @@ function moveRig(phase) {
   const L = state.layout;
   const base = { x: 0, y: 0.9, z: 8.6 };
   const near = L
-    ? { x: L.stage.x * 0.12, y: 0.98, z: L.mobile ? 8.0 : 7.75 }
+    ? { x: Math.min(L.stage.x * 0.12, L.home.x * 0.1), y: 0.98, z: L.mobile ? 8.0 : 7.75 }
     : { x: 0.2, y: 0.98, z: 7.75 };
   const targets = {
     sleep: base, waking: base, stretch: base, board: base, settle: base,

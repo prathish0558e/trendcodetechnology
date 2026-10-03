@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+
+const JourneyTrain3D = lazy(() => import("./JourneyTrain3D.jsx"));
 /*
- * Curved "journey" timeline 2.0 — cards alternate above/below a dashed SVG
- * path with numbered badges + per-step glyph icons, and an animated pulse
- * travels along the path to feel like work flowing through the pipeline.
+ * Curved delivery timeline — cards alternate above/below an invisible route;
+ * a three-car train pauses at each step without painting lines over the copy.
  * When the section scrolls into view the steps pop in one by one, each with
  * a blue → light-blue → orange colour flash, in step order.
  */
@@ -22,9 +23,10 @@ const GLYPHS = [
   "M4 13a8 8 0 0 1 16 0m-16 0v3a2 2 0 0 0 2 2h1v-6H4zm16 0h-3v6h1a2 2 0 0 0 2-2v-3z",
 ];
 
-function Card({ step, title, text, glyph }) {
-  return (
-    <div className="journey-card">
+function Card({ step, title, text, glyph, href, active }) {
+  const className = `journey-card${active ? " train-active" : ""}`;
+  const body = (
+    <>
       <span className="journey-chip">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d={glyph} />
@@ -33,107 +35,112 @@ function Card({ step, title, text, glyph }) {
       </span>
       <h3>{title}</h3>
       <p>{text}</p>
-    </div>
+    </>
   );
-}
 
-/* How far ahead of a card (px) the pulse starts its anticipation wiggle */
-const NEAR_PAD = 110;
-const NEAR_Y_PAD = 60;
-
-function TrainCollision({ journeyRef, trainRef }) {
-  useEffect(() => {
-    let frameId;
-
-    const checkCollisions = () => {
-      const train = trainRef.current;
-      const journey = journeyRef.current;
-
-      if (train && journey) {
-        const trainRect = train.getBoundingClientRect();
-        const trainCenterX = trainRect.left + trainRect.width / 2;
-        const trainCenterY = trainRect.top + trainRect.height / 2;
-        let activeBox = null;
-        const nearBoxes = [];
-
-        journey.querySelectorAll(".journey-card").forEach((box) => {
-          const boxRect = box.getBoundingClientRect();
-          const intersects =
-            trainRect.left < boxRect.right &&
-            trainRect.right > boxRect.left &&
-            trainRect.top < boxRect.bottom &&
-            trainRect.bottom > boxRect.top;
-
-          if (intersects && !activeBox) {
-            activeBox = box;
-            box.style.setProperty("--train-x", `${trainCenterX - boxRect.left}px`);
-            box.style.setProperty("--train-y", `${trainCenterY - boxRect.top}px`);
-          } else if (!intersects) {
-            // Anticipation: train coming from the left, same row band —
-            // the card shivers a little before the pulse arrives.
-            const approaching =
-              trainCenterX <= boxRect.left &&
-              trainCenterX > boxRect.left - NEAR_PAD &&
-              trainCenterY > boxRect.top - NEAR_Y_PAD &&
-              trainCenterY < boxRect.bottom + NEAR_Y_PAD;
-            if (approaching) nearBoxes.push(box);
-          }
-        });
-
-        journey.querySelectorAll(".journey-card.train-active").forEach((box) => {
-          if (box !== activeBox) box.classList.remove("train-active");
-        });
-        if (activeBox) activeBox.classList.add("train-active");
-
-        journey.querySelectorAll(".journey-card.train-near").forEach((box) => {
-          if (!nearBoxes.includes(box)) box.classList.remove("train-near");
-        });
-        nearBoxes.forEach((box) => box.classList.add("train-near"));
-      }
-
-      frameId = requestAnimationFrame(checkCollisions);
-    };
-
-    frameId = requestAnimationFrame(checkCollisions);
-    return () => cancelAnimationFrame(frameId);
-  }, [journeyRef, trainRef]);
-
-  return null;
+  // A stop can carry a `href` — the card then forwards to it (new tab).
+  if (href) {
+    return (
+      <a
+        className={className}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${title} — opens tctechs.in in a new tab`}
+      >
+        {body}
+      </a>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }
 
 export default function Journey({ steps }) {
   const journeyRef = useRef(null);
-  const trainRef = useRef(null);
   const n = steps.length;
   const W = 1360;
-  const H = 220;
-  const gap = W / (n - 1);
+  // Keep the train on a dedicated lane above the cards so it can never cover copy.
+  const H = 80;
+  const stationXs = steps.map((_, i) => (W * (i + 0.5)) / n);
 
-  // Alternating wave through each badge position
-  let d = `M 0 ${H / 2}`;
-  for (let i = 1; i < n; i++) {
-    const x = gap * i;
-    const prevMid = gap * (i - 1) + gap / 2;
-    const y = i % 2 === 0 ? 24 : H - 24;
-    d += ` Q ${prevMid} ${y} ${x} ${H / 2}`;
-  }
+  // The route is invisible; a straight, clear lane keeps the train away from all text.
+  const d = `M ${stationXs[0]} ${H / 2} L ${stationXs[n - 1]} ${H / 2}`;
 
-  const [totalLen, setTotalLen] = useState(0);
+  const [trackData, setTrackData] = useState({ keyPoints: [], keyTimes: [] });
   const basePathRef = useRef(null);
   useEffect(() => {
     try {
-      setTotalLen(basePathRef.current?.getTotalLength() || 0);
+      const path = basePathRef.current;
+      if (!path) return;
+      const length = path.getTotalLength();
+      // Find exact distances along the curved SVG route for each card's station.
+      const keyPoints = stationXs.map((stationX) => {
+        let low = 0;
+        let high = length;
+        for (let step = 0; step < 22; step++) {
+          const mid = (low + high) / 2;
+          if (path.getPointAtLength(mid).x < stationX) low = mid;
+          else high = mid;
+        }
+        return ((low + high) / 2) / length;
+      });
+
+      // Dwell at every card, then take a slow, even journey to the next one.
+      const dwellSeconds = 2.4;
+      const travelSeconds = 4.8;
+      const duration = keyPoints.length * dwellSeconds + Math.max(0, keyPoints.length - 1) * travelSeconds;
+      const motionPoints = [keyPoints[0]];
+      const motionTimes = [0];
+      let elapsed = 0;
+      keyPoints.forEach((point, i) => {
+        elapsed += dwellSeconds;
+        motionPoints.push(point);
+        motionTimes.push(elapsed / duration);
+        if (i < keyPoints.length - 1) {
+          elapsed += travelSeconds;
+          motionPoints.push(keyPoints[i + 1]);
+          motionTimes.push(elapsed / duration);
+        }
+      });
+
+      setTrackData({ keyPoints: motionPoints, keyTimes: motionTimes, duration });
     } catch {
       /* SVG not ready yet */
     }
-  }, []);
-  // Two glowing pulses loop along the dashed path forever.
+  }, [d]);
+  // Mount the animated train after the SVG route is ready.
   const [pathSet, setPathSet] = useState(false);
   useEffect(() => setPathSet(true), []);
 
   // Sequential colour-pop entrance — arms once the journey scrolls into view,
   // then each step pops in order (Step 1 → 6) with a blue→orange flash.
   const [play, setPlay] = useState(false);
+  const [trainStartTime, setTrainStartTime] = useState(null);
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [showTrain, setShowTrain] = useState(() => typeof window === "undefined" || window.innerWidth >= 640);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 640px)");
+    const update = () => setShowTrain(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+  useEffect(() => {
+    if (!play || !pathSet || trackData.keyPoints.length !== steps.length * 2 || trainStartTime !== null) return;
+    const frameId = requestAnimationFrame(() => {
+      setTrainStartTime(performance.now());
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [play, pathSet, trackData.keyPoints.length, steps.length, trainStartTime]);
   useEffect(() => {
     const el = journeyRef.current;
     if (!el || typeof IntersectionObserver === "undefined") {
@@ -153,71 +160,47 @@ export default function Journey({ steps }) {
     return () => io.disconnect();
   }, []);
 
+  // The stop the train is currently dwelling at (-1 = moving / no train).
+  // Drives the blue ↔ orange glow around that stop's box.
+  const [activeStop, setActiveStop] = useState(-1);
+  useEffect(() => {
+    if (!showTrain) setActiveStop(-1);
+  }, [showTrain]);
+
   return (
     <div className={`journey${play ? " play" : ""}`} ref={journeyRef}>
-      <TrainCollision journeyRef={journeyRef} trainRef={trainRef} />
       <svg
         className="journey-path"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <defs>
-          <linearGradient id="journey-pulse" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="55%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#f97316" />
-          </linearGradient>
-          <linearGradient id="journey-lit" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="55%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#f97316" />
-          </linearGradient>
-          <linearGradient
-            id="journey-flow"
-            gradientUnits="userSpaceOnUse"
-            x1="0"
-            y1="0"
-            x2={W}
-            y2="0"
-          >
-            <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="55%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#f97316" />
-          </linearGradient>
-        </defs>
-        <path
-          ref={basePathRef}
-          d={d}
-          fill="none"
-          stroke="rgba(255,255,255,0.28)"
-          strokeWidth="2.5"
-          strokeDasharray="7 9"
-          strokeLinecap="round"
-        />
-        {/* the dotted line itself flows — gradient dashes march blue → light
-            blue → orange along the path, no mouse needed */}
-        <path
-          d={d}
-          fill="none"
-          stroke="url(#journey-flow)"
-          strokeWidth="2.5"
-          strokeDasharray="7 9"
-          strokeLinecap="round"
-          className="journey-flow-path"
-        />
-        {/* travelling pulses — visible only on wide screens */}
-        {pathSet && (
-          <g className="journey-pulses">
-            <circle ref={trainRef} className="train-scanner" r="5" fill="url(#journey-pulse)">
-              <animateMotion dur="9s" repeatCount="indefinite" path={d} />
-            </circle>
-            <circle r="3.5" fill="url(#journey-pulse)" opacity="0.7">
-              <animateMotion dur="9s" begin="4.5s" repeatCount="indefinite" path={d} />
-            </circle>
-          </g>
-        )}
+        {/* Visible rails and sleepers stay in the reserved lane above all card copy. */}
+        <g className="journey-track-ties" aria-hidden="true">
+          {Array.from({ length: 43 }, (_, i) => {
+            const x = (W * i) / 42;
+            return <line key={i} x1={x} y1={H / 2 + 13} x2={x} y2={H / 2 + 26} />;
+          })}
+        </g>
+        <path className="journey-track-rail" d={`M 0 ${H / 2 + 16} H ${W}`} />
+        <path className="journey-track-rail" d={`M 0 ${H / 2 + 23} H ${W}`} />
+        {/* The center path is transparent and only drives the train animation. */}
+        <path ref={basePathRef} d={d} fill="none" stroke="transparent" strokeWidth="1" />
       </svg>
+
+      {play && trainStartTime !== null && showTrain && pathSet && trackData.keyPoints.length === steps.length * 2 && (
+        <Suspense fallback={null}>
+          <JourneyTrain3D
+            pathRef={basePathRef}
+            duration={trackData.duration}
+            keyPoints={trackData.keyPoints}
+            keyTimes={trackData.keyTimes}
+            startTime={trainStartTime}
+            reducedMotion={reducedMotion}
+            onStationChange={setActiveStop}
+          />
+        </Suspense>
+      )}
 
       <ol className="journey-grid">
         {steps.map((s, i) => (
@@ -232,6 +215,8 @@ export default function Journey({ steps }) {
               title={s.title}
               text={s.text}
               glyph={GLYPHS[i % GLYPHS.length]}
+              href={s.href}
+              active={activeStop === i}
             />
           </li>
         ))}

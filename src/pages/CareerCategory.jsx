@@ -266,7 +266,7 @@ export default function CareerCategory() {
 
   const scrollToApply = (role) => {
     // pre-select the role in the track apply form, then scroll to it
-    applyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    applyRef.current?.scrollIntoView({ block: "start" });
     const select = applyRef.current?.querySelector("select");
     if (select) {
       const setter = setFormRef.current;

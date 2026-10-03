@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { COMPANY } from "../data/content.js";
 
@@ -14,25 +13,6 @@ const QUICK_LINKS = [
 ];
 
 export default function Footer() {
-  const [subscribed, setSubscribed] = useState(false);
-  const subscribeTimer = useRef(null);
-
-  useEffect(
-    () => () => window.clearTimeout(subscribeTimer.current),
-    []
-  );
-
-  const onSubscribe = (e) => {
-    e.preventDefault();
-    e.currentTarget.reset();
-    setSubscribed(true);
-    window.clearTimeout(subscribeTimer.current);
-    subscribeTimer.current = window.setTimeout(
-      () => setSubscribed(false),
-      4000
-    );
-  };
-
   return (
     <footer className="site-footer">
       <div className="container footer-main">
@@ -47,17 +27,6 @@ export default function Footer() {
             highly scalable conceptual and functional solutions to companies
             since {COMPANY.founded}.
           </p>
-          <form className="newsletter" onSubmit={onSubscribe}>
-            <input
-              type="email"
-              required
-              placeholder="Your Email"
-              aria-label="Email for newsletter"
-            />
-            <button type="submit">
-              {subscribed ? "Done ✓" : "Sign Up"}
-            </button>
-          </form>
         </div>
 
         <div className="footer-col">
@@ -88,18 +57,6 @@ export default function Footer() {
               <i className="bi bi-telephone"></i>
               <span>
                 <a href={`tel:${COMPANY.phoneRaw}`}>{COMPANY.phone}</a>
-                <a
-                  className="wa-chip"
-                  href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
-                    "Hi TCT! I have an enquiry."
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Chat with us on WhatsApp"
-                  title="WhatsApp"
-                >
-                  <i className="bi bi-whatsapp"></i>
-                </a>
               </span>
             </li>
           </ul>

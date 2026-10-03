@@ -18,10 +18,10 @@
 /* the sleeping cloud — invisible round hit target with a soft halo */
 .tct3d-hit {
   position: absolute;
-  width: 90px;
-  height: 64px;
+  width: 94px;
+  height: 88px;
   transform: translate(-50%, -50%);
-  border-radius: 44px;
+  border-radius: 48px;
   border: none;
   background: transparent;
   cursor: pointer;

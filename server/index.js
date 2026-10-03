@@ -172,6 +172,221 @@ async function notifyNewLead(lead) {
   }
 }
 
+// ---------- thank-you auto reply (company mailbox -> the sender) ----------
+// Every form on the site — careers, internship, quote/enquiry — gets a
+// "Thank you for your interest" confirmation FROM the company's own mail
+// address TO the address the visitor typed into the form, the same way
+// other companies' career pages acknowledge applications. Fire-and-forget:
+// it must never block or fail the API response.
+const escapeHtml = (s) =>
+  String(s).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+  );
+
+const THANK_YOU_SIGNATURE =
+  "<b>Trend Code Technology</b><br>" +
+  "We Build Your Future<br>" +
+  "+91 93848 47922 · trendcodetechnology2026@gmail.com<br>" +
+  "No. 215, 2nd Floor, Shakthi Nagar, Near ICICI Bank, Ganapathy, Coimbatore — 641006";
+
+// Mail assets: the owner drops banners + logo into server/mail-assets/
+// (see README.txt there). They are re-read on EVERY send — replace a file any
+// time, no restart — and attached with CID so images render inline for every
+// recipient without needing a hosted URL. Missing files fall back to the
+// styled HTML below.
+const MAIL_ASSETS_DIR = path.join(__dirname, "mail-assets");
+const MAIL_ASSET_EXTS = [".png", ".jpg", ".jpeg", ".webp"];
+
+function attachMailAsset(attachments, base, cid) {
+  for (const ext of MAIL_ASSET_EXTS) {
+    const file = path.join(MAIL_ASSETS_DIR, base + ext);
+    if (fs.existsSync(file)) {
+      attachments.push({ filename: path.basename(file), cid, path: file });
+      return true;
+    }
+  }
+  return false;
+}
+
+const SITE_URL = "https://trendcodetechnology.com";
+
+const THANK_YOU_KINDS = {
+  career: {
+    subject: "Thank you for your interest — Trend Code Technology",
+    intro: (detail) =>
+      `We've received your application for <b>${escapeHtml(detail || "the position you applied for")}</b>.`,
+    next:
+      "Our HR team will review it and get back to you within a few working days.",
+    more:
+      "While you wait, feel free to browse our other open roles — every application reaches the same HR inbox.",
+    cta: { label: "View open positions", href: `${SITE_URL}/careers` },
+  },
+  internship: {
+    subject: "Thank you for your interest — Trend Code Technology Internship",
+    intro: (detail) =>
+      `We've received your internship application${
+        detail ? ` for the <b>${escapeHtml(detail)}</b> domain` : ""
+      }.`,
+    next: "Our HR team will review it and contact you about the next steps.",
+    more:
+      "We run live projects across development, digital marketing, AI and IoT — you are paired with a mentor from day one.",
+    cta: { label: "Explore internship tracks", href: `${SITE_URL}/internship` },
+  },
+  enquiry: {
+    subject: "Thank you for your interest — Trend Code Technology",
+    intro: () => "We've received your enquiry.",
+    next: "Our team will look into it and reply within 24 hours.",
+    more:
+      "Need a faster answer? WhatsApp or call +91 93848 47922 — we reply 24×7.",
+    cta: { label: "Explore our services", href: `${SITE_URL}/services` },
+  },
+};
+
+async function sendThankYou(to, name, kind = "enquiry", detail = "") {
+  if (!to || !VALID_EMAIL.test(to)) return;
+  if (!mailer) {
+    console.log(`[thankyou] SMTP not configured — skipped for ${to} (${kind})`);
+    return;
+  }
+  const k = THANK_YOU_KINDS[kind] || THANK_YOU_KINDS.enquiry;
+  const safeName = escapeHtml(name || "there");
+
+  const attachments = [];
+  // Priority: the owner's shared "email banner" image (used as the HEADER and
+  // FOOTER background with logo/address over it) -> separate header/footer
+  // banners -> styled HTML fallbacks.
+  const hasEmailBanner = attachMailAsset(attachments, "email banner", "tct-email-banner@asset");
+  const hasBanner =
+    !hasEmailBanner && attachMailAsset(attachments, "header-banner", "tct-header@banner");
+  const hasFooter =
+    !hasEmailBanner && attachMailAsset(attachments, "footer-banner", "tct-footer@banner");
+  const hasLogo =
+    (hasEmailBanner || !hasBanner) && attachMailAsset(attachments, "logo", "tct-logo@asset");
+  const hasWatermark = attachMailAsset(attachments, "watermark", "tct-watermark@asset");
+
+  // Shared background style for the owner's email banner (dark fallback colour
+  // keeps the mail looking intentional in clients that block background images).
+  const bannerBg =
+    "background-image:url('cid:tct-email-banner@asset');background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#0f172a";
+
+  // Header — owner's banner background with the website-style logo + name on top
+  const header = hasEmailBanner
+    ? `<div style="${bannerBg};padding:16px 26px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${
+          hasLogo
+            ? '<td width="58" style="width:58px"><img src="cid:tct-logo@asset" width="46" alt="" style="display:block;width:46px;height:auto;border:0"></td>'
+            : ""
+        }<td style="font-family:Arial,Helvetica,sans-serif;padding-left:14px">
+            <div style="color:#0284c7;font-size:20px;font-weight:700;line-height:1.2">Trend Code Technology</div>
+            <div style="color:#fb923c;font-size:10.5px;letter-spacing:2.6px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)">WE BUILD YOUR FUTURE</div>
+          </td></tr></table>
+      </div>`
+    : hasBanner
+      ? '<img src="cid:tct-header@banner" width="600" alt="Trend Code Technology" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none">'
+      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a"><tr>${
+          hasLogo
+            ? '<td width="58" style="width:58px;padding-left:24px"><img src="cid:tct-logo@asset" width="46" alt="" style="display:block;width:46px;height:auto;border:0"></td>'
+            : ""
+        }<td style="padding:18px 24px;font-family:Arial,Helvetica,sans-serif">
+            <div style="color:#0284c7;font-size:20px;font-weight:700;line-height:1.2">Trend Code Technology</div>
+            <div style="color:#fb923c;font-size:10.5px;letter-spacing:2.6px;font-weight:700">WE BUILD YOUR FUTURE</div>
+          </td></tr></table>`;
+
+  // Body — the owner's faint TCT logo watermark sits behind the text
+  const bodyStyle = hasWatermark
+    ? "background-color:#f5f9ff;background-image:url('cid:tct-watermark@asset');background-repeat:no-repeat;background-position:center center;background-size:440px auto;padding:32px 34px 36px;font-family:Arial,Helvetica,sans-serif;color:#334155;font-size:15px;line-height:1.65"
+    : "background-color:#f5f9ff;padding:32px 34px 36px;font-family:Arial,Helvetica,sans-serif;color:#334155;font-size:15px;line-height:1.65";
+
+  // CTA box — brand light-blue ↔ orange gradient that spins continuously
+  // while the mouse is over it (hover animation; static gradient elsewhere)
+  const button = `<a href="${escapeHtml(k.cta.href)}" class="tct-btn" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:9px;background-color:#0284c7;background-image:linear-gradient(90deg,#0284c7 0%,#0ea5e9 35%,#f97316 70%,#fb923c 100%);background-size:200% 100%;background-position:0% 50%">${k.cta.label}</a>`;
+
+  // Footer — the SAME owner banner as background with the address over it
+  const footer = hasEmailBanner
+    ? `<div style="${bannerBg};padding:16px 26px;text-align:center;font-family:Arial,Helvetica,sans-serif">
+        <div style="color:#ffffff;font-size:12.5px;line-height:1.75;text-shadow:0 1px 3px rgba(0,0,0,.6)">
+          <b>Trend Code Technology</b><br>
+          No. 215, 2nd Floor, Shakthi Nagar, Near ICICI Bank, Ganapathy, Coimbatore — 641006<br>
+          +91 93848 47922 · trendcodetechnology2026@gmail.com
+        </div>
+      </div>`
+    : hasFooter
+      ? `<img src="cid:tct-footer@banner" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0"><div style="padding:14px 24px 18px;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:#64748b;text-align:center">Trend Code Technology · Ganapathy, Coimbatore — 641006</div>`
+      : `<div style="background:#f1f5f9;padding:18px 26px;font-family:Arial,Helvetica,sans-serif;color:#64748b;font-size:12.5px;line-height:1.7">${THANK_YOU_SIGNATURE}</div>`;
+
+  // Outer address line — redundant when the footer banner already shows it
+  const bottomLine = hasEmailBanner
+    ? ""
+    : `<table role="presentation" width="600" align="center" style="width:600px;max-width:100%;margin:12px auto 0"><tr><td style="text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:#94a3b8;padding:0 12px 26px">No. 215, 2nd Floor, Shakthi Nagar, Near ICICI Bank, Ganapathy, Coimbatore — 641006</td></tr></table>`;
+
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background-color:#eef3fb">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(k.subject)} — Hi ${safeName}, thank you!</div>
+<style>
+  .tct-btn{transition:box-shadow .2s ease,filter .2s ease}
+  .tct-btn:hover{animation:tctShift .9s linear infinite;box-shadow:0 8px 22px rgba(56,189,248,.45),0 8px 26px rgba(249,115,22,.35);filter:brightness(1.06)}
+  .tct-btn:active{filter:brightness(.94)}
+  @keyframes tctShift{0%{background-position:0% 50%}100%{background-position:-200% 50%}}
+  @media (max-width:620px){.tct-wrap{width:100% !important}.tct-btn{display:block !important;text-align:center}}
+</style>
+<table role="presentation" class="tct-wrap" width="600" cellpadding="0" cellspacing="0" border="0" align="center" style="width:600px;max-width:100%;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,.08)">
+  <tr><td>${header}</td></tr>
+  <tr>
+    <td style="${bodyStyle}">
+      <p style="margin:0 0 14px">Hi ${safeName},</p>
+      <p style="margin:0 0 14px;font-size:17px;color:#0f172a"><b>Thank you for your interest in <span style="color:#0284c7">Trend Code Technology</span>.</b></p>
+      <p style="margin:0 0 14px">${k.intro(detail)}</p>
+      <p style="margin:0 0 14px">${k.next}</p>
+      <p style="margin:0 0 4px;color:#64748b">${k.more}</p>
+      <p style="margin:24px 0 6px">${button}</p>
+      <p style="margin:22px 0 0;font-size:13.5px;color:#64748b">If anything needs changing, just reply to this mail — it lands straight with our team.</p>
+    </td>
+  </tr>
+  <tr><td>${footer}</td></tr>
+</table>
+${bottomLine}
+</body></html>`;
+
+  // dev aid: MAIL_DUMP=/path/file.html writes the rendered mail for inspection
+  if (process.env.MAIL_DUMP) {
+    try {
+      fs.writeFileSync(process.env.MAIL_DUMP, html);
+    } catch {}
+  }
+
+  const text = [
+    `Hi ${name || "there"},`,
+    "",
+    "Thank you for your interest in Trend Code Technology.",
+    "",
+    String(k.intro("")).replace(/<[^>]+>/g, ""),
+    k.next,
+    k.more,
+    "",
+    `${k.cta.label}: ${k.cta.href}`,
+    "",
+    "Reply to this mail or WhatsApp +91 93848 47922 if you need anything.",
+    "",
+    "Trend Code Technology — We Build Your Future",
+    "Ganapathy, Coimbatore — 641006",
+  ].join("\n");
+  try {
+    await mailer.sendMail({
+      from: `"Trend Code Technology" <${process.env.SMTP_USER}>`,
+      to,
+      subject: k.subject,
+      text,
+      html,
+      attachments,
+    });
+    console.log(
+      `[thankyou] sent to ${to} (${kind}) — attachments: ${attachments.length ? attachments.map((a) => a.filename).join(", ") : "none"}`
+    );
+  } catch (err) {
+    console.error(`[thankyou] failed for ${to} (${kind}):`, err.message);
+  }
+}
+
 // ---------- routes ----------
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, service: "tct-api", time: new Date().toISOString() })
@@ -206,6 +421,8 @@ app.post("/api/leads", (req, res) => {
   // fire-and-forget notifications (email + WhatsApp)
   notifyNewLead(lead).catch(() => {});
   notifyWhatsApp(lead).catch(() => {});
+  // "Thank you for your interest" auto reply to the sender's own mail id
+  sendThankYou(lead.email, lead.name, "enquiry").catch(() => {});
 
   res.status(201).json({
     ok: true,
@@ -302,6 +519,8 @@ app.post("/api/apply", uploadResume.single("resume"), (req, res) => {
 
   // buffers must not live in the stored list — notify reads it, then strip
   notifyApplication(application).catch(() => {});
+  // "Thank you for your interest" auto reply to the applicant's own mail id
+  sendThankYou(application.email, application.name, "career", application.position).catch(() => {});
   delete application.resumeBuffer;
 
   res.status(201).json({
@@ -769,6 +988,9 @@ app.post(
         } catch {}
       }
     })().catch(() => {});
+
+    // "Thank you for your interest" auto reply to the applicant's own mail id
+    sendThankYou(app_.email, app_.name, "internship", app_.domain).catch(() => {});
 
     res.status(201).json({
       ok: true,

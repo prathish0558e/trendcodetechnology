@@ -36,6 +36,14 @@ function createProceduralRobotPlaceholder() {
     color: "#dfe8f3", roughness: 0.28, metalness: 0.25,
     clearcoat: 0.85, clearcoatRoughness: 0.19,
   });
+  const shirtFabric = new THREE.MeshPhysicalMaterial({
+    name: "Matte TCT shirt",
+    color: "#f3f6fa", roughness: 0.78, metalness: 0.02,
+    clearcoat: 0.08, clearcoatRoughness: 0.88,
+  });
+  const shirtTrim = new THREE.MeshStandardMaterial({
+    name: "TCT shirt seams", color: "#d9e2ec", roughness: 0.82, metalness: 0.02,
+  });
   const silver = new THREE.MeshPhysicalMaterial({
     name: "Brushed titanium",
     color: "#7185a0", roughness: 0.25, metalness: 0.76,
@@ -91,29 +99,37 @@ function createProceduralRobotPlaceholder() {
   const ring = (parent, name, radius, tube, material, position, rotation = [Math.PI / 2, 0, 0]) =>
     add(parent, name, new THREE.TorusGeometry(radius, tube, 12, 48), material, position, null, rotation);
 
-  // Rounded torso shell, hidden graphite waist joint, and a crisp chest badge.
+  // Rounded torso shell under a soft fitted T-shirt, with visible collar and hem.
   const torso = group(root, "Torso shell", [0, 1.12, 0]);
   add(torso, "Ceramic torso shell", sphere, white, [0, 0, 0], [0.43, 0.54, 0.32]);
-  add(torso, "Chest inset", sphere, pearl, [0, 0.12, 0.266], [0.31, 0.29, 0.09]);
+  add(torso, "Chest inset", sphere, pearl, [0, 0.12, 0.23], [0.31, 0.29, 0.08]);
+  add(torso, "TCT fitted shirt", sphere, shirtFabric, [0, 0, 0], [0.445, 0.552, 0.338]);
+  const collar = ring(torso, "TCT shirt collar", 0.15, 0.018, shirtTrim, [0, 0.49, 0]);
+  collar.scale.set(1, 1, 0.78);
+  const hem = ring(torso, "TCT shirt hem", 0.235, 0.009, shirtTrim, [0, -0.46, 0]);
+  hem.scale.set(1, 1, 0.74);
   add(torso, "Reactor bezel", sphere, silver, [0, -0.24, 0.286], [0.105, 0.105, 0.055]);
   add(torso, "TCT blue chest reactor", sphere, blue, [0, -0.24, 0.326], [0.067, 0.067, 0.035]);
   ring(torso, "Waist titanium seam", 0.29, 0.022, silver, [0, -0.46, 0]);
-  const badge = group(root, "TCT badge frame", [0, 1.17, 0.324]);
-  add(badge, "Chest logo backing", sphere, pearl, [0, 0, 0], [0.275, 0.165, 0.045]);
-  const logoCanvas = document.createElement("canvas");
-  logoCanvas.width = 512; logoCanvas.height = 256;
-  const ctx = logoCanvas.getContext("2d");
-  const mark = ctx.createLinearGradient(18, 30, 146, 220);
-  mark.addColorStop(0, "#ffd42a"); mark.addColorStop(0.34, "#14c5c4");
-  mark.addColorStop(0.68, "#287bff"); mark.addColorStop(1, "#ed3682");
-  ctx.font = "900 196px Arial, sans-serif"; ctx.fillStyle = mark;
-  ctx.fillText("C", 10, 202);
-  ctx.font = "800 106px Arial, sans-serif"; ctx.fillStyle = "#10213a";
-  ctx.fillText("TCT", 176, 164);
-  const logoTexture = new THREE.CanvasTexture(logoCanvas);
+  const badgeY = 0.08;
+  const badge = group(torso, "TCT badge frame", [0, badgeY, 0]);
+  const logoTexture = new THREE.TextureLoader().load("/tct-shirt-logo.png");
   logoTexture.colorSpace = THREE.SRGBColorSpace;
-  const logoMaterial = new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, toneMapped: false });
-  add(badge, "TCT wordmark", new THREE.PlaneGeometry(0.42, 0.21), logoMaterial, [0, 0, 0.051]);
+  logoTexture.anisotropy = 4;
+  const logoMaterial = new THREE.MeshBasicMaterial({
+    map: logoTexture, transparent: true, toneMapped: false,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const logoGeometry = new THREE.PlaneGeometry(0.44, 0.36, 16, 12);
+  const logoPositions = logoGeometry.attributes.position;
+  for (let i = 0; i < logoPositions.count; i++) {
+    const x = logoPositions.getX(i);
+    const y = logoPositions.getY(i);
+    const shell = Math.max(0, 1 - (x / 0.445) ** 2 - ((y + badgeY) / 0.552) ** 2);
+    logoPositions.setZ(i, 0.338 * Math.sqrt(shell) + 0.003);
+  }
+  logoGeometry.computeVertexNormals();
+  add(badge, "TCT logo printed on shirt", logoGeometry, logoMaterial);
   add(root, "Pelvis shell", sphere, white, [0, 0.62, 0], [0.33, 0.205, 0.255]);
   ring(root, "Pelvis graphite seam", 0.25, 0.022, joint, [0, 0.48, 0]);
 
@@ -151,6 +167,9 @@ function createProceduralRobotPlaceholder() {
     const arm = group(root, `Arm_${label}`, [side * 0.45, 1.46, 0]);
     add(arm, `Shoulder shell ${label}`, sphere, white, [0, 0, 0], [0.205, 0.205, 0.205]);
     add(arm, `Upper arm ceramic ${label}`, limb(0.125, 0.21), white, [0, -0.235, 0], [1, 1, 0.92]);
+    add(arm, `TCT shirt sleeve ${label}`, limb(0.14, 0.11), shirtFabric, [0, -0.12, 0], [1, 1, 0.98]);
+    const sleeveHem = ring(arm, `TCT sleeve stitching ${label}`, 0.137, 0.008, shirtTrim, [0, -0.31, 0]);
+    sleeveHem.scale.set(1, 1, 0.9);
     ring(arm, `Shoulder graphite seam ${label}`, 0.145, 0.019, silver, [0, -0.075, 0], [Math.PI / 2, 0, 0]);
     const elbow = group(arm, `Elbow_${label}`, [0, -0.425, 0]);
     add(elbow, `Elbow joint ${label}`, sphere, joint, [0, 0, 0], [0.135, 0.13, 0.13]);
@@ -181,7 +200,7 @@ function createProceduralRobotPlaceholder() {
     }
   }
 
-  root.userData.materials = { white, pearl, silver, dark, joint, blue, orange, eye, darkRubber, logoTexture };
+  root.userData.materials = { white, pearl, shirtFabric, shirtTrim, silver, dark, joint, blue, orange, eye, darkRubber, logoTexture };
   return root;
 }
 

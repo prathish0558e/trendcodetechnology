@@ -14,6 +14,7 @@ export const COMPANY = {
     { label: "X (Twitter)", icon: "bi-twitter-x", url: "https://x.com/trendcodetech" },
     { label: "YouTube", icon: "bi-youtube", url: "https://www.youtube.com/@trendcodetechnology" },
     { label: "Facebook", icon: "bi-facebook", url: "https://www.facebook.com/profile.php?id=61593813545533" },
+    { label: "WhatsApp", icon: "bi-whatsapp", url: "https://wa.me/919384847922" },
   ],
   mapEmbed:
     "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d4576.857768227223!2d76.98199060399196!3d11.043344392004284!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba8fca8ea954ccd%3A0x6d79791fad302083!2sTrend%20Code%20Technology!5e0!3m2!1sen!2sin!4v1790682190686!5m2!1sen!2sin",
@@ -276,6 +277,8 @@ export const PROCESS = [
   {
     title: "Ongoing Technical Support",
     text: "Dedicated SLA maintenance, proactive server monitoring, regular security updates and continuous enhancements keep your platform at peak performance.",
+    // Final stop — the journey hands over to our products/experience site.
+    href: "https://tctechs.in/",
   },
 ];
 

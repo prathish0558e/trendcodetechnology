@@ -14,7 +14,7 @@ export default function ToTop() {
     <button
       className={`to-top ${show ? "show" : ""}`}
       aria-label="Back to top"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={() => window.scrollTo({ top: 0 })}
     >
       <i className="bi bi-arrow-up"></i>
     </button>
