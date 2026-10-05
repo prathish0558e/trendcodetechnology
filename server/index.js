@@ -100,10 +100,36 @@ function makeTransport() {
     port: Number(SMTP_PORT) || 587,
     secure: Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    // hard limits so a stalled SMTP server can never eat the whole
+    // serverless function time budget (Vercel would then kill the response)
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 20000,
   });
 }
 
 const mailer = makeTransport();
+
+// Logged on every cold start — this is the first thing to check in the Vercel
+// function logs when mail "silently" does not arrive.
+console.log(
+  mailer
+    ? `[mail] SMTP configured → host=${process.env.SMTP_HOST} user=${process.env.SMTP_USER}`
+    : "[mail] SMTP NOT configured — set SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS (Vercel: Project → Settings → Environment Variables)"
+);
+
+// Vercel stops all work the moment the response is sent, so notifications
+// (thank-you mail, owner alerts, WhatsApp) must be awaited BEFORE responding;
+// fire-and-forget would be cut off mid-SMTP-send. Locally we keep them
+// non-blocking so forms stay instant. Errors are logged, never swallowed.
+function runNotifications(fns) {
+  const all = Promise.all(
+    fns.map((fn) =>
+      fn().catch((err) => console.error("[notify] failed:", err?.message || err))
+    )
+  );
+  return IS_SERVERLESS ? all : undefined;
+}
 
 // Attachment for emails — works for both disk (local) and memory (serverless)
 function buildResumeAttachment(record, buffer) {
@@ -392,7 +418,7 @@ app.get("/api/health", (_req, res) =>
   res.json({ ok: true, service: "tct-api", time: new Date().toISOString() })
 );
 
-app.post("/api/leads", (req, res) => {
+app.post("/api/leads", async (req, res) => {
   const { name, email, phone, service, message } = req.body || {};
   if (!name || !email || !message) {
     return res
@@ -418,11 +444,14 @@ app.post("/api/leads", (req, res) => {
   list.push(lead);
   writeList(FILES.leads, list);
 
-  // fire-and-forget notifications (email + WhatsApp)
-  notifyNewLead(lead).catch(() => {});
-  notifyWhatsApp(lead).catch(() => {});
-  // "Thank you for your interest" auto reply to the sender's own mail id
-  sendThankYou(lead.email, lead.name, "enquiry").catch(() => {});
+  // Owner alerts (email + WhatsApp) + the "Thank you" auto-reply to the
+  // sender. Awaited on Vercel (work started after the response would be
+  // frozen mid-send); non-blocking locally.
+  await runNotifications([
+    () => notifyNewLead(lead),
+    () => notifyWhatsApp(lead),
+    () => sendThankYou(lead.email, lead.name, "enquiry"),
+  ]);
 
   res.status(201).json({
     ok: true,
@@ -486,7 +515,7 @@ async function notifyApplication(app_) {
   }
 }
 
-app.post("/api/apply", uploadResume.single("resume"), (req, res) => {
+app.post("/api/apply", uploadResume.single("resume"), async (req, res) => {
   const { name, email, phone, position, experience, github, coverLetter } =
     req.body || {};
   if (!name || !email || !position || !experience) {
@@ -517,11 +546,14 @@ app.post("/api/apply", uploadResume.single("resume"), (req, res) => {
   list.push(application);
   writeList(FILES.applications, list);
 
-  // buffers must not live in the stored list — notify reads it, then strip
-  notifyApplication(application).catch(() => {});
-  // "Thank you for your interest" auto reply to the applicant's own mail id
-  sendThankYou(application.email, application.name, "career", application.position).catch(() => {});
+  // buffers must not live in the stored list — notify reads it, then strip.
+  // Both mails are awaited on Vercel so nothing is cut off after the response.
+  const ownerNotify = notifyApplication(application);
   delete application.resumeBuffer;
+  await runNotifications([
+    () => ownerNotify,
+    () => sendThankYou(application.email, application.name, "career", application.position),
+  ]);
 
   res.status(201).json({
     ok: true,
@@ -910,7 +942,7 @@ app.get("/api/internship/domains", (_req, res) => res.json(INTERNSHIP_DOMAINS));
 app.post(
   "/api/internship",
   uploadResume.single("resume"),
-  (req, res) => {
+  async (req, res) => {
     const { name, email, phone, college, degree, year, domain, duration, message } =
       req.body || {};
     if (!name || !email || !phone || !college || !domain) {
@@ -947,8 +979,9 @@ app.post(
     writeList(FILES.internships, list);
     // note: app_.resumeBuffer kept until the email notifier runs below
 
-    // notify (email with resume attached + WhatsApp)
-    (async () => {
+    // notify (email with resume attached + WhatsApp) — started now, awaited
+    // together with the auto-reply below on Vercel
+    const ownerNotify = (async () => {
       if (mailer) {
         const text = [
           "New INTERNSHIP application from the website:",
@@ -987,10 +1020,13 @@ app.post(
           await fetch(`https://api.callmebot.com/whatsapp.php?phone=${WA_PHONE}&text=${t2}&apikey=${WA_APIKEY}`);
         } catch {}
       }
-    })().catch(() => {});
+    })();
 
     // "Thank you for your interest" auto reply to the applicant's own mail id
-    sendThankYou(app_.email, app_.name, "internship", app_.domain).catch(() => {});
+    await runNotifications([
+      () => ownerNotify,
+      () => sendThankYou(app_.email, app_.name, "internship", app_.domain),
+    ]);
 
     res.status(201).json({
       ok: true,
