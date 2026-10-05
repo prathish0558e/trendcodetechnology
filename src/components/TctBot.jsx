@@ -152,13 +152,11 @@ export default function TctBot() {
     setBusy(true);
     await pushBot("One second — sending this to the team…", 700);
     try {
-      // the leads API wants email — synthesise one when the visitor only gave a phone
+      // Phone-only chat enquiries stay phone-only; do not fabricate an email.
       const emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.contact || "");
       const fd = {
         name: d.name || "Codey chat visitor",
-        email: emailLike
-          ? d.contact
-          : `chat-visitor+${Date.now()}@trendcodetechnology.com`,
+        email: emailLike ? d.contact : "",
         phone: emailLike ? "" : d.contact,
         service: d.service || "Codey Chat Enquiry",
         message: `[Codey chat] ${d.message || "(from chat)"}`,

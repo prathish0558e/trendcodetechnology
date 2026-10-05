@@ -17,6 +17,7 @@ export const state = {
   phase: "sleep",
   t: 1,
   chatOpen: false,
+  panelVisible: false,
   thinking: false,
   smile: false,
   bubble: false,
@@ -25,6 +26,7 @@ export const state = {
   layout: null,
   eyeLeft: { x: 0, y: 0, z: 0 },
   eyeRight: { x: 0, y: 0, z: 0 },
+  projectorMouth: { x: 0, y: 0, z: 0 },
   projectionPixel: null,
   rig: { x: 0, y: 0.9, z: 8.6 }, // camera rig — tweened, read per frame by Scene
 };
@@ -36,6 +38,7 @@ function snapshot() {
   return {
     phase: state.phase,
     chatOpen: state.chatOpen,
+    panelVisible: state.panelVisible,
     thinking: state.thinking,
     bubble: state.bubble,
     reduced: state.reduced,
@@ -71,7 +74,6 @@ export function computeLayout() {
   const hostLeft = hostRect?.left || 0;
   const hostTop = hostRect?.top || 0;
   const mobile = w < 720;
-  const tallMobile = mobile && h > 700;
   const compact = mobile && h < 600;
   const camY = 0.9;
   const camZ = 8.6;
@@ -100,7 +102,10 @@ export function computeLayout() {
   // Keep the complete cloud + robot silhouette inside the left viewport edge.
   // The launcher sits very close to that edge; centering the wider cloud on it
   // clipped the robot's antenna/head on common desktop and phone widths.
-  const cloudSafeMarginPx = 1.35 * cloudR * pixelsPerWorld;
+  const cloudSafeMarginPx = Math.min(w * 0.42, Math.max(
+    1.35 * cloudR * pixelsPerWorld,
+    1.35 * activeMascotScale * pixelsPerWorld
+  ));
   const homeCenterXpx = Math.max(
     cloudSafeMarginPx,
     Math.min(w - cloudSafeMarginPx, whatsappLeft + whatsappSize / 2 + cloudR * pixelsPerWorld * 0.9)
@@ -118,9 +123,26 @@ export function computeLayout() {
   // Keep the whole character inside a safe viewport zone while it walks away
   // from the launcher. The mobile chat is a bottom sheet, so stage the robot
   // above it; on desktop it stands just left of the centered hologram panel.
-  const stage = mobile
-    ? { x: toWorld(0.5, 0).x, y: toWorld(0.5, tallMobile ? 0.32 : 0.35).y }
-    : { x: toWorld(0.41, 0).x, y: toWorld(0.5, 0.74).y };
+  const stageMarginPx = Math.min(w * 0.42, Math.max(18, 1.35 * activeMascotScale * pixelsPerWorld));
+  const stageCenterPx = Math.max(stageMarginPx, Math.min(w - stageMarginPx, w * (mobile ? 0.5 : 0.52)));
+  const requestedStageY = mobile
+    ? Math.min(0.45, Math.max(0.37, 0.45 - Math.max(0, h - 400) * 0.0004))
+    : 0.74;
+  // The walk destination is the robot's feet. Reserve space above for its
+  // antenna/head and below for the mobile chat sheet so every pose remains
+  // inside the visible viewport, even on short embedded browser windows.
+  const robotHeightPx = 2.9 * activeMascotScale * pixelsPerWorld;
+  const safeTopPx = Math.max(88, Math.min(112, h * 0.2));
+  const stageMinY = (safeTopPx + robotHeightPx) / h;
+  const stageFloorPx = mobile
+    ? h - h * (compact ? 0.48 : 0.5) - 22
+    : h - 42;
+  const stageMaxY = Math.max(stageMinY, stageFloorPx / h);
+  const stageY = Math.max(stageMinY, Math.min(stageMaxY, requestedStageY));
+  const stage = {
+    x: toWorld(stageCenterPx / w, 0).x,
+    y: toWorld(0.5, stageY).y,
+  };
 
   // Hologram anchor — near the inner-left edge of the DOM chat panel.
   const beamAnchor = mobile
@@ -146,8 +168,8 @@ export function projectToScreen(x, y) {
   };
 }
 
-// DOM hologram's impact location in viewport pixels. The Three.js projector
-// converts this point to the scene camera ray so the panel and both beams meet.
+// DOM hologram's impact location in viewport pixels. The Three.js mouth
+// projector converts this to a scene point so its beam meets the panel.
 export function setProjectionPixel(point) {
   state.projectionPixel = point && Number.isFinite(point.x) && Number.isFinite(point.y)
     ? { x: point.x, y: point.y }
@@ -163,7 +185,8 @@ const NEXT = {
   stretch: "transform",
   transform: "walk",
   walk: "arrive",
-  arrive: "chat",
+  arrive: "project",
+  project: "chat",
   goodnight: "dissolve",
   dissolve: "walkback",
   walkback: "board",
@@ -178,6 +201,7 @@ const EASE = {
   walk: "none",
   walkback: "none",
   arrive: "power1.inOut",
+  project: "power2.out",
   goodnight: "power1.inOut",
   dissolve: "power1.in",
   board: "power2.inOut",
@@ -187,19 +211,41 @@ const EASE = {
 const WALK_SPEED = 1.85; // world units / second — a trot, not a teleport
 
 function duration(phase) {
-  if (state.reduced) return 0.12; // near-instant, no cinematic sweep
   const L = state.layout;
+  if (state.reduced) {
+    // Honor reduced-motion preferences without turning the walk into a jump.
+    // Keep travel visibly continuous; shorten poses and the projector sweep.
+    switch (phase) {
+      case "waking": return 0.72;
+      case "stretch": return 0.62;
+      case "transform": return 0.62;
+      case "walk":
+      case "walkback": {
+        if (!L) return 1.4;
+        const d = Math.hypot(L.stage.x - L.home.x, L.stage.y - L.home.y);
+        return Math.max(1.35, d / 3.1);
+      }
+      case "arrive": return 0.34;
+      case "project": return 0.5;
+      case "goodnight": return 0.9;
+      case "dissolve": return 0.4;
+      case "board": return 0.72;
+      case "settle": return 0.82;
+      default: return 0.12;
+    }
+  }
   switch (phase) {
-    case "waking": return 2.3;
-    case "stretch": return 1.8;
-    case "transform": return 2.4;
+    case "waking": return 1.3;
+    case "stretch": return 1.0;
+    case "transform": return 1.1;
     case "walk":
     case "walkback": {
       if (!L) return 3;
       const d = Math.hypot(L.stage.x - L.home.x, L.stage.y - L.home.y);
-      return Math.max(2.2, d / WALK_SPEED);
+      return Math.max(1.8, d / 2.25);
     }
-    case "arrive": return 2.1;
+    case "arrive": return 0.5;
+    case "project": return 0.72;
     case "goodnight": return 2.9;
     case "dissolve": return 1.6;
     case "board": return 1.7;
@@ -222,7 +268,11 @@ function goto(phase) {
   state.phase = phase;
   state.t = phase === "sleep" || phase === "chat" ? 1 : 0;
   state.smile = phase === "goodnight";
-  if (phase === "chat") state.chatOpen = true; // hologram appears as the robot settles
+  if (phase === "chat") {
+    state.chatOpen = true;
+    state.panelVisible = true;
+  }
+  if (phase === "dissolve") state.panelVisible = false;
   if (phase === "walkback") state.bubble = false; // goodnight bubble fades on turn-around
   emit();
 
@@ -252,7 +302,7 @@ function moveRig(phase) {
   const targets = {
     sleep: base, waking: base, stretch: base, board: base, settle: base,
     transform: near, walk: near, walkback: near,
-    arrive: near, chat: near, goodnight: near, dissolve: base,
+    arrive: near, project: near, chat: near, goodnight: near, dissolve: base,
   };
   rigTween = gsap.to(state.rig, {
     ...targets[phase],
@@ -276,10 +326,16 @@ export function openChat() {
 export function closeChat() {
   if (state.phase !== "chat") return;
   state.chatOpen = false;
+  state.panelVisible = true;
   state.thinking = false;
   state.bubble = true; // "Good night! 🌙 See you soon!"
-  emit();
   goto("goodnight");
+}
+
+export function finishPanelClose() {
+  if (state.chatOpen || !state.panelVisible) return;
+  state.panelVisible = false;
+  emit();
 }
 
 export function setThinking(v) {
@@ -303,5 +359,7 @@ export function boot(preferReduced) {
   window.addEventListener("resize", computeLayout);
   state.phase = "sleep";
   state.t = 1;
+  state.chatOpen = false;
+  state.panelVisible = false;
   emit();
 }

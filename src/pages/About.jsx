@@ -8,7 +8,7 @@ export default function About() {
     <>
       <PageHero
         eyebrow="About Us"
-        title="The Best IT Solution With 7 Years of Experience"
+        title="The Best IT Solution With 6 Years of Experience"
         text="A new media design company delivering highly scalable conceptual and functional solutions to companies worldwide."
       />
 

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Reveal, SectionHead, PageHero } from "../components/Reveal.jsx";
 import JobListings from "../components/JobListings.jsx";
 import { CAREERS, COMPANY, JOB_LISTINGS, ROLE_JDS } from "../data/content.js";
+import { apiUrl } from "../config/site.js";
 
 const ROLE_META = {
   "Web Designing": { icon: "bi-vector-pen", text: "Craft clean, responsive interfaces and design systems in Figma and code." },
@@ -122,7 +123,7 @@ function TrackApplyForm({ roles }) {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (file) fd.append("resume", file);
 
-      const res = await fetch("/api/apply", { method: "POST", body: fd });
+      const res = await fetch(apiUrl("/api/apply"), { method: "POST", body: fd });
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
 

@@ -3,6 +3,30 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index.js" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/services", "destination": "/services.html" },
+    { "source": "/services/:slug", "destination": "/services--:slug.html" },
+    { "source": "/hr-services", "destination": "/hr-services.html" },
+    { "source": "/hr-services/:slug", "destination": "/hr-services--:slug.html" },
+    { "source": "/bpo", "destination": "/bpo.html" },
+    { "source": "/bpo/:slug", "destination": "/bpo--:slug.html" },
+    { "source": "/careers", "destination": "/careers.html" },
+    { "source": "/careers/:track", "destination": "/careers--:track.html" },
+    { "source": "/internship", "destination": "/internship.html" },
+    { "source": "/contact", "destination": "/contact.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/admin", "destination": "/admin.html" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    }
   ]
 }

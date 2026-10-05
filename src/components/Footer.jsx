@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { COMPANY } from "../data/content.js";
+import { PUBLIC_SITE_URL } from "../config/site.js";
 
 const QUICK_LINKS = [
   { label: "Home", to: "/" },
@@ -13,6 +14,7 @@ const QUICK_LINKS = [
 ];
 
 export default function Footer() {
+  const siteHost = new URL(PUBLIC_SITE_URL).host;
   return (
     <footer className="site-footer">
       <div className="container footer-main">
@@ -86,7 +88,7 @@ export default function Footer() {
         <div className="container inner">
           <span>
             © {new Date().getFullYear()}{" "}
-            <Link to="/">trendcodetechnology.com</Link>. All Rights Reserved.
+            <Link to="/">{siteHost}</Link>. All Rights Reserved.
           </span>
           <span>
             Designed &amp; Engineered by Trend Code Technology

@@ -28,7 +28,7 @@ const RULES = [
   },
   {
     id: "services",
-    k: ["service", "what do you do", "what you do", "offer", "build", "develop", "website", "web site", "app", "software", "digital marketing", "seo"],
+    k: ["service", "solution", "what do you do", "what you do", "offer", "build", "develop", "website", "web site", "app", "software", "digital marketing", "seo"],
     a: () => `Trend Code Technology builds ${serviceLine()}. Every project ships with weekly demos, clear pricing and support that answers the phone. Which one can I explain?`,
   },
   {
@@ -133,7 +133,7 @@ export function buildLeadPayload(draft) {
   const emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.contact || "");
   return {
     name: draft.name || "TCT Assistant visitor",
-    email: emailLike ? draft.contact : `assistant+${Date.now()}@trendcodetechnology.com`,
+    email: emailLike ? draft.contact : "",
     phone: emailLike ? "" : draft.contact,
     service: "TCT Assistant Chat",
     message: `[3D assistant] ${draft.message || "(from chat)"}`,
@@ -141,9 +141,9 @@ export function buildLeadPayload(draft) {
 }
 
 export const QUICK_CHIPS = [
-  "Our services",
+  "Services",
   "Pricing",
-  "How we work",
+  "Solutions",
   "Careers",
-  "Start a project",
+  "Start a Project",
 ];

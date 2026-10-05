@@ -621,6 +621,14 @@ h1, h2, h3, h4, h5 {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Set right after the click: wins over :hover / :focus-within above */
+.nav-item.drop-dismissed > .nav-drop {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(6px);
+}
+
 .nav-drop a {
   display: block;
   padding: 10px 14px;
@@ -2236,6 +2244,12 @@ h1, h2, h3, h4, h5 {
   border: 1px solid #f5c2c7;
 }
 
+.banner.warn {
+  background: #fff7e6;
+  color: #8a5a00;
+  border: 1px solid #ffd88a;
+}
+
 /* ---------- Page hero (inner pages) ---------- */
 .page-hero {
   background:
@@ -2982,16 +2996,6 @@ i.bi-whatsapp::after {
 
 .footer-social a[href*="wa.me"]:hover {
   color: #1eb85a;
-}
-
-.team-social a[href*="wa.me"] {
-  color: #16a34a;
-}
-
-.team-social a[href*="wa.me"]:hover {
-  background: #25d366;
-  border-color: #25d366;
-  color: #fff;
 }
 
 /* ---------- Reveal animation ---------- */
@@ -5062,41 +5066,44 @@ a.journey-card:focus-visible::after {
 }
 
 /* ============================================================
-   Team Members (About) — profile cards with photo / initials
-   avatar fallback + social row
+   Leadership / Team — executive profile cards for CEO & MD
+   (About + Home) in the brand orange + light blue palette
    ============================================================ */
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-  gap: 26px;
-  max-width: 780px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 28px;
+  max-width: 840px;
   margin: 0 auto;
 }
 
 .team-card {
-  --team-accent: #38bdf8;
+  --team-accent: #0284c7;
   --team-accent-soft: #e0f2fe;
   background: var(--bg);
-  border: 1px solid color-mix(in srgb, var(--team-accent) 34%, var(--line));
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: 20px;
   overflow: hidden;
   text-align: center;
   box-shadow: var(--shadow-sm);
   height: 100%;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .team-card-blue {
-  --team-accent: #38bdf8;
+  --team-accent: #0284c7;
   --team-accent-soft: #e0f2fe;
 }
 
 .team-card-orange {
-  --team-accent: #f97316;
+  --team-accent: #ea580c;
   --team-accent-soft: #ffedd5;
 }
 
+/* Static two-colour brand rule — light blue into orange */
 .team-card::before {
   content: "";
   position: absolute;
@@ -5104,130 +5111,80 @@ a.journey-card:focus-visible::after {
   left: 0;
   right: 0;
   height: 4px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 35%, #fb923c 68%, #f97316 100%);
-  background-size: 200% 100%;
-  animation: team-brand-flow 7s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 38%, #fb923c 66%, #f97316 100%);
   pointer-events: none;
-  z-index: 2;
-}
-
-@keyframes team-brand-flow {
-  from { background-position: 0% 50%; }
-  to { background-position: 100% 50%; }
+  z-index: 3;
 }
 
 .team-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 42px rgba(14, 165, 233, 0.14), 0 8px 22px rgba(249, 115, 22, 0.09);
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--team-accent) 42%, var(--line));
+  box-shadow: 0 18px 40px rgba(14, 116, 144, 0.14), 0 8px 20px rgba(249, 115, 22, 0.1);
 }
 
+/* Photo sits in its own clipped frame with a soft brand wash at the top
+   corner and a base fade so it melts into the card body. */
 .team-photo {
   position: relative;
-  height: auto;
   aspect-ratio: 4 / 5;
-  display: grid;
-  place-items: center;
   overflow: hidden;
-  background: linear-gradient(165deg, var(--team-accent-soft) 0%, #fff 72%);
-  border-bottom: 1px solid color-mix(in srgb, var(--team-accent) 28%, var(--line));
-  isolation: isolate;
+  background: linear-gradient(165deg, var(--team-accent-soft) 0%, #fff 74%);
 }
 
 .team-photo::before {
   content: "";
   position: absolute;
-  inset: 12px;
-  border: 2px solid color-mix(in srgb, var(--team-accent) 72%, white);
-  border-radius: 14px;
+  inset: 0;
   background:
-    radial-gradient(circle at 75% 18%, color-mix(in srgb, var(--team-accent) 24%, transparent), transparent 52%),
-    radial-gradient(circle at 18% 85%, color-mix(in srgb, var(--team-accent) 18%, transparent), transparent 48%);
-  box-shadow:
-    0 0 0 6px color-mix(in srgb, #38bdf8 10%, transparent),
-    0 0 0 10px color-mix(in srgb, #f97316 7%, transparent),
-    0 12px 28px color-mix(in srgb, var(--team-accent) 20%, transparent);
-  z-index: 1;
+    radial-gradient(85% 60% at 78% 6%, color-mix(in srgb, var(--team-accent) 26%, transparent), transparent 70%),
+    linear-gradient(180deg, transparent 58%, rgba(9, 17, 34, 0.34) 100%);
   pointer-events: none;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  z-index: 1;
 }
 
-/* Professional portrait grade: face-forward crop, gentle contrast & warmth */
 .team-photo img {
   position: absolute;
-  inset: 12px;
-  width: calc(100% - 24px);
-  height: calc(100% - 24px);
-  border-radius: 12px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  object-position: center 24%;
-  filter: saturate(1.06) contrast(1.05) brightness(1.04);
-  transition: transform 0.36s cubic-bezier(0.2, 0.75, 0.25, 1), filter 0.3s ease;
-  z-index: 0;
-}
-
-/* Soft studio gradient at the base so the photo melts into the card body */
-.team-photo::after {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, transparent 60%, rgba(10, 20, 40, 0.2));
-  pointer-events: none;
-  z-index: 1;
+  object-position: center 20%;
+  filter: saturate(1.05) contrast(1.04) brightness(1.03);
+  transition: transform 0.4s cubic-bezier(0.2, 0.75, 0.25, 1), filter 0.3s ease;
 }
 
 .team-card:hover .team-photo img {
-  transform: scale(1.06);
-  filter: saturate(1.1) contrast(1.06) brightness(1.06);
+  transform: scale(1.05);
+  filter: saturate(1.1) contrast(1.05) brightness(1.05);
 }
 
-.team-card:hover .team-photo::before {
-  border-color: color-mix(in srgb, var(--team-accent) 82%, white);
-  box-shadow:
-    0 0 0 6px color-mix(in srgb, #38bdf8 15%, transparent),
-    0 0 0 10px color-mix(in srgb, #f97316 11%, transparent),
-    0 12px 32px color-mix(in srgb, var(--team-accent) 27%, transparent);
-}
-
-.team-initials {
-  position: relative;
-  width: 116px;
-  height: 116px;
-  border-radius: 50%;
+/* photo missing → full-bleed branded monogram instead of a broken image */
+.team-fallback {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 38px;
-  letter-spacing: 0.02em;
+  font-size: 54px;
+  letter-spacing: 0.04em;
   color: #fff;
-  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 48%, #fb923c 100%);
-  box-shadow: 0 14px 30px rgba(14, 165, 233, 0.22), 0 6px 18px rgba(249, 115, 22, 0.12);
-}
-
-.team-ring {
-  position: absolute;
-  width: 152px;
-  height: 152px;
-  border-radius: 50%;
-  border: 2px dashed rgba(13, 110, 253, 0.4);
-  animation: team-spin 16s linear infinite;
-}
-
-@keyframes team-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 45%, #fb923c 78%, #f97316 100%);
 }
 
 .team-body {
-  padding: 22px 18px 24px;
+  padding: 22px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
 }
 
 .team-body h3 {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
 }
 
 .team-role {
@@ -5236,36 +5193,69 @@ a.journey-card:focus-visible::after {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--team-accent) 72%, #132238);
+  color: color-mix(in srgb, var(--team-accent) 80%, #132238);
   background: var(--team-accent-soft);
-  padding: 5px 13px;
+  padding: 5px 14px;
   border-radius: 999px;
 }
 
-.team-social {
+/* Light-blue → orange rule: both brand colours on every card */
+.team-divider {
+  width: 46px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #38bdf8, #f97316);
+}
+
+.team-place {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.team-place i {
+  color: var(--team-accent);
+}
+
+.team-actions {
   display: flex;
   gap: 10px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.team-btn {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  margin-top: 16px;
-}
-
-.team-social a {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  color: var(--slate);
-  font-size: 15px;
-  transition: all 0.25s ease;
-}
-
-.team-social a:hover {
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
   background: var(--team-accent);
-  border-color: var(--team-accent);
+  border: 1px solid var(--team-accent);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease,
+    color 0.25s ease, border-color 0.25s ease;
+}
+
+.team-btn:hover {
   color: #fff;
   transform: translateY(-2px);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--team-accent) 34%, transparent);
+}
+
+.team-btn-ghost {
+  color: color-mix(in srgb, var(--team-accent) 84%, #132238);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--team-accent) 44%, var(--line));
+}
+
+.team-btn-ghost:hover {
+  color: #fff;
+  background: var(--team-accent);
+  border-color: var(--team-accent);
 }
 
 /* ============================================================
@@ -5364,7 +5354,6 @@ a.journey-card:focus-visible::after {
   .map-card,
   .team-card,
   .team-photo img,
-  .team-photo::before,
   .cl-card,
   .topbar-social a {
     transition: none;
@@ -5389,10 +5378,6 @@ a.journey-card:focus-visible::after {
     -webkit-mask-image: none;
     mask-image: none;
   }
-  .team-ring {
-    animation: none;
-  }
-  .team-card::before,
   .site-header .brand .brand-text small {
     animation: none;
   }

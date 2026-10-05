@@ -1,3 +1,5 @@
+import { apiUrl } from "./config/site.js";
+
 const TOKEN_KEY = "tct-admin-token";
 const USER_KEY = "tct-admin-user";
 
@@ -36,15 +38,31 @@ export function getSavedUser() {
   }
 }
 
+// Never let a stalled API leave a page spinning forever.
+const REQUEST_TIMEOUT_MS = 15000;
+
 async function request(path, options = {}) {
   const token = getToken();
-  const res = await fetch(path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...options,
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(apiUrl(path), {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...options,
+      signal: options.signal || ctrl.signal,
+    });
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      throw new Error("The server took too long to respond. Please try again.");
+    }
+    throw new Error("Could not reach the server. Please check your connection.");
+  } finally {
+    clearTimeout(timer);
+  }
   let body = null;
   try {
     body = await res.json();
@@ -56,7 +74,9 @@ async function request(path, options = {}) {
     clearSession();
   }
   if (!res.ok) {
-    throw new Error((body && body.error) || `Request failed (${res.status})`);
+    const err = new Error((body && body.error) || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
   }
   return body;
 }
@@ -82,6 +102,8 @@ export const getInternships = () => request("/api/admin/internships");
 export const getAuthLog = () => request("/api/admin/authlog");
 
 export const getSessions = () => request("/api/admin/sessions");
+
+export const getHealth = () => request("/api/health");
 
 export const postRevokeSession = (tokenPreview) =>
   request("/api/admin/sessions/revoke", {

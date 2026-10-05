@@ -18,6 +18,7 @@ import Internship from "./pages/Internship.jsx";
 import Login from "./pages/Login.jsx";
 import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import Seo from "./seo/Seo.jsx";
 
 /*
  * "Codey" is replaced by the 3D TCT Assistant mascot (src/mascot/) —
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <Seo />
       <Header />
       <main>
         <Routes>

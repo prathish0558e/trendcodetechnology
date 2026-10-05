@@ -1,14 +1,14 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  boot, closeChat, getUi, projectToScreen, setThinking, subscribe, wake,
+  boot, closeChat, finishPanelClose, getUi, projectToScreen, setThinking, subscribe, wake,
   setProjectionPixel, state as mstate,
 } from "./store.js";
 import {
   QUICK_CHIPS, buildLeadPayload, leadPrompt,
   validateLead, wantsLead,
 } from "./brain.js";
-import { ASSISTANT_MODE, sendMessage } from "./assistantService.js";
+import { sendMessage } from "./assistantService.js";
 import { postLead } from "../api.js";
 import { COMPANY } from "../data/content.js";
 import { gsap } from "gsap";
@@ -21,7 +21,7 @@ import "./mascot.css";
  * the full cinematic loop plays (wake → stretch → walk → hologram chat →
  * good night → walk back → sleep). The chat itself is a DOM glass panel so
  * it stays readable, accessible and mobile-keyboard friendly while the robot
- * projects it from its eyes.
+ * projects it from its mouth.
  *
  * The canvas never captures pointer events, so page scrolling and clicking
  * keep working everywhere.
@@ -29,7 +29,7 @@ import "./mascot.css";
 
 const Scene = lazy(() => import("./Scene.jsx"));
 
-const GREETING = "Hi \u{1F44B}\nI'm TCT Assistant.\nHow can I help you today?";
+const GREETING = "Hi \u{1F44B}\nI'm the TCT Assistant.\nHow can I help you today?";
 
 export default function TctMascot() {
   const { pathname } = useLocation();
@@ -68,18 +68,21 @@ export default function TctMascot() {
   }, []);
 
   // The DOM hologram stays accessible and responsive, but its visible impact
-  // point is measured in layout pixels so the 3D eye beams end on its edge.
+  // point is measured in layout pixels so the 3D mouth beam ends on its edge.
   useLayoutEffect(() => {
     const panel = panelRef.current;
-    if (!ui.chatOpen || !panel) return undefined;
+    if (!panel) return undefined;
     const measure = () => {
       const width = panel.offsetWidth;
       const height = panel.offsetHeight;
       const mobile = window.innerWidth <= 720;
-      const rect = panel.getBoundingClientRect();
-      const left = rect.left;
-      const top = rect.top;
-      const localX = mobile ? Math.min(28, width * 0.08) : 14;
+      const host = panel.offsetParent;
+      const hostRect = host?.getBoundingClientRect();
+      // offsetLeft/Top describe the panel's final layout box. getBoundingClientRect
+      // includes the entrance scale and would make the beams chase the animation.
+      const left = (hostRect?.left || 0) + panel.offsetLeft;
+      const top = (hostRect?.top || 0) + panel.offsetTop;
+      const localX = mobile ? width * 0.5 : 14;
       const localY = mobile ? 24 : height * 0.5;
       panel.style.setProperty("--tct3d-impact-x", `${localX}px`);
       panel.style.setProperty("--tct3d-impact-y", `${localY}px`);
@@ -96,7 +99,7 @@ export default function TctMascot() {
       panel.removeEventListener("animationend", measure);
       // Preserve the last impact point while the projector beams dissolve.
     };
-  }, [ui.chatOpen]);
+  }, []);
 
   // keep the hit button + bubble glued to their world anchors
   useEffect(() => {
@@ -109,7 +112,15 @@ export default function TctMascot() {
       const c = projectToScreen(L.home.x, L.home.y + 0.3);
       setHitPos(c);
       const sc = L.mobile ? 0.82 : 0.95;
-      setBubblePos(projectToScreen(L.stage.x, L.stage.y + 1.75 * sc));
+      if (L.mobile) {
+        const stageScreen = projectToScreen(L.stage.x, L.stage.y);
+        setBubblePos({
+          x: Math.max(12, Math.min(L.w - 142, stageScreen.x + L.w * 0.12)),
+          y: projectToScreen(L.stage.x, L.stage.y - 0.08).y,
+        });
+      } else {
+        setBubblePos(projectToScreen(L.stage.x, L.stage.y + 1.75 * sc));
+      }
     };
     update();
     window.addEventListener("resize", update);
@@ -264,7 +275,7 @@ export default function TctMascot() {
     leadStep === "name" ? "Type your name\u2026"
     : leadStep === "contact" ? "Phone or email\u2026"
     : leadStep === "message" ? "Describe your requirement\u2026"
-    : "Ask me anything...";
+    : "Ask TCT Assistant...";
 
   return (
     <div className="tct3d-wrap" aria-hidden="false">
@@ -289,23 +300,27 @@ export default function TctMascot() {
       )}
 
       {/* holographic chat panel — projected beside the robot */}
-      {ui.chatOpen && (
-        <section ref={panelRef} className={`tct3d-panel ${ui.reduced ? "" : "tct3d-panel-in"}`} role="dialog" aria-label="TCT Assistant chat">
+      <section
+        ref={panelRef}
+        className={`tct3d-panel ${!ui.panelVisible ? "tct3d-panel-idle" : ui.phase === "goodnight" ? "tct3d-panel-out" : "tct3d-panel-in"}`}
+        role="dialog"
+        aria-label="TCT Assistant chat"
+        aria-hidden={!ui.chatOpen}
+        inert={!ui.chatOpen}
+        onAnimationEnd={(event) => {
+          if (event.target === event.currentTarget && event.animationName.startsWith("tct3d-panel-out")) finishPanelClose();
+        }}
+      >
           <header className="tct3d-panel-head">
             <span className="tct3d-avatar" aria-hidden="true">
-              <svg viewBox="0 0 48 48">
-                <rect x="9" y="13" width="30" height="24" rx="9" className="tct3d-svg-head" />
-                <circle cx="18" cy="24" r="2.6" className="tct3d-svg-eye" />
-                <circle cx="30" cy="24" r="2.6" className="tct3d-svg-eye" />
-                <path d="M18.5 30.5q5.5 3.4 11 0" className="tct3d-svg-mouth" />
-              </svg>
+              <img src="/tct-logo.png" alt="" />
             </span>
             <div className="tct3d-panel-title">
               <strong>TCT Assistant</strong>
-              <small>{ASSISTANT_MODE === "ai" ? "AI assistant · ready to help" : "TCT guide · website answers"}</small>
+              <small>Your intelligent TCT guide</small>
             </div>
-            <span className={`tct3d-status ${ASSISTANT_MODE === "guided" ? "tct3d-status-guided" : ""}`} aria-hidden="true" />
-            <span className="tct3d-status-label">{ASSISTANT_MODE === "ai" ? "LIVE" : "GUIDED"}</span>
+            <span className="tct3d-status" aria-hidden="true" />
+            <span className="tct3d-status-label">Online</span>
             <button type="button" className="tct3d-restart" onClick={resetConversation} disabled={typing} aria-label="Start a new conversation" title="New conversation">
               <i className="bi bi-arrow-counterclockwise" />
             </button>
@@ -344,8 +359,8 @@ export default function TctMascot() {
 
           {!messages.some((m) => m.from === "user") && (
             <div className="tct3d-suggestion-wrap">
-              <span className="tct3d-suggestion-label">QUICK QUESTIONS</span>
-              <div className="tct3d-chips" role="group" aria-label="Quick questions">
+              <span className="tct3d-suggestion-label">QUICK ACTIONS</span>
+              <div className="tct3d-chips" role="group" aria-label="Quick actions">
                 {QUICK_CHIPS.map((c) => (
                   <button key={c} type="button" onClick={() => onChip(c)} disabled={typing}>
                     {c}
@@ -378,17 +393,11 @@ export default function TctMascot() {
               <i className="bi bi-send-fill" />
             </button>
           </form>
-          <small className="tct3d-foot">
-            {ASSISTANT_MODE === "ai"
-              ? "TCT AI service · human team replies within 24 hrs"
-              : "Guided replies use TCT website info · no live AI endpoint is configured"}
-          </small>
-        </section>
-      )}
+      </section>
 
       {/* good night bubble */}
       {ui.bubble && bubblePos && (
-        <div className="tct3d-bubble" style={{ left: bubblePos.x, top: bubblePos.y }} role="status">
+        <div className={`tct3d-bubble ${mstate.layout?.mobile ? "tct3d-bubble-mobile" : ""}`} style={{ left: bubblePos.x, top: bubblePos.y }} role="status">
           Good night! 🌙
           <br />
           See you soon!

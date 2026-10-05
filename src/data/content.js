@@ -1,3 +1,5 @@
+import { DEFAULT_PUBLIC_SITE_URL } from "../../shared/site.js";
+
 export const COMPANY = {
   name: "Trend Code Technology",
   short: "TCT",
@@ -56,7 +58,7 @@ export const STATS = [
   { value: 1200, suffix: "+", label: "Happy Clients", icon: "bi-emoji-smile" },
   { value: 1150, suffix: "+", label: "Projects Done", icon: "bi-patch-check" },
   { value: 500, suffix: "+", label: "Win Awards", icon: "bi-trophy" },
-  { value: 7, suffix: "+", label: "Years Experience", icon: "bi-calendar-check" },
+  { value: 6, suffix: "+", label: "Years Experience", icon: "bi-calendar-check" },
 ];
 
 export const SERVICES = [
@@ -278,7 +280,7 @@ export const PROCESS = [
     title: "Ongoing Technical Support",
     text: "Dedicated SLA maintenance, proactive server monitoring, regular security updates and continuous enhancements keep your platform at peak performance.",
     // Final stop — the journey hands over to our products/experience site.
-    href: "https://tctechs.in/",
+    href: `${DEFAULT_PUBLIC_SITE_URL}/`,
   },
 ];
 

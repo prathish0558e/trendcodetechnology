@@ -70,6 +70,17 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openKey, setOpenKey] = useState(null);
+  // CSS keeps a dropdown open on :hover and :focus-within, so a plain click
+  // used to leave it stuck on screen until the user clicked somewhere else.
+  // This locks it shut the instant it is clicked (mouse only — e.detail is 0
+  // for keyboard activation, which keeps focus for screen-reader users) and
+  // the lock clears as soon as the pointer leaves the menu.
+  const [dropLock, setDropLock] = useState(null);
+  const dismissDrop = (label) => (e) => {
+    if (e.detail === 0) return;
+    setDropLock(label);
+    if (e.currentTarget) e.currentTarget.blur();
+  };
   const { pathname } = useLocation();
 
   useEffect(() => {
@@ -144,14 +155,23 @@ export default function Header() {
                 item.children ? (
                   <li
                     key={item.label}
-                    className={`nav-item ${isActive(pathname, item) ? "active" : ""}`}
+                    className={`nav-item ${isActive(pathname, item) ? "active" : ""} ${
+                      dropLock === item.label ? "drop-dismissed" : ""
+                    }`}
+                    onMouseLeave={() =>
+                      setDropLock((cur) => (cur === item.label ? null : cur))
+                    }
                   >
-                    <Link to={item.to} className="nav-drop-btn">
+                    <Link
+                      to={item.to}
+                      className="nav-drop-btn"
+                      onClick={dismissDrop(item.label)}
+                    >
                       {item.label} <DropCaret />
                     </Link>
                     <div className="nav-drop">
                       {item.children.map((c) => (
-                        <NavLink key={c.to} to={c.to}>
+                        <NavLink key={c.to} to={c.to} onClick={dismissDrop(item.label)}>
                           {c.label}
                         </NavLink>
                       ))}

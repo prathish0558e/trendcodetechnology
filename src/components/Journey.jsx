@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { PUBLIC_SITE_URL } from "../config/site.js";
 
 const JourneyTrain3D = lazy(() => import("./JourneyTrain3D.jsx"));
+const SITE_HOST = new URL(PUBLIC_SITE_URL).host;
 /*
  * Curved delivery timeline — cards alternate above/below an invisible route;
  * a three-car train pauses at each step without painting lines over the copy.
@@ -46,7 +48,7 @@ function Card({ step, title, text, glyph, href, active }) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`${title} — opens tctechs.in in a new tab`}
+        aria-label={`${title} — opens ${SITE_HOST} in a new tab`}
       >
         {body}
       </a>

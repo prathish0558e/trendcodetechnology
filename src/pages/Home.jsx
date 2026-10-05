@@ -110,7 +110,7 @@ function MarqueeRow({ logos, duration = 30, reverse = false }) {
               <div className="cl-card" key={`${gi}-${i}`}>
                 <img
                   src={src}
-                  alt={`TCT client logo ${i + 1}`}
+                  alt={`Trend Code Technology client partner logo ${i + 1}`}
                   loading="lazy"
                 />
               </div>
@@ -152,11 +152,13 @@ function ClientsShowcase() {
 const SLIDES = [
   {
     img: "/hero/slide-1.jpg",
+    alt: "Developer working on a software project in a modern office",
     eyebrow: "Creative & Innovative",
     title: "Empowering Brands with Smart, Stunning & Scalable Digital Experiences",
   },
   {
     img: "/hero/slide-2.jpg",
+    alt: "Professional using a computer to create a digital experience",
     eyebrow: "Creative & Innovative",
     title: "Modern, Creative & Innovative Digital Solutions",
   },
@@ -192,7 +194,7 @@ function HeroSlider() {
           className={`hero-slide${i === index ? " current" : ""}`}
           aria-hidden={i !== index}
         >
-          <img src={s.img} alt="" loading={i === 0 ? "eager" : "lazy"} />
+          <img src={s.img} alt={s.alt} loading={i === 0 ? "eager" : "lazy"} />
           <div className="hero-slide-shade"></div>
           <div className="container hero-slide-content">
             <span className="eyebrow on-dark">{s.eyebrow}</span>
@@ -266,7 +268,7 @@ export default function Home() {
             <Reveal>
               <span className="eyebrow">About TCT</span>
               <h2 style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)" }}>
-                The Best IT Solution With 7 Years of Experience
+                The Best IT Solution With 6 Years of Experience
               </h2>
               <p style={{ color: "var(--muted)" }}>
                 Founded in 2019 by industry professionals, Trend Code
@@ -408,13 +410,12 @@ export default function Home() {
                 Serving Tamil Nadu
               </span>
               <h2 style={{ fontSize: "clamp(1.3rem, 2.6vw, 1.8rem)", maxWidth: 860, margin: "0 auto 10px" }}>
-                Why businesses search “IT companies in Coimbatore” and find us first
+                Technology Services Built Around Your Business
               </h2>
               <p style={{ color: "var(--muted)", maxWidth: 760, margin: "0 auto" }}>
-                Trend Code Technology is a trusted IT company in Coimbatore
-                (Ganapathy) serving Tiruppur, Salem, Erode and Chennai —
-                delivering software development, website design, digital
-                marketing, BPO and HR services with 7+ years of proven results.
+                Trend Code Technology provides software development, website
+                design, digital marketing, BPO and HR services from Coimbatore,
+                with more than 6 years of experience supporting business teams.
               </p>
             </div>
           </Reveal>

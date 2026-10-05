@@ -19,9 +19,9 @@ export const TEAM = [
   },
 ];
 
-/* Profile photo uses /team/<file>.jpg when present. Until the real photos
-   are dropped into public/team/, a branded initials avatar shows instead —
-   adding the photo later needs no code change. Shared by About + Home. */
+/* The CEO picture is the bundled ceo.png; the MD photo lives in public/team/.
+   If a photo ever fails to load the card falls back to a branded monogram, so
+   nothing renders broken. Shared by About + Home. */
 export default function TeamCard({ member }) {
   const [photoOk, setPhotoOk] = useState(true);
   return (
@@ -35,18 +35,27 @@ export default function TeamCard({ member }) {
             onError={() => setPhotoOk(false)}
           />
         ) : (
-          <>
-            <span className="team-ring" aria-hidden="true"></span>
-            <span className="team-initials">{member.initials}</span>
-          </>
+          <span className="team-fallback">{member.initials}</span>
         )}
       </div>
+
       <div className="team-body">
         <h3>{member.name}</h3>
         <span className="team-role">{member.role}</span>
-        <div className="team-social">
-          <a href={`mailto:${COMPANY.email}`} aria-label={`Email ${member.name}`}>
-            <i className="bi bi-envelope"></i>
+        <span className="team-divider" aria-hidden="true"></span>
+        <p className="team-place">
+          <i className="bi bi-geo-alt" aria-hidden="true"></i> {COMPANY.addressShort}
+        </p>
+        <div className="team-actions">
+          <a className="team-btn" href={`mailto:${COMPANY.email}`}>
+            <i className="bi bi-envelope" aria-hidden="true"></i> Email us
+          </a>
+          <a
+            className="team-btn team-btn-ghost"
+            href={`tel:${COMPANY.phoneRaw}`}
+            aria-label={`Call ${COMPANY.short}`}
+          >
+            <i className="bi bi-telephone" aria-hidden="true"></i> Call
           </a>
         </div>
       </div>

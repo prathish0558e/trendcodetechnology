@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { state } from "./store.js";
-import { glowTexture, beamTexture, gridTexture, zzzTexture, shadowTexture } from "./textures.js";
+import { glowTexture, beamTexture, zzzTexture, shadowTexture } from "./textures.js";
 import Robot from "./Robot.jsx";
 
 /*
@@ -55,7 +55,6 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const easeOutBack = (t) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
 
 /* ---------------------------- Camera rig ---------------------------- */
 function CameraRig() {
@@ -282,7 +281,7 @@ function VolumetricCloud() {
     // IMPORTANT: this bob must stay in exact sync with the robot's own bob
     // (same 0.55 rad/s, same 0.02 amp in Robot.jsx) so the robot always
     // rests ON the drifting cloud instead of sliding up and down its surface.
-    g.position.set(L.home.x, L.home.y + Math.sin(clock * 0.55) * 0.02, 0);
+    g.position.set(L.home.x, L.home.y + Math.sin(clock * 0.55) * 0.02 * (s.reduced ? 0.58 : 1), 0);
     const base = L.cloudR / R;
     g.scale.setScalar(base);
 
@@ -364,7 +363,7 @@ function VolumetricCloud() {
 
 /* --------------- Glowing footstep puffs (pooled) -------------------- */
 const StepPuffs = forwardRef(function StepPuffs(_, ref) {
-  const COUNT = 14;
+  const COUNT = state.reduced ? 7 : 14;
   const sprites = useRef([]);
   const live = useRef(
     Array.from({ length: COUNT }, () => ({ t: 0, max: 0.9, big: false, x: 0, y: 0, z: 0 }))
@@ -388,11 +387,11 @@ const StepPuffs = forwardRef(function StepPuffs(_, ref) {
       if (p.t >= p.max) { sp.material.opacity = 0; return; }
       p.t += dt;
       const k = p.t / p.max;
-      const s0 = p.big ? 0.42 : 0.17;
+      const s0 = (p.big ? 0.42 : 0.17) * (state.reduced ? 0.72 : 1);
       const sc = s0 * (0.45 + k * 1.2);
       sp.position.set(p.x, p.y + k * (p.big ? 0.28 : 0.12), p.z + 0.02);
       sp.scale.set(sc, sc * 0.62, sc);
-      sp.material.opacity = (p.big ? 0.58 : 0.4) * Math.sin(Math.PI * Math.min(k, 1));
+      sp.material.opacity = (p.big ? 0.58 : 0.4) * (state.reduced ? 0.72 : 1) * Math.sin(Math.PI * Math.min(k, 1));
     });
   });
 
@@ -402,7 +401,7 @@ const StepPuffs = forwardRef(function StepPuffs(_, ref) {
         live.current.find((p) => p.t >= p.max) ||
         live.current.reduce((a, b) => (a.t / a.max > b.t / b.max ? a : b));
       slot.t = 0;
-      slot.max = big ? 1.3 : 0.9;
+      slot.max = state.reduced ? (big ? 0.8 : 0.55) : (big ? 1.3 : 0.9);
       slot.big = big;
       slot.x = pos.x; slot.y = pos.y; slot.z = pos.z;
     },
@@ -432,6 +431,7 @@ function Burst() {
   const life = useRef({ active: false, t: 0, max: 1.6, mode: "out", origin: new THREE.Vector3() });
   const lastPhase = useRef("sleep");
   const COUNT = 90;
+  const particleCount = state.reduced ? 24 : COUNT;
 
   const { positions, vels } = useMemo(() => {
     const positions = new Float32Array(COUNT * 3);
@@ -442,14 +442,15 @@ function Burst() {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    g.setDrawRange(0, particleCount);
     return g;
-  }, [positions]);
+  }, [positions, particleCount]);
 
   const mat = useMemo(
     () =>
       new THREE.PointsMaterial({
         color: "#8ff3ff",
-        size: 0.055,
+        size: state.reduced ? 0.038 : 0.055,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
@@ -465,7 +466,7 @@ function Burst() {
     l.t = 0;
     l.mode = mode;
     l.origin.copy(origin);
-    for (let i = 0; i < COUNT; i++) {
+    for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
       if (mode === "out") {
         positions[i3] = origin.x; positions[i3 + 1] = origin.y; positions[i3 + 2] = origin.z;
@@ -505,7 +506,7 @@ function Burst() {
     l.t += dt;
     const k = l.t / l.max;
     mat.opacity = Math.max(0, 1 - k) * 0.85;
-    for (let i = 0; i < COUNT * 3; i++) {
+    for (let i = 0; i < particleCount * 3; i++) {
       positions[i] += vels[i] * dt;
       vels[i] *= 0.985;
     }
@@ -524,7 +525,7 @@ function NightSky() {
   const dust = useRef();
 
   const starGeo = useMemo(() => {
-    const n = L && L.mobile ? 90 : 150;
+    const n = state.reduced ? (L && L.mobile ? 36 : 60) : (L && L.mobile ? 90 : 150);
     const pos = new Float32Array(n * 3);
     const hw = (L ? L.halfW : 6) * 1.6;
     for (let i = 0; i < n; i++) {
@@ -538,7 +539,7 @@ function NightSky() {
   }, [L]);
 
   const dustGeo = useMemo(() => {
-    const n = L && L.mobile ? 26 : 46;
+    const n = state.reduced ? (L && L.mobile ? 10 : 18) : (L && L.mobile ? 26 : 46);
     const pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       pos[i * 3] = (Math.random() * 2 - 1) * (L ? L.halfW * 0.9 : 5);
@@ -574,13 +575,13 @@ function NightSky() {
     if (dust.current) {
       const pos = dust.current.geometry.attributes.position;
       for (let i = 0; i < pos.count; i++) {
-        let y = pos.getY(i) + dt * 0.07;
+        let y = pos.getY(i) + dt * (state.reduced ? 0.035 : 0.07);
         if (y > 2.8) y = -1.6;
         pos.setY(i, y);
         pos.setX(i, pos.getX(i) + Math.sin(c * 0.4 + i) * dt * 0.02);
       }
       pos.needsUpdate = true;
-      dust.current.material.opacity = 0.14 + 0.08 * Math.sin(c * 0.8);
+      dust.current.material.opacity = 0.14 + (state.reduced ? 0.035 : 0.08) * Math.sin(c * 0.8);
     }
   });
 
@@ -618,15 +619,17 @@ function Zzz() {
     else if (s.phase === "waking") target = 1 - easeInOut(s.t);
     op.current = lerp(op.current, target, 1 - Math.exp(-dt * 3.5));
 
-    // On desktop the hero CTA sits directly above the launcher. Keep the
-    // sleep glyphs beside the mascot, clear of page copy and buttons.
-    const hx = L.home.x + (L.mobile ? 0.65 : 1.9);
-    const hy = L.cloudTop + (L.mobile ? 0.08 : 0.28);
+    // Keep sleep glyphs tucked beside the cloud. On desktop the CTA sits
+    // above/right of the launcher, so place the Zs to the left and limit
+    // their rise; the old long float carried them across the CTA button.
+    const hx = L.home.x + (L.mobile ? 0.65 : -0.18);
+    const hy = L.cloudTop + (L.mobile ? 0.08 : 0.18);
     group.current.position.set(hx, hy, 0.3);
     sprites.current.forEach((sp, i) => {
       if (!sp) return;
       const cyc = (clock * 0.42 + i / 3) % 1;
-      sp.position.set(0.05 + i * 0.09 + cyc * 0.22, cyc * (L.mobile ? 0.36 : 0.7), 0);
+      const float = 0.36 * (s.reduced ? 0.68 : 1);
+      sp.position.set(0.05 + i * 0.09 + cyc * 0.22, cyc * float, 0);
       const sc = 0.14 + cyc * 0.12;
       sp.scale.set(sc, sc, sc);
       sp.material.opacity = op.current * Math.sin(Math.PI * cyc) * 0.9;
@@ -642,19 +645,12 @@ function Zzz() {
   );
 }
 
-/* --------- Volumetric eye beams + hologram HUD + particles ---------- */
+/* --------- Mouth projector beams + hologram particles ---------- */
 function Hologram() {
   const beams = useRef();
-  const coneA = useRef();
-  const coneB = useRef();
-  const coreA = useRef();
-  const coreB = useRef();
-  const platform = useRef();
-  const ring2 = useRef();
-  const glow = useRef();
-  const hud = useRef();
+  const cone = useRef();
+  const core = useRef();
   const holoPts = useRef();
-  const lastPhase = useRef("sleep");
   const { camera } = useThree();
 
   const beamMat = useMemo(
@@ -673,42 +669,11 @@ function Hologram() {
     }),
     []
   );
-  const ringMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: "#67e8f9", transparent: true, opacity: 0.85,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-      }),
-    []
-  );
-  const gridMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: gridTexture(), color: "#38bdf8", transparent: true, opacity: 0.14,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-      }),
-    []
-  );
-  const glowMat = useMemo(
-    () =>
-      new THREE.SpriteMaterial({
-        map: glowTexture(), color: "#22d3ee", transparent: true, opacity: 0,
-        blending: THREE.AdditiveBlending, depthWrite: false,
-      }),
-    []
-  );
-  const hudMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: "#7deeff", transparent: true, opacity: 0,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-      }),
-    []
-  );
 
   /* holographic particles hovering in the projection column */
+  const holoCount = state.reduced ? 28 : 70;
   const holoGeo = useMemo(() => {
-    const n = 70;
+    const n = holoCount;
     const pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -720,7 +685,7 @@ function Hologram() {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     return g;
-  }, []);
+  }, [holoCount]);
   const holoMat = useMemo(
     () =>
       new THREE.PointsMaterial({
@@ -747,10 +712,11 @@ function Hologram() {
     const clock = st.clock.elapsedTime;
     const scale = L.mobile ? 0.82 : 0.95;
 
-    // Each cone starts at its own live eye anchor, so head turns never detach
-    // from the visor. Both rays are aimed at the same screen impact point.
-    const leftEye = state.eyeLeft || { x: L.stage.x - 0.09 * scale, y: L.stage.y + 1.6 * scale, z: 0.4 * scale };
-    const rightEye = state.eyeRight || { x: L.stage.x + 0.09 * scale, y: L.stage.y + 1.6 * scale, z: 0.4 * scale };
+    // The single projector ray follows the live mouth anchor, so it visibly
+    // leaves the robot's mouth instead of the eyes.
+    const mouth = s.projectorMouth?.z
+      ? s.projectorMouth
+      : { x: L.stage.x, y: L.stage.y + 0.86 * scale, z: 0.48 * scale };
     let hasProjectionPixel = false;
     if (s.projectionPixel) {
       ndc.set((s.projectionPixel.x / L.w) * 2 - 1, 1 - (s.projectionPixel.y / L.h) * 2);
@@ -761,79 +727,39 @@ function Hologram() {
     if (hasProjectionPixel) anchor.copy(projectionPoint);
     else anchor.set(L.beamAnchor.x, L.beamAnchor.y, 0.45);
 
-    [leftEye, rightEye].forEach((eye, i) => {
-      const cone = i === 0 ? coneA.current : coneB.current;
-      const core = i === 0 ? coreA.current : coreB.current;
-      if (!cone || !core) return;
-      from.set(eye.x, eye.y, eye.z);
+    if (cone.current && core.current) {
+      from.set(mouth.x, mouth.y, mouth.z);
       beamDirection.copy(anchor).sub(from);
       const length = beamDirection.length();
-      if (length < 0.001) return;
-      beamDirection.multiplyScalar(1 / length);
-      q.setFromUnitVectors(UP, beamDirection);
-      cone.position.copy(from).add(anchor).multiplyScalar(0.5);
-      cone.quaternion.copy(q);
-      cone.scale.set(1, length, 1);
-      core.position.copy(cone.position);
-      core.quaternion.copy(q);
-      core.scale.set(1, length, 1);
-    });
+      if (length >= 0.001) {
+        beamDirection.multiplyScalar(1 / length);
+        q.setFromUnitVectors(UP, beamDirection);
+        cone.current.position.copy(from).add(anchor).multiplyScalar(0.5);
+        cone.current.quaternion.copy(q);
+        cone.current.scale.set(1, length, 1);
+        core.current.position.copy(cone.current.position);
+        core.current.quaternion.copy(q);
+        core.current.scale.set(1, length, 1);
+      }
+    }
 
     // beam intensity per phase
     let bo = 0;
-    if (s.phase === "arrive") bo = seg(s.t, 0.45, 0.85) * 0.6;
+    if (s.phase === "project") bo = easeInOut(seg(s.t, 0.04, 0.92)) * 0.72;
     else if (s.phase === "chat") bo = (s.thinking ? 0.65 + Math.sin(clock * 6) * 0.1 : 0.5 + Math.sin(clock * 2.2) * 0.06);
-    else if (s.phase === "goodnight") bo = 0.32;
-    else if (s.phase === "dissolve") bo = (1 - s.t) * 0.45;
-    beamMat.opacity = lerp(beamMat.opacity, bo, 1 - Math.exp(-dt * 8));
+    else if (s.phase === "goodnight") bo = (1 - seg(s.t, 0, 0.2)) * 0.5;
+    bo *= s.reduced ? 0.72 : 1;
+    beamMat.opacity = lerp(beamMat.opacity, bo, 1 - Math.exp(-dt * (s.reduced ? 14 : 8)));
     coreMat.opacity = beamMat.opacity > 0.01 ? 0.82 : 0;
     beams.current.visible = beamMat.opacity > 0.01;
 
-    // platform
-    const showPh = ["arrive", "chat", "goodnight", "dissolve"].includes(s.phase);
     let screenProgress = 0;
-    if (s.phase === "arrive") screenProgress = seg(s.t, 0.45, 0.88);
-    else if (s.phase === "chat" || s.phase === "goodnight") screenProgress = 1;
+    if (s.phase === "arrive") screenProgress = seg(s.t, 0.08, 0.78);
+    else if (s.phase === "project") screenProgress = seg(s.t, 0.03, 0.82);
+    else if (s.phase === "chat") screenProgress = 1;
+    else if (s.phase === "goodnight") screenProgress = 1 - seg(s.t, 0, 0.2);
     else if (s.phase === "dissolve") screenProgress = 1 - seg(s.t, 0, 1);
-    let ps = 0;
-    if (s.phase === "arrive") ps = clamp(easeOutBack(seg(s.t, 0.08, 0.5)), 0, 1.2);
-    else if (showPh) ps = 1;
-    else if (s.phase === "walkback") ps = 1 - seg(s.t, 0, 0.4);
-    if (platform.current) {
-      platform.current.visible = ps > 0.01;
-      platform.current.scale.setScalar(Math.max(0.001, ps));
-      platform.current.position.set(L.stage.x, L.floorY + 0.02, 0);
-      platform.current.rotation.z = clock * 0.25;
-      ringMat.opacity = 0.75 + Math.sin(clock * 2.4) * 0.15;
-      gridMat.opacity = 0.1 + 0.06 * Math.sin(clock * 1.7);
-      gridMat.map.rotation = clock * 0.05;
-    }
-    if (ring2.current && platform.current) {
-      const cyc = (clock * 0.55) % 1;
-      const sc = 1 + cyc * 0.55;
-      ring2.current.scale.set(sc, sc, 1);
-      ring2.current.material.opacity = ps * (1 - cyc) * 0.5;
-    }
-    if (glow.current) {
-      glow.current.position.set(L.stage.x, L.floorY + 0.35, 0.3);
-      glow.current.material.opacity = ps * (0.16 + (s.thinking ? 0.1 : 0) + 0.04 * Math.sin(clock * 2));
-      const gs = 1.7 + Math.sin(clock * 1.3) * 0.08;
-      glow.current.scale.set(gs, gs, gs);
-    }
-
-    // circular HUD billboard at the anchor (behind the DOM chat panel)
-    if (hud.current) {
-      hud.current.visible = screenProgress > 0.01;
-      hud.current.position.copy(anchor);
-      hud.current.quaternion.copy(camera.quaternion);
-      const hs = (0.9 + Math.sin(clock * 1.8) * 0.04) * Math.max(screenProgress, 0.001);
-      hud.current.scale.setScalar(hs);
-      hudMat.opacity = screenProgress * 0.3;
-      hud.current.rotation.z = clock * 0.3;
-    }
-
-    // Holographic particles collect around the exact point where the two
-    // independently aimed eye beams meet the projected chat panel.
+    // Holographic particles collect around the exact projected chat point.
     if (holoPts.current) {
       holoPts.current.visible = screenProgress > 0.01;
       holoPts.current.position.set(anchor.x, anchor.y - 0.75, anchor.z + 0.12);
@@ -852,35 +778,14 @@ function Hologram() {
   return (
     <>
       <group ref={beams} visible={false}>
-        <mesh ref={coneA} material={beamMat}>
+        <mesh ref={cone} material={beamMat}>
           <cylinderGeometry args={[0.012, 0.05, 1, 10, 1, true]} />
         </mesh>
-        <mesh ref={coneB} material={beamMat}>
-          <cylinderGeometry args={[0.012, 0.05, 1, 10, 1, true]} />
-        </mesh>
-        <mesh ref={coreA} material={coreMat}>
-          <cylinderGeometry args={[0.009, 0.009, 1, 8]} />
-        </mesh>
-        <mesh ref={coreB} material={coreMat}>
+        <mesh ref={core} material={coreMat}>
           <cylinderGeometry args={[0.009, 0.009, 1, 8]} />
         </mesh>
       </group>
-      <group ref={platform} visible={false}>
-        <mesh material={ringMat} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.5, 0.56, 48]} />
-        </mesh>
-        <mesh material={gridMat} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[0.5, 40]} />
-        </mesh>
-        <mesh ref={ring2} material={ringMat.clone()} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.58, 0.6, 48]} />
-        </mesh>
-      </group>
-      <mesh ref={hud} material={hudMat} visible={false}>
-        <ringGeometry args={[0.34, 0.375, 40]} />
-      </mesh>
       <points ref={holoPts} geometry={holoGeo} material={holoMat} visible={false} frustumCulled={false} />
-      <sprite ref={glow} material={glowMat} />
     </>
   );
 }

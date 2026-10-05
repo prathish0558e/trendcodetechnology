@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Reveal } from "./Reveal.jsx";
 import { COMPANY, JOB_LISTINGS } from "../data/content.js";
+import { apiUrl } from "../config/site.js";
 
 /*
  * Full careers page for a track with detailed job listings (JD accordion)
@@ -102,7 +103,7 @@ export default function JobListings({ trackTitle, intro, jobs, showGithubField =
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (file) fd.append("resume", file);
 
-      const res = await fetch("/api/apply", { method: "POST", body: fd });
+      const res = await fetch(apiUrl("/api/apply"), { method: "POST", body: fd });
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
 

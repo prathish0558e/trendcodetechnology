@@ -1,4 +1,5 @@
 import express from "express";
+import dns from "dns";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -7,6 +8,7 @@ import dotenv from "dotenv";
 import multer from "multer";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { DEFAULT_PUBLIC_SITE_URL, normalizeSiteUrl } from "../shared/site.js";
 
 // load server/.env if present (email notifications). Values already set in
 // the environment (Vercel dashboard env vars) always win — dotenv never
@@ -18,8 +20,21 @@ const IS_SERVERLESS = Boolean(process.env.VERCEL); // set by Vercel runtime
 const app = express();
 const requestedPort = Number(process.env.PORT);
 const PORT = Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPort : 4000;
+const LOCAL_PUBLIC_SITE_URL =
+  process.env.NODE_ENV === "production" ? `http://localhost:${PORT}` : "http://localhost:5173";
+const PUBLIC_SITE_URL = normalizeSiteUrl(
+  process.env.PUBLIC_SITE_URL,
+  IS_SERVERLESS ? DEFAULT_PUBLIC_SITE_URL : LOCAL_PUBLIC_SITE_URL
+);
 
-app.use(express.json());
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
+app.use(express.json({ limit: "100kb" }));
 
 // ---------- storage ----------
 // Three backends, picked automatically:
@@ -40,7 +55,25 @@ const FILES = {
   applications: path.join(DATA_DIR, "applications.json"),
   internships: path.join(DATA_DIR, "internships.json"),
 };
-const MONGO_URI = (process.env.MONGODB_URI || "").trim();
+// A developer machine can hold the real connection string (server/.env) without
+// its own test submissions landing in the live database: locally the file store
+// is used unless USE_MONGODB=1 is set explicitly. On Vercel the variable is
+// always honoured, so production is unaffected.
+const MONGO_URI =
+  IS_SERVERLESS || process.env.USE_MONGODB === "1"
+    ? (process.env.MONGODB_URI || "").trim()
+    : "";
+
+// Several home/office networks refuse SRV lookups, which `mongodb+srv://` needs,
+// so USE_MONGODB=1 would fail locally with "querySrv ECONNREFUSED". Only local
+// runs are affected — the Vercel resolver is fine.
+if (MONGO_URI && !IS_SERVERLESS) {
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch {
+    /* keep the system resolver */
+  }
+}
 const MEMORY = {
   leads: [],
   messages: [],
@@ -77,14 +110,20 @@ const uploadResume = multer({
 // --- MongoDB (optional) ----------------------------------------------------
 // The connection promise is cached on globalThis so every warm serverless
 // invocation reuses the same pool instead of reconnecting per request.
-const MONGO_RETRY_MS = 60_000; // after a failed connect, stop retrying for 60s
-async function getDb() {
+const MONGO_RETRY_MS = 15_000; // reads: after a failed connect, stop retrying
+const MONGO_WRITE_PROBE_MS = 10_000; // writes: retry at most this often
+// `fresh` (used by writes) shortens the cooldown so a record is never kept in
+// memory while the database is already reachable again — after an Atlas blip
+// the old long cooldown made writes and reads disagree for a whole minute.
+async function getDb({ fresh = false } = {}) {
   if (!MONGO_URI) return null;
   const g = globalThis;
   if (!g.__tctMongoDb) {
     // A blocked/unreachable Atlas would otherwise cost serverSelectionTimeoutMS
     // on EVERY request (login does 3-4 storage calls → 30s+ hangs).
-    if (Date.now() - (g.__tctMongoFailAt || 0) < MONGO_RETRY_MS) return null;
+    const wait = fresh ? MONGO_WRITE_PROBE_MS : MONGO_RETRY_MS;
+    if (Date.now() - (g.__tctMongoFailAt || 0) < wait) return null;
+    g.__tctMongoFailAt = 0; // allow the attempt below to actually run
     g.__tctMongoDb = (async () => {
       const { MongoClient } = await import("mongodb");
       const client = new MongoClient(MONGO_URI, {
@@ -93,12 +132,16 @@ async function getDb() {
       });
       await client.connect();
       g.__tctMongoOk = true;
+      g.__tctMongoErr = "";
       console.log("[db] MongoDB connected");
       return client.db();
     })().catch((err) => {
       g.__tctMongoDb = null; // retry after MONGO_RETRY_MS, not on every call
       g.__tctMongoFailAt = Date.now();
       g.__tctMongoOk = false;
+      // Keep the last reason around so /api/health?connect=1 can report it
+      // (this is how we tell an Atlas IP-allowlist block from a bad password).
+      g.__tctMongoErr = String(err && err.message ? err.message : err).slice(0, 300);
       throw err;
     });
   }
@@ -121,6 +164,22 @@ function dbStatus() {
   return "not-tried-yet";
 }
 
+// Force a fresh connect attempt (ignores the 60s fail cache) so ops can tell
+// whether Atlas is reachable again without waiting for the cache to expire.
+async function probeDb() {
+  if (!MONGO_URI) return "not-configured";
+  const g = globalThis;
+  // Clear the fail cache so this is a real attempt, not a cached "no".
+  g.__tctMongoFailAt = 0;
+  g.__tctMongoDb = null;
+  try {
+    await getDb();
+  } catch {
+    /* getDb already logged and stored the reason */
+  }
+  return dbStatus();
+}
+
 // Every list lives in one Mongo document per key: { _id: "leads", items: [] }
 const listKey = (file) => path.basename(file, ".json");
 
@@ -141,7 +200,7 @@ async function listGet(file) {
 
 async function listSet(file, list) {
   const key = listKey(file);
-  const db = await getDb();
+  const db = await getDb({ fresh: true }); // write: prefer the DB over memory
   if (db) {
     await db
       .collection("lists")
@@ -166,7 +225,7 @@ async function listSet(file, list) {
 // `max` keeps the list bounded (e.g. the last 500 login events).
 async function listAppend(file, item, max = 0) {
   const key = listKey(file);
-  const db = await getDb();
+  const db = await getDb({ fresh: true }); // write: prefer the DB over memory
   if (db) {
     const col = db.collection("lists");
     if (max > 0) {
@@ -246,13 +305,42 @@ function boundedWait(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-function runNotifications(fns) {
+// Newer Vercel runtimes keep the function alive for promises handed to
+// waitUntil(), so the response can go out the instant the record is saved and
+// the mail still finishes sending (SMTP needs a few seconds). If the helper or
+// the request context is unavailable we fall back to the bounded await below.
+let _waitUntil;
+let _waitUntilLoaded = false;
+async function loadWaitUntil() {
+  if (_waitUntilLoaded) return _waitUntil;
+  _waitUntilLoaded = true;
+  if (!IS_SERVERLESS) return undefined;
+  try {
+    const mod = await import("@vercel/functions");
+    _waitUntil = typeof mod.waitUntil === "function" ? mod.waitUntil : undefined;
+  } catch {
+    _waitUntil = undefined;
+  }
+  return _waitUntil;
+}
+
+async function runNotifications(fns) {
   const all = Promise.all(
     fns.map((fn) =>
       fn().catch((err) => console.error("[notify] failed:", err?.message || err))
     )
   );
-  return IS_SERVERLESS ? boundedWait(all, NOTIFY_WAIT_MS) : undefined;
+  if (!IS_SERVERLESS) return undefined; // local: keep them non-blocking
+  const waitUntil = await loadWaitUntil();
+  if (waitUntil) {
+    try {
+      waitUntil(all);
+      return undefined; // response returns now, sends continue in background
+    } catch {
+      /* no request context — use the bounded wait instead */
+    }
+  }
+  return boundedWait(all, NOTIFY_WAIT_MS);
 }
 
 // Attachment for emails — works for both disk (local) and memory (serverless)
@@ -276,7 +364,7 @@ async function notifyWhatsApp(lead) {
   const text = encodeURIComponent(
     `🔔 New enquiry — ${lead.name}\n` +
       `📞 ${lead.phone || "-"}\n` +
-      `📧 ${lead.email}\n` +
+    (lead.email ? `📧 ${lead.email}\n` : "") +
       `🛠 ${lead.service || "-"}\n\n` +
       `${lead.message.slice(0, 300)}`
   );
@@ -301,7 +389,7 @@ async function notifyNewLead(lead) {
     `New enquiry from the website:`,
     ``,
     `Name:    ${lead.name}`,
-    `Email:   ${lead.email}`,
+    `Email:   ${lead.email || "(not provided)"}`,
     `Phone:   ${lead.phone || "-"}`,
     `Service: ${lead.service || "-"}`,
     `Message: ${lead.message}`,
@@ -314,7 +402,7 @@ async function notifyNewLead(lead) {
       to: NOTIFY_EMAIL,
       subject: `🔔 New enquiry — ${lead.name}${lead.service ? ` (${lead.service})` : ""}`,
       text,
-      replyTo: lead.email,
+      ...(lead.email ? { replyTo: lead.email } : {}),
     });
     console.log(`[lead] emailed notification for ${lead.name}`);
   } catch (err) {
@@ -359,8 +447,6 @@ function attachMailAsset(attachments, base, cid) {
   return false;
 }
 
-const SITE_URL = "https://trendcodetechnology.com";
-
 const THANK_YOU_KINDS = {
   career: {
     subject: "Thank you for your interest — Trend Code Technology",
@@ -370,7 +456,7 @@ const THANK_YOU_KINDS = {
       "Our HR team will review it and get back to you within a few working days.",
     more:
       "While you wait, feel free to browse our other open roles — every application reaches the same HR inbox.",
-    cta: { label: "View open positions", href: `${SITE_URL}/careers` },
+    cta: { label: "View open positions", href: `${PUBLIC_SITE_URL}/careers` },
   },
   internship: {
     subject: "Thank you for your interest — Trend Code Technology Internship",
@@ -381,7 +467,7 @@ const THANK_YOU_KINDS = {
     next: "Our HR team will review it and contact you about the next steps.",
     more:
       "We run live projects across development, digital marketing, AI and IoT — you are paired with a mentor from day one.",
-    cta: { label: "Explore internship tracks", href: `${SITE_URL}/internship` },
+    cta: { label: "Explore internship tracks", href: `${PUBLIC_SITE_URL}/internship` },
   },
   enquiry: {
     subject: "Thank you for your interest — Trend Code Technology",
@@ -389,7 +475,7 @@ const THANK_YOU_KINDS = {
     next: "Our team will look into it and reply within 24 hours.",
     more:
       "Need a faster answer? WhatsApp or call +91 93848 47922 — we reply 24×7.",
-    cta: { label: "Explore our services", href: `${SITE_URL}/services` },
+    cta: { label: "Explore our services", href: `${PUBLIC_SITE_URL}/services` },
   },
 };
 
@@ -538,33 +624,38 @@ ${bottomLine}
 }
 
 // ---------- routes ----------
-app.get("/api/health", (_req, res) =>
+app.get("/api/health", requireAdmin, async (req, res) => {
+  // ?connect=1 forces a real Atlas attempt (and reports why it failed).
+  const force = req.query && (req.query.connect === "1" || req.query.connect === "true");
+  const db = force ? await probeDb() : dbStatus();
+  const g = globalThis;
   res.json({
     ok: true,
     service: "tct-api",
     time: new Date().toISOString(),
     // quick ops diagnostics: which backend is answering requests right now
     storage: MONGO_URI ? "mongodb" : IS_SERVERLESS ? "memory" : "file",
-    db: dbStatus(),
+    db,
+    dbError: db === "unavailable" || db === "not-tried-yet" ? g.__tctMongoErr || "" : "",
     smtp: mailer ? "configured" : "not-configured",
-  })
-);
+  });
+});
 
 app.post("/api/leads", async (req, res) => {
   const { name, email, phone, service, message } = req.body || {};
-  if (!name || !email || !message) {
+  if (!name || !message || (!email && !phone)) {
     return res
       .status(400)
-      .json({ error: "Name, email and message are required." });
+      .json({ error: "Name, a phone number or email, and message are required." });
   }
-  if (!VALID_EMAIL.test(email)) {
+  if (email && !VALID_EMAIL.test(email)) {
     return res.status(400).json({ error: "Please enter a valid email address." });
   }
 
   const lead = {
     id: `${Date.now()}`,
     name: String(name).slice(0, 120),
-    email: String(email).slice(0, 160),
+    email: String(email || "").slice(0, 160),
     phone: String(phone || "").slice(0, 40),
     service: String(service || "").slice(0, 80),
     message: String(message).slice(0, 4000),
@@ -758,8 +849,9 @@ app.get("/api/admin/resume/:file", async (req, res) => {
 });
 
 // Short-lived key so the resume URL is not usable forever or guessable.
-const RESUME_KEY_SECRET = process.env.ADMIN_TOKEN || "tct-resume-key-v1";
+const RESUME_KEY_SECRET = process.env.ADMIN_TOKEN || (IS_SERVERLESS ? "" : crypto.randomBytes(32).toString("hex"));
 function resumeLinkKey(file) {
+  if (!RESUME_KEY_SECRET) return null;
   // rotate daily: links from yesterday still work today, then expire
   const day = new Date().toISOString().slice(0, 10);
   const prev = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
@@ -775,7 +867,7 @@ app.get("/api/admin/applications", requireAdmin, async (req, res) => {
     delete rec.resumeData; // base64 copy never goes over the list API
     return {
       ...rec,
-      resumeUrl: rec.resumeFile
+      resumeUrl: rec.resumeFile && RESUME_KEY_SECRET
         ? `/api/admin/resume/${encodeURIComponent(rec.resumeFile)}?key=${resumeLinkKey(rec.resumeFile)}`
         : null,
     };
@@ -822,6 +914,10 @@ async function createSession(req, email) {
   return token;
 }
 
+// How stale "last active" may be before we pay a second trip to the database.
+// Every admin request used to rewrite the whole session list just to bump
+// lastSeenAt, which doubled the response time of the admin dashboard.
+const SESSION_TOUCH_MS = 60_000;
 async function getSession(token) {
   if (!token) return null;
   const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
@@ -830,8 +926,11 @@ async function getSession(token) {
   );
   const found = list.find((s) => s.token === token);
   if (found) {
-    found.lastSeenAt = new Date().toISOString();
-    await writeSessions(list);
+    const last = new Date(found.lastSeenAt || found.createdAt).getTime();
+    if (Date.now() - last > SESSION_TOUCH_MS) {
+      found.lastSeenAt = new Date().toISOString();
+      await writeSessions(list);
+    }
   }
   return found || null;
 }
@@ -983,11 +1082,9 @@ app.post("/api/login", async (req, res) => {
 
   const ADMIN_USER = process.env.ADMIN_USER || "admin@trendcode.com";
   const ADMIN_PASS_HASH = process.env.ADMIN_PASS_HASH;
-  // bcrypt hash comparison — the plain password is never stored anywhere.
-  // (ADMIN_PASS plain-text fallback is supported for first-time setup only.)
-  const passOk = ADMIN_PASS_HASH
-    ? bcrypt.compareSync(password, ADMIN_PASS_HASH)
-    : password === (process.env.ADMIN_PASS || "TCT@2026");
+  // Only an explicitly configured bcrypt hash can enable admin login.
+  const hasValidAdminHash = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(ADMIN_PASS_HASH || ""));
+  const passOk = hasValidAdminHash && bcrypt.compareSync(password, ADMIN_PASS_HASH);
   if (email.toLowerCase() === ADMIN_USER.toLowerCase() && passOk) {
     const token = await createSession(req, ADMIN_USER);
     await logAuthEvent("login", req, { email });
@@ -1192,7 +1289,7 @@ app.get("/api/admin/internships", requireAdmin, async (_req, res) => {
     delete rec.resumeData; // base64 copy never goes over the list API
     return {
       ...rec,
-      resumeUrl: rec.resumeFile
+      resumeUrl: rec.resumeFile && RESUME_KEY_SECRET
         ? `/api/admin/resume/${encodeURIComponent(rec.resumeFile)}?key=${resumeLinkKey(rec.resumeFile)}`
         : null,
     };
@@ -1229,6 +1326,17 @@ app.get("/api/admin/messages", requireAdmin, async (_req, res) => {
 // ---------- serve the built frontend in production ----------
 const DIST = path.join(__dirname, "..", "dist");
 if (fs.existsSync(DIST)) {
+  // Serve the generated flat route documents before the SPA fallback.
+  app.get("*", (req, res, next) => {
+    const relativePath = decodeURIComponent(req.path).replace(/^\/+|\/+$/g, "");
+    if (!relativePath) return next();
+    const routeFilename = relativePath.replace(/\/+/, "--").replace(/\//g, "--");
+    const routeDocument = path.resolve(DIST, `${routeFilename}.html`);
+    if (routeDocument.startsWith(`${DIST}${path.sep}`) && fs.existsSync(routeDocument)) {
+      return res.sendFile(routeDocument);
+    }
+    return next();
+  });
   app.use(express.static(DIST));
   app.get("*", (_req, res) => res.sendFile(path.join(DIST, "index.html")));
 }

@@ -442,7 +442,8 @@ export default function Robot({ onStep }) {
     let px = L.home.x, py = L.cloudTop + 0.18, pz = 0.1;
     let contactFoot = null;
     // gentle shared float — kept in perfect sync with the cloud's own bob
-    const bob = Math.sin(clock * 0.55) * 0.02;
+    const motionFactor = s.reduced ? 0.58 : 1;
+    const bob = Math.sin(clock * 0.55) * 0.02 * motionFactor;
     const onCloud = ["sleep", "waking", "stretch", "board", "settle"].includes(s.phase);
 
     /* Place the tilted torso shell directly on the compressed cloud surface.
@@ -460,9 +461,18 @@ export default function Robot({ onStep }) {
       Object.assign(T, SLEEP);
       py = SLEEP_Y + bob;
       px = L.home.x; pz = 0.18;
-      // tiny idle motion on top of the cloud's own bob (kept whisper-quiet)
-      T.bodyZ += Math.sin(clock * 0.5) * 0.006;
-      T.headZ += Math.sin(clock * 0.35 + 1) * 0.01;
+      // A cozy, visible breathing cycle with small sleepy head/antenna motion.
+      // These stay subtle so the crossed-leg resting pose remains readable.
+      const sleepBreath = Math.sin(clock * 0.82);
+      T.bodyZ += sleepBreath * 0.008 * motionFactor;
+      T.headZ += Math.sin(clock * 0.34 + 0.8) * 0.02 * motionFactor;
+      T.headX += Math.sin(clock * 0.28) * 0.012 * motionFactor;
+      T.antenna += Math.sin(clock * 0.62 + 0.4) * 0.045 * motionFactor;
+      T.armLZ += Math.sin(clock * 0.41) * 0.012 * motionFactor;
+      T.armRZ -= Math.sin(clock * 0.41 + 0.6) * 0.012 * motionFactor;
+      const sleepyFootTwitch = Math.pow(Math.max(0, Math.sin(clock * 0.43 + 1.4)), 20);
+      T.kneeRX += sleepyFootTwitch * 0.05 * motionFactor;
+      T.elbowLX -= sleepyFootTwitch * 0.025 * motionFactor;
     } else if (s.phase === "waking") {
       Object.assign(T, SLEEP);
       py = SLEEP_Y + bob;
@@ -527,11 +537,12 @@ export default function Robot({ onStep }) {
       let halfSteps = Math.max(4, Math.round(dist / 0.56));
       if (halfSteps % 2) halfSteps += 1;
       const cyc = e * halfSteps * Math.PI;
+      const gait = s.reduced ? 0.72 : 1;
       // cinematic gait bounce: a smooth double-frequency sine that bottoms
       // out EXACTLY at each foot contact (puffs spawn at the lowest point,
       // feet on the ground) and crests midway through the stride — the old
       // |cos| shape peaked AT contact and had jerk cusps.
-      py = lerp(from.y, to.y, e) + (1 - Math.cos(2 * cyc)) * 0.016;
+      py = lerp(from.y, to.y, e) + (1 - Math.cos(2 * cyc)) * 0.016 * gait;
       pz = 0.05;
       const turnIn = easeInOut(seg(e, 0, 0.14));
       const turnOut = easeInOut(seg(e, 0.84, 1));
@@ -540,17 +551,17 @@ export default function Robot({ onStep }) {
       const turnAngle = clamp(Math.atan2(to.x - from.x, Math.max(Math.abs(to.y - from.y), 0.18)), -1.0, 1.0);
       T.yaw = lerp(turnAngle * turnIn, 0, turnOut);
       T.recline = 0.08;
-      T.bodyZ = Math.sin(cyc) * 0.045; // hip roll — weight shifts over the stance foot
-      T.bodyX = Math.sin(cyc) * 0.015;
-      T.hipLX = 0.1 + Math.sin(cyc) * 0.48;
-      T.hipRX = 0.1 + Math.sin(cyc + Math.PI) * 0.48;
+      T.bodyZ = Math.sin(cyc) * 0.045 * gait; // hip roll — weight shifts over the stance foot
+      T.bodyX = Math.sin(cyc) * 0.015 * gait;
+      T.hipLX = 0.1 + Math.sin(cyc) * 0.48 * gait;
+      T.hipRX = 0.1 + Math.sin(cyc + Math.PI) * 0.48 * gait;
       /* knee phase: the swing-leg bend must happen BETWEEN contacts, not at
          them — L bends during its swing (ph π→2π), R during its own. The old
          shared phase flexed the stance knee at every footfall (crouch-walk). */
-      T.kneeLX = -0.12 - Math.max(0, Math.sin(cyc - Math.PI + 1.1)) * 0.7;
-      T.kneeRX = -0.12 - Math.max(0, Math.sin(cyc + 1.1)) * 0.7;
-      T.armLX = Math.sin(cyc + Math.PI) * 0.5;
-      T.armRX = Math.sin(cyc) * 0.5;
+      T.kneeLX = -0.12 - Math.max(0, Math.sin(cyc - Math.PI + 1.1)) * 0.7 * gait;
+      T.kneeRX = -0.12 - Math.max(0, Math.sin(cyc + 1.1)) * 0.7 * gait;
+      T.armLX = Math.sin(cyc + Math.PI) * 0.5 * gait;
+      T.armRX = Math.sin(cyc) * 0.5 * gait;
       // elbow pump: the forearm folds on the forward swing
       T.elbowLX = -0.3 - Math.max(0, Math.sin(cyc)) * 0.28;
       T.elbowRX = -0.3 - Math.max(0, Math.sin(cyc + Math.PI)) * 0.28;
@@ -589,23 +600,25 @@ export default function Robot({ onStep }) {
         // At the first half-stride the left foot lands; then alternate.
         contactFoot = idx % 2 === 1 ? footL.current : footR.current;
       }
-    } else if (s.phase === "arrive") {
+    } else if (s.phase === "arrive" || s.phase === "project") {
       px = L.stage.x; py = L.stage.y + lift; pz = 0;
       T.yaw = 0;
       T.recline = 0;
-      T.eyeGlow = lerp(2.0, 3.0, seg(t, 0.3, 0.9));
+      T.eyeGlow = s.phase === "project" ? lerp(2.5, 3.2, e) : lerp(2.0, 2.5, e);
+      T.mouth = s.phase === "project" ? 0.7 : 0;
       T.antenna = 1;
-      T.headY = clamp((L.beamAnchor.x - px) * 0.5, 0, 0.45) * easeInOut(seg(t, 0.3, 0.7));
+      T.headY = clamp((L.beamAnchor.x - px) * 0.5, -0.45, 0.45) * easeInOut(t);
       T.armLZ = lerp(0.16, 0.22, e); T.armRZ = lerp(-0.16, -0.22, e);
     } else if (s.phase === "chat") {
       px = L.stage.x; py = L.stage.y + lift; pz = 0;
       // friendly idle: watches the hologram, glances at the visitor, thinking states
-      const lookAtHolo = clamp((L.beamAnchor.x - px) * 0.5, 0, 0.45);
+      const lookAtHolo = clamp((L.beamAnchor.x - px) * 0.5, -0.45, 0.45);
       T.headY = s.thinking ? lookAtHolo * 0.4 - 0.06 : lookAtHolo * 0.65 + Math.sin(clock * 0.6) * 0.06;
       T.headX = 0.05 + Math.sin(clock * 0.4) * 0.04 - (s.thinking ? 0.08 : 0);
       T.headZ = s.thinking ? 0.16 : Math.sin(clock * 0.33) * 0.03;
       T.eyeHappy = s.thinking ? 0 : 0.3; // soft friendly face
       T.eyeGlow = s.thinking ? 2.9 + Math.sin(clock * 7) * 0.7 : 2.2 + Math.sin(clock * 2) * 0.25;
+      T.mouth = s.thinking ? 0.82 : 0.62;
       T.antenna = s.thinking ? 0.8 + Math.sin(clock * 9) * 0.2 : 0.4 + Math.sin(clock * 2.4) * 0.15;
       T.armLZ = 0.2; T.armRZ = -0.2;
       if (s.thinking) { T.elbowRX = -0.55; T.armRX = -0.25; } // little thinking hand raise
@@ -700,7 +713,7 @@ export default function Robot({ onStep }) {
       c.px = px; c.py = py; c.pz = pz;
     }
     // guarantee the final sleep pose is EXACTLY the initial one
-    if (s.phase === "sleep" || (s.phase === "settle" && s.t > 0.995)) {
+    if (s.phase === "settle" && s.t > 0.995) {
       for (const key in SLEEP) c[key] = SLEEP[key];
       c.px = L.home.x; c.py = SLEEP_Y + bob; c.pz = 0.18;
     }
@@ -709,7 +722,7 @@ export default function Robot({ onStep }) {
     root.current.position.set(c.px, c.py, c.pz);
     root.current.rotation.y = c.yaw;
     let scaleGoal = compactScale;
-    if (["transform", "walk", "walkback", "arrive", "chat", "goodnight", "dissolve"].includes(s.phase)) {
+    if (["transform", "walk", "walkback", "arrive", "project", "chat", "goodnight", "dissolve"].includes(s.phase)) {
       scaleGoal = displayScale;
     } else if (s.phase === "waking" || s.phase === "stretch") {
       scaleGoal = lerp(compactScale, displayScale, easeInOut(t));
@@ -722,9 +735,10 @@ export default function Robot({ onStep }) {
     recline.current.rotation.x = c.recline;
     recline.current.rotation.z = c.bodyZ;
     // breathing — calm and cinematic, the robot is alive (slightly deeper asleep)
-    const brAmp = onCloud && c.eyeOpen < 0.3 ? 0.015 : 0.011;
-    const br = 1 + brAmp * Math.sin(clock * 1.05);
-    body.current.scale.set(1, br, 1 + 0.45 * brAmp * Math.sin(clock * 1.05));
+    const brAmp = (onCloud && c.eyeOpen < 0.3 ? 0.026 : 0.012) * (s.reduced ? 0.68 : 1);
+    const breath = Math.sin(clock * (onCloud ? 0.82 : 1.05));
+    const br = 1 + brAmp * breath;
+    body.current.scale.set(1, br, 1 + 0.45 * brAmp * breath);
 
     head.current.rotation.set(c.headX, c.headY, c.headZ);
 
@@ -733,6 +747,9 @@ export default function Robot({ onStep }) {
     eyeR.current.getWorldPosition(eyeWorldR);
     Object.assign(s.eyeLeft, eyeWorldL);
     Object.assign(s.eyeRight, eyeWorldR);
+    const mouthWorld = tmpV.set(0, -0.12, 0.49);
+    head.current.localToWorld(mouthWorld);
+    Object.assign(s.projectorMouth, mouthWorld);
 
     /* eyes: open = glowing capsules; asleep/happy = glowing smile arcs */
     const eyeScaleY = Math.max(0.05, c.eyeOpen * (1 - 0.94 * blinkCurve));

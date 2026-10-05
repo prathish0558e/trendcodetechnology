@@ -5,6 +5,7 @@ import {
   clearSession,
   getApplications,
   getAuthLog,
+  getHealth,
   getInternships,
   getLeads,
   getSavedUser,
@@ -315,24 +316,33 @@ export default function Admin() {
   const [revoking, setRevoking] = useState("");
   const [interns, setInterns] = useState(null);
   const [error, setError] = useState("");
+  const [dbWarn, setDbWarn] = useState("");
+  const [checkErr, setCheckErr] = useState("");
 
   const load = () => {
     setError("");
-    getApplications()
-      .then(setApps)
-      .catch((e) => setError(e.message));
-    getLeads()
-      .then(setLeads)
-      .catch(() => {});
-    getAuthLog()
-      .then(setAuthlog)
-      .catch(() => {});
-    getSessions()
-      .then(setSessions)
-      .catch(() => {});
-    getInternships()
-      .then(setInterns)
-      .catch(() => {});
+    // Every request must settle: a failed fetch shows the error banner and
+    // empties the table instead of leaving "Loading…" on screen forever.
+    const fail = (setter) => (e) => {
+      setter([]);
+      setError((prev) => prev || e.message || "Could not load data from the server.");
+    };
+    getApplications().then(setApps).catch(fail(setApps));
+    getLeads().then(setLeads).catch(fail(setLeads));
+    getAuthLog().then(setAuthlog).catch(fail(setAuthlog));
+    getSessions().then(setSessions).catch(fail(setSessions));
+    getInternships().then(setInterns).catch(fail(setInterns));
+    // Warn (don't block) when the database is not actually connected — that is
+    // why freshly submitted records can vanish from this page.
+    getHealth()
+      .then((h) =>
+        setDbWarn(
+          h && h.db === "connected"
+            ? ""
+            : `Database is not connected (${(h && h.db) || "unknown"}). New submissions are stored temporarily and may disappear.`
+        )
+      )
+      .catch(() => setDbWarn(""));
   };
 
   // Verify the saved token against the server before showing anything.
@@ -351,8 +361,12 @@ export default function Admin() {
           load();
         }
       })
-      .catch(() => {
+      .catch((e) => {
         if (alive) {
+          // 401 = expired token (already cleared). Anything else means the
+          // server itself is unreachable — say so instead of silently
+          // bouncing the user to the sign-in screen.
+          if (!e.status || e.status >= 500) setCheckErr(e.message || "");
           clearSession();
           setChecking(false);
         }
@@ -405,6 +419,11 @@ export default function Admin() {
               Please sign in with the admin account to view job applications
               and enquiries.
             </p>
+            {checkErr && (
+              <div className="banner err" style={{ marginBottom: 22, textAlign: "left" }}>
+                <i className="bi bi-exclamation-triangle me-1"></i> {checkErr}
+              </div>
+            )}
             <Link to="/login" className="btn btn-primary btn-lg">
               Go to Sign In <i className="bi bi-box-arrow-in-right"></i>
             </Link>
@@ -476,6 +495,12 @@ export default function Admin() {
           {error && (
             <div className="banner err" style={{ marginBottom: 16 }}>
               <i className="bi bi-exclamation-triangle me-1"></i> {error}
+            </div>
+          )}
+
+          {dbWarn && (
+            <div className="banner warn" style={{ marginBottom: 16 }}>
+              <i className="bi bi-database-exclamation me-1"></i> {dbWarn}
             </div>
           )}
 

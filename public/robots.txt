@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /api/
 
-Sitemap: https://trendcodetechnology.com/sitemap.xml
+Sitemap: https://tctechs.in/sitemap.xml

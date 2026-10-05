@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { PageHero, Reveal } from "../components/Reveal.jsx";
 import { COMPANY, INTERNSHIP_JDS } from "../data/content.js";
+import { apiUrl } from "../config/site.js";
 
 /*
  * Internships page in the same style as the careers pages: every internship
@@ -119,7 +120,7 @@ export default function Internship() {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (file) fd.append("resume", file);
 
-      const res = await fetch("/api/internship", { method: "POST", body: fd });
+      const res = await fetch(apiUrl("/api/internship"), { method: "POST", body: fd });
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
 
