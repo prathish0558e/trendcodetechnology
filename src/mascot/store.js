@@ -97,8 +97,16 @@ export function computeLayout() {
   const activeMascotScale = Math.min(0.44, mascotScale * 1.55);
   const cloudHeightPx = 1.16 * cloudR * pixelsPerWorld;
   const mascotGapPx = 12;
+  // Keep the complete cloud + robot silhouette inside the left viewport edge.
+  // The launcher sits very close to that edge; centering the wider cloud on it
+  // clipped the robot's antenna/head on common desktop and phone widths.
+  const cloudSafeMarginPx = 1.35 * cloudR * pixelsPerWorld;
+  const homeCenterXpx = Math.max(
+    cloudSafeMarginPx,
+    Math.min(w - cloudSafeMarginPx, whatsappLeft + whatsappSize / 2 + cloudR * pixelsPerWorld * 0.9)
+  );
   const home = toWorld(
-    (whatsappLeft + whatsappSize / 2) / w,
+    homeCenterXpx / w,
     (whatsappTop - mascotGapPx - cloudHeightPx / 2) / h
   );
   const cloudTop = home.y + cloudR * 0.62;
@@ -107,17 +115,17 @@ export function computeLayout() {
   // ~0.62 world units below its root) land exactly ON the floor, not inside it.
   const legLift = mobile ? 0.26 : 0.3;
 
-  // Stage — on mobile, keep the complete character below the navbar and above
-  // the chat bottom sheet, centered horizontally. On tall phones the character
-  // rises from the cloud toward the visual center while keeping its face forward.
+  // Keep the whole character inside a safe viewport zone while it walks away
+  // from the launcher. The mobile chat is a bottom sheet, so stage the robot
+  // above it; on desktop it stands just left of the centered hologram panel.
   const stage = mobile
-    ? { x: toWorld(0.52, 0).x, y: toWorld(0.5, tallMobile ? 0.46 : 0.43).y }
-    : { x: toWorld(0.4, 0).x, y: cloudTop - 0.1 };
+    ? { x: toWorld(0.5, 0).x, y: toWorld(0.5, tallMobile ? 0.32 : 0.35).y }
+    : { x: toWorld(0.41, 0).x, y: toWorld(0.5, 0.74).y };
 
-  // Hologram anchor — inner-left area of the DOM chat panel.
+  // Hologram anchor — near the inner-left edge of the DOM chat panel.
   const beamAnchor = mobile
-    ? { x: 0, y: toWorld(0.5, tallMobile ? 0.5 : 0.34).y }
-    : { x: toWorld(0.64, 0).x, y: cloudTop + 1.58 };
+    ? { x: 0, y: toWorld(0.5, 0.52).y }
+    : { x: toWorld(0.64, 0).x, y: toWorld(0.5, 0.68).y };
 
   state.mobile = mobile;
   state.layout = { w, h, mobile, compact, halfW, halfH, camY, camZ, home, cloudR, cloudTop, floorY: cloudTop, legLift, stage, beamAnchor, mascotScale, activeMascotScale };

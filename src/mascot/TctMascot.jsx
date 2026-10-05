@@ -75,14 +75,10 @@ export default function TctMascot() {
     const measure = () => {
       const width = panel.offsetWidth;
       const height = panel.offsetHeight;
-      const style = window.getComputedStyle(panel);
       const mobile = window.innerWidth <= 720;
-      const left = mobile
-        ? 8
-        : window.innerWidth - (Number.parseFloat(style.right) || 0) - width;
-      const top = mobile
-        ? window.innerHeight - height - (Number.parseFloat(style.bottom) || 10)
-        : (window.innerHeight - height) / 2;
+      const rect = panel.getBoundingClientRect();
+      const left = rect.left;
+      const top = rect.top;
       const localX = mobile ? Math.min(28, width * 0.08) : 14;
       const localY = mobile ? 24 : height * 0.5;
       panel.style.setProperty("--tct3d-impact-x", `${localX}px`);
@@ -134,6 +130,13 @@ export default function TctMascot() {
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [messages, typing, ui.chatOpen]);
+
+  useEffect(() => {
+    const field = inputRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 92)}px`;
+  }, [input, ui.chatOpen]);
 
   const pushBot = (text, delay = 700) => {
     setTyping(true);
@@ -232,6 +235,16 @@ export default function TctMascot() {
     closeChat();
   };
 
+  const resetConversation = () => {
+    if (typing) return;
+    setMessages([{ from: "bot", text: GREETING }]);
+    setLeadStep(null);
+    setDraft({});
+    setInput("");
+    setNudge("");
+    setThinking(false);
+  };
+
   useEffect(() => {
     if (!ui.chatOpen) return;
     const onKey = (e) => e.key === "Escape" && close();
@@ -289,47 +302,77 @@ export default function TctMascot() {
             </span>
             <div className="tct3d-panel-title">
               <strong>TCT Assistant</strong>
-              <small>{ASSISTANT_MODE === "ai" ? "AI endpoint configured" : "Guided TCT answers"}</small>
+              <small>{ASSISTANT_MODE === "ai" ? "AI assistant · ready to help" : "TCT guide · website answers"}</small>
             </div>
             <span className={`tct3d-status ${ASSISTANT_MODE === "guided" ? "tct3d-status-guided" : ""}`} aria-hidden="true" />
+            <span className="tct3d-status-label">{ASSISTANT_MODE === "ai" ? "LIVE" : "GUIDED"}</span>
+            <button type="button" className="tct3d-restart" onClick={resetConversation} disabled={typing} aria-label="Start a new conversation" title="New conversation">
+              <i className="bi bi-arrow-counterclockwise" />
+            </button>
             <button type="button" className="tct3d-close" onClick={close} aria-label="Close chat">
               <i className="bi bi-x-lg" />
             </button>
           </header>
 
-          <div className="tct3d-msgs" ref={bodyRef}>
+          <div className="tct3d-msgs" ref={bodyRef} aria-live="polite" aria-relevant="additions text">
             {messages.map((m, i) => (
-              <div key={i} className={`tct3d-msg ${m.from}`}>{m.text}</div>
+              <div key={i} className={`tct3d-msg-row ${m.from}`}>
+                {m.from !== "user" && (
+                  <span className="tct3d-msg-avatar" aria-hidden="true">
+                    <i className="bi bi-robot" />
+                  </span>
+                )}
+                <div className="tct3d-msg-stack">
+                  <span className="tct3d-msg-meta">{m.from === "user" ? "You" : "TCT Assistant"}</span>
+                  <div className={`tct3d-msg ${m.from}`}>{m.text}</div>
+                </div>
+              </div>
             ))}
             {typing && (
-              <div className="tct3d-msg bot tct3d-typing" aria-label="TCT Assistant is typing">
-                <i /><i /><i />
+              <div className="tct3d-msg-row bot">
+                <span className="tct3d-msg-avatar" aria-hidden="true"><i className="bi bi-robot" /></span>
+                <div className="tct3d-msg-stack">
+                  <span className="tct3d-msg-meta">TCT Assistant is thinking</span>
+                  <div className="tct3d-msg bot tct3d-typing" aria-label="TCT Assistant is typing">
+                    <i /><i /><i />
+                  </div>
+                </div>
               </div>
             )}
             {nudge && <div className="tct3d-nudge">{nudge}</div>}
           </div>
 
-          <div className="tct3d-chips" role="group" aria-label="Quick questions">
-            {QUICK_CHIPS.map((c) => (
-              <button key={c} type="button" onClick={() => onChip(c)} disabled={typing}>
-                {c}
-              </button>
-            ))}
-          </div>
+          {!messages.some((m) => m.from === "user") && (
+            <div className="tct3d-suggestion-wrap">
+              <span className="tct3d-suggestion-label">QUICK QUESTIONS</span>
+              <div className="tct3d-chips" role="group" aria-label="Quick questions">
+                {QUICK_CHIPS.map((c) => (
+                  <button key={c} type="button" onClick={() => onChip(c)} disabled={typing}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <form
             className="tct3d-input"
             onSubmit={(e) => { e.preventDefault(); if (!typing) handleText(input); }}
           >
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
+              rows={1}
               value={input}
               placeholder={placeholder}
               aria-label={placeholder}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  if (!typing) handleText(input);
+                }
+              }}
               disabled={typing}
-              autoComplete="off"
             />
             <button type="submit" disabled={typing || !input.trim()} aria-label="Send">
               <i className="bi bi-send-fill" />

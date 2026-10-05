@@ -56,21 +56,23 @@
 .tct3d-panel {
   position: absolute;
   right: 3.2vw;
-  top: 50%;
-  transform: translateY(-50%);
-  width: min(400px, calc(100vw - 24px));
-  max-height: min(72vh, 640px);
+  top: auto;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  transform: none;
+  width: min(440px, calc(100vw - 24px));
+  max-height: min(76vh, 680px);
   display: flex;
   flex-direction: column;
   border-radius: 18px;
-  border: 1px solid rgba(103, 232, 249, 0.35);
-  background: linear-gradient(160deg, rgba(10, 16, 38, 0.86), rgba(13, 20, 48, 0.78));
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(103, 232, 249, 0.42);
+  background: linear-gradient(155deg, rgba(8, 17, 38, 0.97), rgba(12, 24, 49, 0.95));
+  backdrop-filter: blur(20px) saturate(1.16);
+  -webkit-backdrop-filter: blur(20px) saturate(1.16);
   box-shadow:
     0 0 0 1px rgba(56, 189, 248, 0.08),
-    0 24px 70px rgba(2, 6, 23, 0.55),
-    0 0 42px rgba(34, 211, 238, 0.13);
+    0 24px 70px rgba(2, 6, 23, 0.58),
+    0 0 36px rgba(34, 211, 238, 0.14),
+    0 0 32px rgba(249, 115, 22, 0.06);
   overflow: hidden;
   pointer-events: auto;
   color: #e7f6ff;
@@ -117,8 +119,8 @@
 }
 
 @keyframes tct3d-panel-in {
-  from { opacity: 0; transform: translateY(-50%) scale(0.12); filter: blur(12px); }
-  to { opacity: 1; transform: translateY(-50%) scale(1); filter: blur(0); }
+  from { opacity: 0; transform: translateY(24px) scale(0.12); filter: blur(12px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -138,7 +140,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px;
+  padding: 13px 14px;
   border-bottom: 1px solid rgba(103, 232, 249, 0.18);
   background: linear-gradient(to right, rgba(34, 211, 238, 0.1), transparent);
 }
@@ -178,10 +180,19 @@
   box-shadow: 0 0 8px rgba(125, 211, 252, 0.7);
 }
 
+.tct3d-status-label {
+  margin-left: -5px;
+  color: #a9d9e8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.tct3d-restart,
 .tct3d-close {
-  border: 1px solid rgba(103, 232, 249, 0.25);
-  background: rgba(8, 14, 34, 0.6);
-  color: #a5ecff;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  background: rgba(8, 14, 34, 0.58);
+  color: #b7edfb;
   width: 32px;
   height: 32px;
   border-radius: 10px;
@@ -190,10 +201,22 @@
   cursor: pointer;
   font-size: 13px;
   flex: none;
-  transition: background 0.2s, transform 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, color 0.2s;
 }
 
-.tct3d-close:hover { background: rgba(34, 211, 238, 0.18); transform: scale(1.05); }
+.tct3d-restart:hover:not(:disabled),
+.tct3d-close:hover {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(103, 232, 249, 0.52);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.tct3d-restart:disabled { opacity: 0.4; cursor: default; }
+
+.tct3d-close {
+  color: #c0d7e5;
+}
 
 .tct3d-msgs {
   flex: 1;
@@ -201,20 +224,64 @@
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  min-height: 120px;
+  gap: 12px;
+  min-height: 150px;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(103, 232, 249, 0.35) transparent;
 }
 
 .tct3d-msg {
-  max-width: 86%;
-  padding: 9px 13px;
+  max-width: 100%;
+  width: fit-content;
+  padding: 10px 13px;
   font-size: 13.5px;
   line-height: 1.5;
-  border-radius: 14px;
+  border-radius: 15px;
   white-space: pre-line;
+  overflow-wrap: anywhere;
   animation: tct3d-msg-in 0.3s ease both;
+}
+
+.tct3d-msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 94%;
+}
+
+.tct3d-msg-row.bot { align-self: flex-start; }
+.tct3d-msg-row.user { align-self: flex-end; justify-content: flex-end; }
+
+.tct3d-msg-avatar {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(34, 211, 238, 0.17), rgba(59, 130, 246, 0.1));
+  color: #8deaff;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(3, 16, 36, 0.24);
+}
+
+.tct3d-msg-stack {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tct3d-msg-row.user .tct3d-msg-stack { align-items: flex-end; }
+
+.tct3d-msg-meta {
+  padding: 0 3px;
+  color: rgba(183, 211, 229, 0.68);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.025em;
 }
 
 @keyframes tct3d-msg-in {
@@ -227,21 +294,20 @@
 }
 
 .tct3d-msg.bot {
-  align-self: flex-start;
-  background: rgba(34, 211, 238, 0.1);
-  border: 1px solid rgba(103, 232, 249, 0.22);
-  border-bottom-left-radius: 4px;
+  background: linear-gradient(145deg, rgba(34, 211, 238, 0.12), rgba(20, 49, 78, 0.68));
+  border: 1px solid rgba(103, 232, 249, 0.24);
+  border-bottom-left-radius: 5px;
   color: #eafcff;
 }
 
 .tct3d-msg.user {
-  align-self: flex-end;
-  background: linear-gradient(135deg, rgba(79, 124, 255, 0.32), rgba(124, 58, 237, 0.28));
-  border: 1px solid rgba(129, 140, 248, 0.35);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(249, 115, 22, 0.18));
+  border: 1px solid rgba(125, 211, 252, 0.33);
   border-bottom-right-radius: 4px;
+  color: #f3fbff;
 }
 
-.tct3d-typing { display: flex; gap: 5px; align-items: center; padding: 12px 14px; }
+.tct3d-typing { display: flex; gap: 5px; align-items: center; padding: 12px 14px; min-width: 54px; }
 .tct3d-typing i {
   width: 6px; height: 6px; border-radius: 50%;
   background: #7de8ff; opacity: 0.4;
@@ -264,26 +330,40 @@
   padding: 7px 11px;
 }
 
+.tct3d-suggestion-wrap {
+  padding: 0 14px 4px;
+}
+
+.tct3d-suggestion-label {
+  display: block;
+  margin: 0 0 7px 2px;
+  color: rgba(165, 211, 231, 0.58);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
 .tct3d-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  padding: 4px 14px 10px;
+  gap: 6px;
 }
 
 .tct3d-chips button {
   font-size: 12px;
-  padding: 6px 12px;
+  padding: 6px 11px;
   border-radius: 999px;
   border: 1px solid rgba(103, 232, 249, 0.3);
   background: rgba(34, 211, 238, 0.08);
   color: #a5ecff;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
 }
 
 .tct3d-chips button:hover:not(:disabled) {
-  background: rgba(34, 211, 238, 0.2);
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(249, 115, 22, 0.5);
+  color: #f6fdff;
   transform: translateY(-1px);
 }
 
@@ -291,44 +371,55 @@
 
 .tct3d-input {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
-  padding: 10px 14px 6px;
-}
-
-.tct3d-input input {
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  padding: 11px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(103, 232, 249, 0.28);
-  background: rgba(6, 12, 30, 0.65);
-  color: #eafcff;
-  outline: none;
+  margin: 7px 12px 4px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid rgba(103, 232, 249, 0.26);
+  border-radius: 16px;
+  background: rgba(5, 12, 29, 0.8);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.tct3d-input input::placeholder { color: rgba(165, 236, 255, 0.5); }
-
-.tct3d-input input:focus {
-  border-color: rgba(103, 232, 249, 0.65);
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+.tct3d-input:focus-within {
+  border-color: rgba(103, 232, 249, 0.66);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1), 0 0 18px rgba(34, 211, 238, 0.08);
 }
 
+.tct3d-input textarea {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  min-height: 38px;
+  max-height: 92px;
+  resize: none;
+  padding: 10px 2px 8px;
+  border: none;
+  background: transparent;
+  color: #eafcff;
+  outline: none;
+  line-height: 1.4;
+  overflow-y: auto;
+  font-family: inherit;
+}
+
+.tct3d-input textarea::placeholder { color: rgba(165, 236, 255, 0.5); }
+
 .tct3d-input button {
-  width: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #22d3ee, #4f7cff);
+  background: linear-gradient(135deg, #67e8f9, #38bdf8 58%, #fb923c);
   color: #061024;
   font-size: 15px;
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: filter 0.2s, transform 0.2s;
+  transition: filter 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
-.tct3d-input button:hover:not(:disabled) { filter: brightness(1.12); }
+.tct3d-input button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 5px 15px rgba(34, 211, 238, 0.22); }
 .tct3d-input button:disabled { opacity: 0.45; cursor: default; }
 
 .tct3d-foot {

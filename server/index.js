@@ -8,7 +8,9 @@ import multer from "multer";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
-// load server/.env if present (email notifications)
+// load server/.env if present (email notifications). Values already set in
+// the environment (Vercel dashboard env vars) always win — dotenv never
+// overrides them.
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), ".env") });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,10 +21,15 @@ const PORT = Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPor
 
 app.use(express.json());
 
-// ---------- tiny JSON file storage ----------
-// Local: real files under server/data. Serverless (Vercel): the FS is
-// read-only, so fall back to in-memory lists that live per warm instance.
-const DATA_DIR = path.join(__dirname, "data");
+// ---------- storage ----------
+// Three backends, picked automatically:
+//   1. MongoDB   — MONGODB_URI set (production on Vercel): durable and shared
+//                  by every serverless instance, so the admin panel, sessions
+//                  and login-activity log survive cold starts.
+//   2. memory    — Vercel without MONGODB_URI: lives only as long as one warm
+//                  instance (best effort — data can vanish on cold start).
+//   3. JSON file — local dev: server/data/*.json
+const DATA_DIR = process.env.TCT_DATA_DIR || path.join(__dirname, "data");
 if (!IS_SERVERLESS && !fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -33,7 +40,15 @@ const FILES = {
   applications: path.join(DATA_DIR, "applications.json"),
   internships: path.join(DATA_DIR, "internships.json"),
 };
-const MEMORY = { leads: [], messages: [], applications: [], internships: [] };
+const MONGO_URI = (process.env.MONGODB_URI || "").trim();
+const MEMORY = {
+  leads: [],
+  messages: [],
+  applications: [],
+  internships: [],
+  authlog: [],
+  sessions: [],
+};
 
 // Resume uploads — disk locally, memory on serverless (email still gets the
 // attachment, but the file can't be persisted or re-downloaded there).
@@ -59,11 +74,64 @@ const uploadResume = multer({
   },
 });
 
-function readList(file) {
-  if (IS_SERVERLESS) {
-    const key = path.basename(file, ".json");
-    return MEMORY[key] || [];
+// --- MongoDB (optional) ----------------------------------------------------
+// The connection promise is cached on globalThis so every warm serverless
+// invocation reuses the same pool instead of reconnecting per request.
+const MONGO_RETRY_MS = 60_000; // after a failed connect, stop retrying for 60s
+async function getDb() {
+  if (!MONGO_URI) return null;
+  const g = globalThis;
+  if (!g.__tctMongoDb) {
+    // A blocked/unreachable Atlas would otherwise cost serverSelectionTimeoutMS
+    // on EVERY request (login does 3-4 storage calls → 30s+ hangs).
+    if (Date.now() - (g.__tctMongoFailAt || 0) < MONGO_RETRY_MS) return null;
+    g.__tctMongoDb = (async () => {
+      const { MongoClient } = await import("mongodb");
+      const client = new MongoClient(MONGO_URI, {
+        maxPoolSize: 5,
+        serverSelectionTimeoutMS: 3000, // keep a blocked Atlas from stalling forms
+      });
+      await client.connect();
+      g.__tctMongoOk = true;
+      console.log("[db] MongoDB connected");
+      return client.db();
+    })().catch((err) => {
+      g.__tctMongoDb = null; // retry after MONGO_RETRY_MS, not on every call
+      g.__tctMongoFailAt = Date.now();
+      g.__tctMongoOk = false;
+      throw err;
+    });
   }
+  try {
+    return await g.__tctMongoDb;
+  } catch (err) {
+    console.error(
+      `[db] MongoDB unavailable — using ${IS_SERVERLESS ? "memory" : "file"} storage (${err.message})`
+    );
+    return null;
+  }
+}
+
+// Read-only status for /api/health — never triggers a connection itself.
+function dbStatus() {
+  if (!MONGO_URI) return "not-configured";
+  const g = globalThis;
+  if (g.__tctMongoOk) return "connected";
+  if (g.__tctMongoFailAt) return "unavailable";
+  return "not-tried-yet";
+}
+
+// Every list lives in one Mongo document per key: { _id: "leads", items: [] }
+const listKey = (file) => path.basename(file, ".json");
+
+async function listGet(file) {
+  const key = listKey(file);
+  const db = await getDb();
+  if (db) {
+    const doc = await db.collection("lists").findOne({ _id: key });
+    return (doc && doc.items) || [];
+  }
+  if (IS_SERVERLESS) return MEMORY[key] || [];
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
@@ -71,21 +139,65 @@ function readList(file) {
   }
 }
 
-function writeList(file, list) {
+async function listSet(file, list) {
+  const key = listKey(file);
+  const db = await getDb();
+  if (db) {
+    await db
+      .collection("lists")
+      .updateOne({ _id: key }, { $set: { items: list } }, { upsert: true });
+    return;
+  }
   if (IS_SERVERLESS) {
-    const key = path.basename(file, ".json");
     MEMORY[key] = list;
     return;
   }
   try {
     fs.writeFileSync(file, JSON.stringify(list, null, 2));
   } catch (err) {
-    // Read-only filesystem (e.g. Vercel serverless): still accept the lead,
-    // just log it so nothing is silently lost.
-    console.warn("[lead] persist failed (read-only FS?):", err.message);
-    console.log("[lead]", JSON.stringify(list[list.length - 1]));
+    // Read-only filesystem: still accept the record, just log it loudly so
+    // nothing is silently lost.
+    console.warn(`[storage] persist failed for ${key}:`, err.message);
+    console.log("[storage]", JSON.stringify(list[list.length - 1]));
   }
 }
+
+// Atomic append — no read-modify-write race when two requests land together.
+// `max` keeps the list bounded (e.g. the last 500 login events).
+async function listAppend(file, item, max = 0) {
+  const key = listKey(file);
+  const db = await getDb();
+  if (db) {
+    const col = db.collection("lists");
+    if (max > 0) {
+      await col.updateOne(
+        { _id: key },
+        [
+          {
+            $set: {
+              items: {
+                $slice: [{ $concatArrays: [{ $ifNull: ["$items", []] }, [item]] }, -max],
+              },
+            },
+          },
+        ],
+        { upsert: true }
+      );
+    } else {
+      await col.updateOne({ _id: key }, { $push: { items: item } }, { upsert: true });
+    }
+    return;
+  }
+  const list = await listGet(file);
+  list.push(item);
+  if (max > 0 && list.length > max) list.splice(0, list.length - max);
+  await listSet(file, list);
+}
+
+// --- same names the routes already use (now async — callers await) ---------
+const readList = (file) => listGet(file);
+const writeList = (file, list) => listSet(file, list);
+const appendList = (file, item, max = 0) => listAppend(file, item, max);
 
 const VALID_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -122,13 +234,25 @@ console.log(
 // (thank-you mail, owner alerts, WhatsApp) must be awaited BEFORE responding;
 // fire-and-forget would be cut off mid-SMTP-send. Locally we keep them
 // non-blocking so forms stay instant. Errors are logged, never swallowed.
+// On serverless the wait is bounded: after NOTIFY_WAIT_MS the response goes
+// out and the send keeps running in the background (SMTP normally finishes
+// in 1-2s, well inside the budget).
+const NOTIFY_WAIT_MS = 5000;
+function boundedWait(promise, ms) {
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function runNotifications(fns) {
   const all = Promise.all(
     fns.map((fn) =>
       fn().catch((err) => console.error("[notify] failed:", err?.message || err))
     )
   );
-  return IS_SERVERLESS ? all : undefined;
+  return IS_SERVERLESS ? boundedWait(all, NOTIFY_WAIT_MS) : undefined;
 }
 
 // Attachment for emails — works for both disk (local) and memory (serverless)
@@ -415,7 +539,15 @@ ${bottomLine}
 
 // ---------- routes ----------
 app.get("/api/health", (_req, res) =>
-  res.json({ ok: true, service: "tct-api", time: new Date().toISOString() })
+  res.json({
+    ok: true,
+    service: "tct-api",
+    time: new Date().toISOString(),
+    // quick ops diagnostics: which backend is answering requests right now
+    storage: MONGO_URI ? "mongodb" : IS_SERVERLESS ? "memory" : "file",
+    db: dbStatus(),
+    smtp: mailer ? "configured" : "not-configured",
+  })
 );
 
 app.post("/api/leads", async (req, res) => {
@@ -440,9 +572,7 @@ app.post("/api/leads", async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  const list = readList(FILES.leads);
-  list.push(lead);
-  writeList(FILES.leads, list);
+  await appendList(FILES.leads, lead); // atomic — concurrent leads never clobber
 
   // Owner alerts (email + WhatsApp) + the "Thank you" auto-reply to the
   // sender. Awaited on Vercel (work started after the response would be
@@ -461,7 +591,7 @@ app.post("/api/leads", async (req, res) => {
 });
 
 // ---------- Job applications (careers) ----------
-async function notifyApplication(app_) {
+async function notifyApplication(app_, resumeBuffer = null) {
   // Email
   if (mailer) {
     const text = [
@@ -487,7 +617,7 @@ async function notifyApplication(app_) {
         subject: `💼 New job application — ${app_.name} (${app_.position})`,
         text,
         replyTo: app_.email,
-        attachments: buildResumeAttachment(app_),
+        attachments: buildResumeAttachment(app_, resumeBuffer),
       });
       console.log(`[application] emailed notification for ${app_.name}`);
     } catch (err) {
@@ -542,14 +672,17 @@ app.post("/api/apply", uploadResume.single("resume"), async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  const list = readList(FILES.applications);
-  list.push(application);
-  writeList(FILES.applications, list);
-
-  // buffers must not live in the stored list — notify reads it, then strip.
-  // Both mails are awaited on Vercel so nothing is cut off after the response.
-  const ownerNotify = notifyApplication(application);
+  // the resume buffer is emailed, never stored inside the record itself;
+  // with MongoDB it is kept beside it so the admin panel can still download it
+  const resumeBuffer = application.resumeBuffer || null;
   delete application.resumeBuffer;
+  if (MONGO_URI && resumeBuffer) {
+    application.resumeData = resumeBuffer.toString("base64");
+  }
+  await appendList(FILES.applications, application);
+
+  // Both mails are awaited on Vercel so nothing is cut off after the response.
+  const ownerNotify = notifyApplication(application, resumeBuffer);
   await runNotifications([
     () => ownerNotify,
     () => sendThankYou(application.email, application.name, "career", application.position),
@@ -563,38 +696,65 @@ app.post("/api/apply", uploadResume.single("resume"), async (req, res) => {
 });
 
 // ---------- admin auth guard (session-token based) ----------
-function requireAdmin(req, res, next) {
-  const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  const session = getSession(token);
-  if (!session) {
-    return res.status(401).json({ error: "Unauthorized. Please sign in again." });
+async function requireAdmin(req, res, next) {
+  try {
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    const session = await getSession(token);
+    if (!session) {
+      return res.status(401).json({ error: "Unauthorized. Please sign in again." });
+    }
+    req.adminSession = session;
+    next();
+  } catch (err) {
+    next(err);
   }
-  req.adminSession = session;
-  next();
 }
 
 // Downloads a stored resume. Only via short-lived signed link (downloadKey).
-// On serverless there is no disk — resumes exist only as email attachments,
-// so the download endpoint is disabled with a clear message.
-app.get("/api/admin/resume/:file", (req, res) => {
+// Order: MongoDB copy (Vercel) → local disk copy → clear error.
+function contentTypeForResume(name) {
+  const ext = path.extname(name).toLowerCase();
+  if (ext === ".pdf") return "application/pdf";
+  if (ext === ".doc") return "application/msword";
+  if (ext === ".docx")
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  return "application/octet-stream";
+}
+
+app.get("/api/admin/resume/:file", async (req, res) => {
   const { file } = req.params;
   const { key } = req.query;
   if (!key || key !== resumeLinkKey(file)) {
     return res.status(403).json({ error: "Invalid or expired download link." });
   }
-  if (IS_SERVERLESS) {
-    return res.status(404).json({
-      error:
-        "Resume files are emailed to the team inbox on this deployment — check NOTIFY_EMAIL.",
-    });
-  }
   const safe = path.basename(file);
-  const full = path.join(UPLOAD_DIR, safe);
-  if (!fs.existsSync(full)) {
-    return res.status(404).json({ error: "Resume file not found." });
+
+  // 1) MongoDB copy — resumes uploaded on Vercel live beside the record
+  if (MONGO_URI) {
+    for (const storeFile of [FILES.applications, FILES.internships]) {
+      const list = await listGet(storeFile);
+      const rec = list.find((r) => r.resumeFile === safe && r.resumeData);
+      if (rec) {
+        res.setHeader("Content-Type", contentTypeForResume(safe));
+        res.setHeader("Content-Disposition", `attachment; filename="${safe}"`);
+        return res.send(Buffer.from(rec.resumeData, "base64"));
+      }
+    }
   }
-  res.download(full);
+
+  // 2) local disk copy
+  if (!IS_SERVERLESS) {
+    const full = path.join(UPLOAD_DIR, safe);
+    if (fs.existsSync(full)) return res.download(full);
+  }
+
+  // 3) nothing to serve on this deployment
+  return res.status(404).json({
+    error: MONGO_URI
+      ? "Resume file not found."
+      : "Resume files are emailed to the team inbox on this deployment — check NOTIFY_EMAIL.",
+  });
 });
 
 // Short-lived key so the resume URL is not usable forever or guessable.
@@ -608,14 +768,18 @@ function resumeLinkKey(file) {
     crypto.createHash("sha256").update(`${file}|${RESUME_KEY_SECRET}|${prev}`).digest("hex").slice(0, 32);
 }
 
-app.get("/api/admin/applications", requireAdmin, (req, res) => {
-  const list = readList(FILES.applications).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  const withLinks = list.map((a) => ({
-    ...a,
-    resumeUrl: a.resumeFile
-      ? `/api/admin/resume/${encodeURIComponent(a.resumeFile)}?key=${resumeLinkKey(a.resumeFile)}`
-      : null,
-  }));
+app.get("/api/admin/applications", requireAdmin, async (req, res) => {
+  const list = (await readList(FILES.applications)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const withLinks = list.map((a) => {
+    const rec = { ...a };
+    delete rec.resumeData; // base64 copy never goes over the list API
+    return {
+      ...rec,
+      resumeUrl: rec.resumeFile
+        ? `/api/admin/resume/${encodeURIComponent(rec.resumeFile)}?key=${resumeLinkKey(rec.resumeFile)}`
+        : null,
+    };
+  });
   res.json(withLinks);
 });
 
@@ -626,40 +790,19 @@ const MAX_LOGIN_ATTEMPTS = 5; // failed tries before lockout
 const LOCKOUT_MINUTES = 15; // lock window
 const SESSION_TTL_HOURS = 12; // auto-expiry for admin sessions
 
-function readJson(file, fallback) {
-  if (IS_SERVERLESS) {
-    const key = path.basename(file, ".json");
-    return MEMORY[key] || fallback;
-  }
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(file, list) {
-  if (IS_SERVERLESS) {
-    const key = path.basename(file, ".json");
-    MEMORY[key] = list;
-    return;
-  }
-  try {
-    fs.writeFileSync(file, JSON.stringify(list, null, 2));
-  } catch (err) {
-    console.warn("[authlog] persist failed:", err.message);
-  }
-}
+// Same storage layer as the lists (MongoDB → memory → file).
+const readJson = (file, fallback) =>
+  listGet(file).then((list) => (list.length ? list : fallback));
+const writeJson = (file, list) => listSet(file, list);
 
 // Sessions replace the old static ADMIN_TOKEN — each login mints its own
 // token so the admin can kick a device remotely via force logout.
 const readSessions = () => readJson(FILES_SESSIONS, []);
 const writeSessions = (list) => writeJson(FILES_SESSIONS, list);
 
-function createSession(req, email) {
+async function createSession(req, email) {
   const token = crypto.randomBytes(24).toString("hex");
-  const list = readSessions();
-  list.push({
+  const session = {
     token,
     email,
     ip: clientIp(req),
@@ -668,35 +811,41 @@ function createSession(req, email) {
     location: lookupLocation(clientIp(req)),
     createdAt: new Date().toISOString(),
     lastSeenAt: new Date().toISOString(),
-  });
-  // prune expired (older than TTL) — keeps the file small
+  };
+  await appendList(FILES_SESSIONS, session);
+  // prune expired (older than TTL) — keeps the list small
   const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
-  writeSessions(list.filter((s) => new Date(s.createdAt).getTime() > cutoff));
+  const kept = (await readSessions()).filter(
+    (s) => new Date(s.createdAt).getTime() > cutoff
+  );
+  await writeSessions(kept);
   return token;
 }
 
-function getSession(token) {
+async function getSession(token) {
   if (!token) return null;
   const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
-  const list = readSessions().filter((s) => new Date(s.createdAt).getTime() > cutoff);
+  const list = (await readSessions()).filter(
+    (s) => new Date(s.createdAt).getTime() > cutoff
+  );
   const found = list.find((s) => s.token === token);
   if (found) {
     found.lastSeenAt = new Date().toISOString();
-    writeSessions(list);
+    await writeSessions(list);
   }
   return found || null;
 }
 
-function revokeSession(token) {
-  const list = readSessions().filter((s) => s.token !== token);
-  writeSessions(list);
+async function revokeSession(token) {
+  const list = (await readSessions()).filter((s) => s.token !== token);
+  await writeSessions(list);
 }
 
 // Login activity log + persistence
 const readAuthLog = () => readJson(FILES_AUTHLOG, []);
 const writeAuthLog = (list) => writeJson(FILES_AUTHLOG, list);
 
-function logAuthEvent(type, req, extra = {}) {
+async function logAuthEvent(type, req, extra = {}) {
   const ip = clientIp(req);
   const entry = {
     id: `${Date.now()}`,
@@ -709,10 +858,8 @@ function logAuthEvent(type, req, extra = {}) {
     ...extra,
     createdAt: new Date().toISOString(),
   };
-  const list = readAuthLog();
-  list.push(entry);
-  // keep the log bounded (latest 500 events)
-  writeAuthLog(list.slice(-500));
+  // keep the log bounded (latest 500 events) — atomic append with trim
+  await appendList(FILES_AUTHLOG, entry, 500);
   // resolve location in the background (entry is updated for future reads)
   geoLookupAsync(ip);
   return entry;
@@ -808,9 +955,9 @@ function locationText(loc) {
   return `${loc.flag || "📍"} ${parts.join(", ")}${loc.country ? (parts.length ? ", " : "") + loc.country : ""}`;
 }
 
-function isLockedOut(req) {
+async function isLockedOut(req) {
   const since = Date.now() - LOCKOUT_MINUTES * 60 * 1000;
-  const fails = readAuthLog().filter(
+  const fails = (await readAuthLog()).filter(
     (e) =>
       e.type === "failed" &&
       new Date(e.createdAt).getTime() > since &&
@@ -819,16 +966,16 @@ function isLockedOut(req) {
   return fails.length >= MAX_LOGIN_ATTEMPTS ? fails.length : 0;
 }
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
   }
 
   // Brute-force lockout: too many recent failures -> reject before checking.
-  const failedCount = isLockedOut(req);
+  const failedCount = await isLockedOut(req);
   if (failedCount) {
-    logAuthEvent("failed", req, { email, locked: true });
+    await logAuthEvent("failed", req, { email, locked: true });
     return res.status(429).json({
       error: `Too many failed attempts. Try again after ${LOCKOUT_MINUTES} minutes.`,
     });
@@ -842,8 +989,8 @@ app.post("/api/login", (req, res) => {
     ? bcrypt.compareSync(password, ADMIN_PASS_HASH)
     : password === (process.env.ADMIN_PASS || "TCT@2026");
   if (email.toLowerCase() === ADMIN_USER.toLowerCase() && passOk) {
-    const token = createSession(req, ADMIN_USER);
-    logAuthEvent("login", req, { email });
+    const token = await createSession(req, ADMIN_USER);
+    await logAuthEvent("login", req, { email });
     return res.json({
       ok: true,
       token,
@@ -851,11 +998,11 @@ app.post("/api/login", (req, res) => {
     });
   }
 
-  logAuthEvent("failed", req, { email });
+  await logAuthEvent("failed", req, { email });
   const remaining = Math.max(
     0,
     MAX_LOGIN_ATTEMPTS -
-      readAuthLog().filter(
+      (await readAuthLog()).filter(
         (e) =>
           e.type === "failed" &&
           Date.now() - new Date(e.createdAt).getTime() <
@@ -871,20 +1018,20 @@ app.post("/api/login", (req, res) => {
   });
 });
 
-app.post("/api/logout", (req, res) => {
+app.post("/api/logout", async (req, res) => {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  const session = getSession(token);
-  if (session) revokeSession(token);
-  logAuthEvent("logout", req, { email: session?.email || "admin@trendcode.com" });
+  const session = await getSession(token);
+  if (session) await revokeSession(token);
+  await logAuthEvent("logout", req, { email: session?.email || "admin@trendcode.com" });
   res.json({ ok: true });
 });
 
 // Active admin sessions — the Login Activity tab lists these with device,
 // IP and location, each with a "Force logout" button.
-app.get("/api/admin/sessions", requireAdmin, (req, res) => {
+app.get("/api/admin/sessions", requireAdmin, async (req, res) => {
   const cutoff = Date.now() - SESSION_TTL_HOURS * 3600 * 1000;
-  const list = readSessions()
+  const list = (await readSessions())
     .filter((s) => new Date(s.createdAt).getTime() > cutoff)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .map((s) => ({
@@ -902,17 +1049,17 @@ app.get("/api/admin/sessions", requireAdmin, (req, res) => {
 
 // Force logout another admin session by token prefix (never accepts the
 // caller's own session — use normal logout for that).
-app.post("/api/admin/sessions/revoke", requireAdmin, (req, res) => {
+app.post("/api/admin/sessions/revoke", requireAdmin, async (req, res) => {
   const { tokenPreview } = req.body || {};
   if (!tokenPreview) return res.status(400).json({ error: "tokenPreview required." });
   if (tokenPreview === req.adminSession?.token.slice(0, 12)) {
     return res.status(400).json({ error: "Use Logout to end your own session." });
   }
-  const list = readSessions();
+  const list = await readSessions();
   const target = list.find((s) => s.token.slice(0, 12) === tokenPreview);
   if (!target) return res.status(404).json({ error: "Session not found (maybe already ended)." });
-  writeSessions(list.filter((s) => s.token !== target.token));
-  logAuthEvent("force-logout", req, {
+  await writeSessions(list.filter((s) => s.token !== target.token));
+  await logAuthEvent("force-logout", req, {
     email: target.email,
     targetIp: target.ip,
     targetDevice: target.device,
@@ -974,10 +1121,12 @@ app.post(
       createdAt: new Date().toISOString(),
     };
 
-    const list = readList(FILES.internships);
-    list.push(app_);
-    writeList(FILES.internships, list);
-    // note: app_.resumeBuffer kept until the email notifier runs below
+    // resume buffer is emailed, never stored inside the record; with MongoDB
+    // it is kept beside it so the admin panel can still download it
+    const resumeBuffer = app_.resumeBuffer || null;
+    delete app_.resumeBuffer;
+    if (MONGO_URI && resumeBuffer) app_.resumeData = resumeBuffer.toString("base64");
+    await appendList(FILES.internships, app_);
 
     // notify (email with resume attached + WhatsApp) — started now, awaited
     // together with the auto-reply below on Vercel
@@ -1005,7 +1154,7 @@ app.post(
             subject: `🎓 Internship application — ${app_.name} (${app_.domain})`,
             text,
             replyTo: app_.email,
-            attachments: buildResumeAttachment(app_, app_.resumeBuffer),
+            attachments: buildResumeAttachment(app_, resumeBuffer),
           });
           console.log(`[internship] emailed notification for ${app_.name}`);
         } catch (err) {
@@ -1036,19 +1185,23 @@ app.post(
   }
 );
 
-app.get("/api/admin/internships", requireAdmin, (_req, res) => {
-  const list = readList(FILES.internships).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  const withLinks = list.map((a) => ({
-    ...a,
-    resumeUrl: a.resumeFile
-      ? `/api/admin/resume/${encodeURIComponent(a.resumeFile)}?key=${resumeLinkKey(a.resumeFile)}`
-      : null,
-  }));
+app.get("/api/admin/internships", requireAdmin, async (_req, res) => {
+  const list = (await readList(FILES.internships)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const withLinks = list.map((a) => {
+    const rec = { ...a };
+    delete rec.resumeData; // base64 copy never goes over the list API
+    return {
+      ...rec,
+      resumeUrl: rec.resumeFile
+        ? `/api/admin/resume/${encodeURIComponent(rec.resumeFile)}?key=${resumeLinkKey(rec.resumeFile)}`
+        : null,
+    };
+  });
   res.json(withLinks);
 });
 
-app.get("/api/admin/authlog", requireAdmin, (_req, res) => {
-  const list = readAuthLog()
+app.get("/api/admin/authlog", requireAdmin, async (_req, res) => {
+  const list = (await readAuthLog())
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .map((e) => {
       // enrich older entries with freshly-resolved geo data
@@ -1065,12 +1218,12 @@ app.get("/api/admin/authlog", requireAdmin, (_req, res) => {
   res.json(list);
 });
 
-app.get("/api/admin/leads", requireAdmin, (_req, res) => {
-  res.json(readList(FILES.leads).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+app.get("/api/admin/leads", requireAdmin, async (_req, res) => {
+  res.json((await readList(FILES.leads)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
 });
 
-app.get("/api/admin/messages", requireAdmin, (_req, res) => {
-  res.json(readList(FILES.messages).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+app.get("/api/admin/messages", requireAdmin, async (_req, res) => {
+  res.json((await readList(FILES.messages)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
 });
 
 // ---------- serve the built frontend in production ----------

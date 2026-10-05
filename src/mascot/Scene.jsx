@@ -618,13 +618,15 @@ function Zzz() {
     else if (s.phase === "waking") target = 1 - easeInOut(s.t);
     op.current = lerp(op.current, target, 1 - Math.exp(-dt * 3.5));
 
-    const hx = L.home.x + (L.mobile ? 0.2 : 0.12);
-    const hy = L.cloudTop + 0.28;
+    // On desktop the hero CTA sits directly above the launcher. Keep the
+    // sleep glyphs beside the mascot, clear of page copy and buttons.
+    const hx = L.home.x + (L.mobile ? 0.65 : 1.9);
+    const hy = L.cloudTop + (L.mobile ? 0.08 : 0.28);
     group.current.position.set(hx, hy, 0.3);
     sprites.current.forEach((sp, i) => {
       if (!sp) return;
       const cyc = (clock * 0.42 + i / 3) % 1;
-      sp.position.set(0.05 + i * 0.09 + cyc * 0.22, cyc * 0.7, 0);
+      sp.position.set(0.05 + i * 0.09 + cyc * 0.22, cyc * (L.mobile ? 0.36 : 0.7), 0);
       const sc = 0.14 + cyc * 0.12;
       sp.scale.set(sc, sc, sc);
       sp.material.opacity = op.current * Math.sin(Math.PI * cyc) * 0.9;

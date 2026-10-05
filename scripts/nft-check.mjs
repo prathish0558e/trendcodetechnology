@@ -11,3 +11,8 @@ const interesting = files.filter(
   (f) => f.includes("mail-assets") || f.includes(".env") || f.includes("server/")
 );
 console.log(interesting.join("\n") || "(no server/ files traced)");
+const mongo = files.filter((f) => /node_modules[\\/]mongodb[\\/]/.test(f));
+const nft = files.filter((f) => /node_modules[\\/]@vercel[\\/]nft/.test(f));
+console.log("mongodb driver files traced:", mongo.length);
+console.log("@vercel/nft files traced:", nft.length);
+console.log("package.json traced:", files.includes("package.json") || files.includes("package-lock.json"));
