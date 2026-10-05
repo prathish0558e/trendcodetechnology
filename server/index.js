@@ -1082,9 +1082,17 @@ app.post("/api/login", async (req, res) => {
 
   const ADMIN_USER = process.env.ADMIN_USER || "admin@trendcode.com";
   const ADMIN_PASS_HASH = process.env.ADMIN_PASS_HASH;
-  // Only an explicitly configured bcrypt hash can enable admin login.
+  // Production requires a configured bcrypt hash. Local development retains
+  // the legacy password so the local client portal remains usable.
   const hasValidAdminHash = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(ADMIN_PASS_HASH || ""));
-  const passOk = hasValidAdminHash && bcrypt.compareSync(password, ADMIN_PASS_HASH);
+  const isLocalDevPassword =
+    !IS_SERVERLESS &&
+    process.env.NODE_ENV !== "production" &&
+    Boolean(process.env.ADMIN_PASS) &&
+    password === process.env.ADMIN_PASS;
+  const passOk =
+    (hasValidAdminHash && bcrypt.compareSync(password, ADMIN_PASS_HASH)) ||
+    isLocalDevPassword;
   if (email.toLowerCase() === ADMIN_USER.toLowerCase() && passOk) {
     const token = await createSession(req, ADMIN_USER);
     await logAuthEvent("login", req, { email });

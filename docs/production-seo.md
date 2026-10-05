@@ -24,11 +24,11 @@ Set or confirm these environment variables in **Vercel → Project Settings → 
 | `VITE_API_BASE_URL` | Leave blank when using the same-origin `/api` routes |
 | `MONGODB_URI` | Production Atlas connection string, if MongoDB is used |
 | `ADMIN_USER` | The verified administrator login email |
-| `ADMIN_PASS_HASH` | A real bcrypt hash for the admin password. Login fails closed when this is absent or invalid; there is no built-in password. |
+| `ADMIN_PASS_HASH` | A real bcrypt hash for the production admin password. Production login fails closed when this is absent or invalid. Local development can use `ADMIN_PASS` in the ignored `server/.env` file. |
 | `ADMIN_TOKEN` | A long random secret used to sign resume download links |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `NOTIFY_EMAIL` | Verified production email settings |
 
-Do not commit `.env` or `server/.env`. `ADMIN_PASS_HASH` and `ADMIN_TOKEN` are server-only; do not prefix them with `VITE_`. The repo deliberately does not inspect or modify a local secret file.
+Do not commit `.env` or `server/.env`. `ADMIN_PASS`, `ADMIN_PASS_HASH`, and `ADMIN_TOKEN` are server-only; do not prefix them with `VITE_`. The repo deliberately does not inspect or modify a local secret file.
 
 Build and verify before deployment:
 

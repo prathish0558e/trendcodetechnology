@@ -2206,6 +2206,45 @@ h1, h2, h3, h4, h5 {
   min-height: 110px;
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.password-toggle:hover {
+  background: var(--primary-soft);
+  color: var(--primary-deep);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.password-toggle i {
+  font-size: 16px;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr;
