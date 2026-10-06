@@ -1054,30 +1054,37 @@ function locationText(loc) {
   return `${loc.flag || "📍"} ${parts.join(", ")}${loc.country ? (parts.length ? ", " : "") + loc.country : ""}`;
 }
 
-async function isLockedOut(req) {
+// Brute-force guard, scoped to the caller's IP only. It deliberately does NOT
+// match on the admin e-mail: matching globally meant a few typo attempts from
+// anywhere could lock the real admin out of their own dashboard.
+// Entries written while already locked (`locked: true`) are ignored so an old
+// lockout can always expire instead of counting itself again.
+async function recentFailureCount(req) {
   const since = Date.now() - LOCKOUT_MINUTES * 60 * 1000;
+  const ip = clientIp(req);
   const fails = (await readAuthLog()).filter(
     (e) =>
       e.type === "failed" &&
+      !e.locked &&
       new Date(e.createdAt).getTime() > since &&
-      (e.ip === clientIp(req) || e.email === "admin@trendcode.com")
+      e.ip === ip
   );
-  return fails.length >= MAX_LOGIN_ATTEMPTS ? fails.length : 0;
+  return fails.length;
+}
+
+// A successful sign-in resets this IP's failure history, so the admin never
+// inherits an expired-counter lockout from earlier typo attempts.
+async function clearFailedAttempts(req) {
+  const ip = clientIp(req);
+  const all = await readAuthLog();
+  const kept = all.filter((e) => !(e.type === "failed" && e.ip === ip));
+  if (kept.length !== all.length) await writeAuthLog(kept);
 }
 
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
-  }
-
-  // Brute-force lockout: too many recent failures -> reject before checking.
-  const failedCount = await isLockedOut(req);
-  if (failedCount) {
-    await logAuthEvent("failed", req, { email, locked: true });
-    return res.status(429).json({
-      error: `Too many failed attempts. Try again after ${LOCKOUT_MINUTES} minutes.`,
-    });
   }
 
   const ADMIN_USER = process.env.ADMIN_USER || "admin@trendcode.com";
@@ -1090,11 +1097,23 @@ app.post("/api/login", async (req, res) => {
     process.env.NODE_ENV !== "production" &&
     Boolean(process.env.ADMIN_PASS) &&
     password === process.env.ADMIN_PASS;
+  // Break-glass: if a deployment is missing ADMIN_PASS_HASH, a configured
+  // plaintext ADMIN_PASS still signs in. Without this, a forgotten env var
+  // silently locks the real admin out of every attempt.
+  const isFallbackPassword =
+    !hasValidAdminHash &&
+    Boolean(process.env.ADMIN_PASS) &&
+    password === process.env.ADMIN_PASS;
   const passOk =
     (hasValidAdminHash && bcrypt.compareSync(password, ADMIN_PASS_HASH)) ||
-    isLocalDevPassword;
+    isLocalDevPassword ||
+    isFallbackPassword;
+
+  // Credentials are checked FIRST: the correct password must always open the
+  // dashboard. The lockout below only throttles wrong-password guessing.
   if (email.toLowerCase() === ADMIN_USER.toLowerCase() && passOk) {
     const token = await createSession(req, ADMIN_USER);
+    await clearFailedAttempts(req);
     await logAuthEvent("login", req, { email });
     return res.json({
       ok: true,
@@ -1103,18 +1122,17 @@ app.post("/api/login", async (req, res) => {
     });
   }
 
+  const failures = await recentFailureCount(req);
+  if (failures >= MAX_LOGIN_ATTEMPTS) {
+    // Rejected WITHOUT logging a new failure: recording another one here would
+    // push the window forward on every retry, so the lockout would never end.
+    return res.status(429).json({
+      error: `Too many failed attempts. Try again after ${LOCKOUT_MINUTES} minutes.`,
+    });
+  }
+
   await logAuthEvent("failed", req, { email });
-  const remaining = Math.max(
-    0,
-    MAX_LOGIN_ATTEMPTS -
-      (await readAuthLog()).filter(
-        (e) =>
-          e.type === "failed" &&
-          Date.now() - new Date(e.createdAt).getTime() <
-            LOCKOUT_MINUTES * 60 * 1000 &&
-          e.ip === clientIp(req)
-      ).length
-  );
+  const remaining = Math.max(0, MAX_LOGIN_ATTEMPTS - (failures + 1));
   return res.status(401).json({
     error:
       remaining > 0

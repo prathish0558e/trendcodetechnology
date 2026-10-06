@@ -34,9 +34,9 @@ if (!local.MONGODB_URI) {
   process.exit(1);
 }
 
-// What the serverless function needs. ADMIN_PASS_HASH is deliberately NOT
-// pushed: the live admin currently signs in with the built-in fallback
-// password, and pushing a hash we can't tell the owner about would lock them out.
+// What the serverless function needs. ADMIN_PASS_HASH must be pushed: the
+// production login accepts a bcrypt hash (ADMIN_PASS stays local-only), so a
+// deployment without it cannot sign the admin in at all.
 const desired = {
   MONGODB_URI: local.MONGODB_URI,
   SMTP_HOST: local.SMTP_HOST,
@@ -45,7 +45,9 @@ const desired = {
   SMTP_PASS: local.SMTP_PASS,
   NOTIFY_EMAIL: local.NOTIFY_EMAIL,
   WA_PHONE: local.WA_PHONE,
+  WA_APIKEY: local.WA_APIKEY,
   ADMIN_USER: local.ADMIN_USER,
+  ADMIN_PASS_HASH: local.ADMIN_PASS_HASH,
   ADMIN_TOKEN: local.ADMIN_TOKEN,
 };
 

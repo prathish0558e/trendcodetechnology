@@ -747,9 +747,6 @@ export default function Robot({ onStep }) {
     eyeR.current.getWorldPosition(eyeWorldR);
     Object.assign(s.eyeLeft, eyeWorldL);
     Object.assign(s.eyeRight, eyeWorldR);
-    const mouthWorld = tmpV.set(0, -0.12, 0.49);
-    head.current.localToWorld(mouthWorld);
-    Object.assign(s.projectorMouth, mouthWorld);
 
     /* eyes: open = glowing capsules; asleep/happy = glowing smile arcs */
     const eyeScaleY = Math.max(0.05, c.eyeOpen * (1 - 0.94 * blinkCurve));

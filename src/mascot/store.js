@@ -26,7 +26,6 @@ export const state = {
   layout: null,
   eyeLeft: { x: 0, y: 0, z: 0 },
   eyeRight: { x: 0, y: 0, z: 0 },
-  projectorMouth: { x: 0, y: 0, z: 0 },
   projectionPixel: null,
   rig: { x: 0, y: 0.9, z: 8.6 }, // camera rig — tweened, read per frame by Scene
 };

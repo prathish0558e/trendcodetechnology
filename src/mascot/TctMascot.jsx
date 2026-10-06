@@ -97,7 +97,7 @@ export default function TctMascot() {
       observer?.disconnect();
       window.removeEventListener("resize", measure);
       panel.removeEventListener("animationend", measure);
-      // Preserve the last impact point while the projector beams dissolve.
+      // Preserve the last impact point while the hologram particles dissolve.
     };
   }, []);
 

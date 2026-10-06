@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { state } from "./store.js";
-import { glowTexture, beamTexture, zzzTexture, shadowTexture } from "./textures.js";
+import { glowTexture, zzzTexture, shadowTexture } from "./textures.js";
 import Robot from "./Robot.jsx";
 
 /*
@@ -645,30 +645,10 @@ function Zzz() {
   );
 }
 
-/* --------- Mouth projector beams + hologram particles ---------- */
+/* --------- Hologram particles ---------- */
 function Hologram() {
-  const beams = useRef();
-  const cone = useRef();
-  const core = useRef();
   const holoPts = useRef();
   const { camera } = useThree();
-
-  const beamMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: beamTexture(), color: "#45dfff", transparent: true, opacity: 0,
-        blending: THREE.NormalBlending, depthWrite: false, side: THREE.DoubleSide,
-        toneMapped: false,
-      }),
-    []
-  );
-  const coreMat = useMemo(
-    () => new THREE.MeshBasicMaterial({
-      color: "#36dfff", transparent: true, opacity: 0,
-      blending: THREE.NormalBlending, depthWrite: false, toneMapped: false,
-    }),
-    []
-  );
 
   /* holographic particles hovering in the projection column */
   const holoCount = state.reduced ? 28 : 70;
@@ -700,23 +680,12 @@ function Hologram() {
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const projectionPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), -0.45), []);
   const projectionPoint = useMemo(() => new THREE.Vector3(), []);
-  const from = useMemo(() => new THREE.Vector3(), []);
-  const beamDirection = useMemo(() => new THREE.Vector3(), []);
-  const q = useMemo(() => new THREE.Quaternion(), []);
-  const UP = useMemo(() => new THREE.Vector3(0, 1, 0), []);
 
   useFrame((st, dt) => {
     const s = state;
     const L = s.layout;
-    if (!L || !beams.current) return;
+    if (!L) return;
     const clock = st.clock.elapsedTime;
-    const scale = L.mobile ? 0.82 : 0.95;
-
-    // The single projector ray follows the live mouth anchor, so it visibly
-    // leaves the robot's mouth instead of the eyes.
-    const mouth = s.projectorMouth?.z
-      ? s.projectorMouth
-      : { x: L.stage.x, y: L.stage.y + 0.86 * scale, z: 0.48 * scale };
     let hasProjectionPixel = false;
     if (s.projectionPixel) {
       ndc.set((s.projectionPixel.x / L.w) * 2 - 1, 1 - (s.projectionPixel.y / L.h) * 2);
@@ -726,32 +695,6 @@ function Hologram() {
     }
     if (hasProjectionPixel) anchor.copy(projectionPoint);
     else anchor.set(L.beamAnchor.x, L.beamAnchor.y, 0.45);
-
-    if (cone.current && core.current) {
-      from.set(mouth.x, mouth.y, mouth.z);
-      beamDirection.copy(anchor).sub(from);
-      const length = beamDirection.length();
-      if (length >= 0.001) {
-        beamDirection.multiplyScalar(1 / length);
-        q.setFromUnitVectors(UP, beamDirection);
-        cone.current.position.copy(from).add(anchor).multiplyScalar(0.5);
-        cone.current.quaternion.copy(q);
-        cone.current.scale.set(1, length, 1);
-        core.current.position.copy(cone.current.position);
-        core.current.quaternion.copy(q);
-        core.current.scale.set(1, length, 1);
-      }
-    }
-
-    // beam intensity per phase
-    let bo = 0;
-    if (s.phase === "project") bo = easeInOut(seg(s.t, 0.04, 0.92)) * 0.72;
-    else if (s.phase === "chat") bo = (s.thinking ? 0.65 + Math.sin(clock * 6) * 0.1 : 0.5 + Math.sin(clock * 2.2) * 0.06);
-    else if (s.phase === "goodnight") bo = (1 - seg(s.t, 0, 0.2)) * 0.5;
-    bo *= s.reduced ? 0.72 : 1;
-    beamMat.opacity = lerp(beamMat.opacity, bo, 1 - Math.exp(-dt * (s.reduced ? 14 : 8)));
-    coreMat.opacity = beamMat.opacity > 0.01 ? 0.82 : 0;
-    beams.current.visible = beamMat.opacity > 0.01;
 
     let screenProgress = 0;
     if (s.phase === "arrive") screenProgress = seg(s.t, 0.08, 0.78);
@@ -776,17 +719,7 @@ function Hologram() {
   });
 
   return (
-    <>
-      <group ref={beams} visible={false}>
-        <mesh ref={cone} material={beamMat}>
-          <cylinderGeometry args={[0.012, 0.05, 1, 10, 1, true]} />
-        </mesh>
-        <mesh ref={core} material={coreMat}>
-          <cylinderGeometry args={[0.009, 0.009, 1, 8]} />
-        </mesh>
-      </group>
-      <points ref={holoPts} geometry={holoGeo} material={holoMat} visible={false} frustumCulled={false} />
-    </>
+    <points ref={holoPts} geometry={holoGeo} material={holoMat} visible={false} frustumCulled={false} />
   );
 }
 

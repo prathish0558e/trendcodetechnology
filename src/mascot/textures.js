@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 /*
  * Tiny procedural textures (offscreen canvas) — no image downloads.
- * Used for glows, volumetric-ish beams, ZZZ sprites and the floor shadow.
+ * Used for glows, ZZZ sprites and the floor shadow.
  */
 
 function makeCanvas(size) {
@@ -25,22 +25,6 @@ export function glowTexture() {
   g.fillRect(0, 0, 128, 128);
   _glow = new THREE.CanvasTexture(c);
   return _glow;
-}
-
-/* Vertical gradient used on the eye-beam cones (bright at apex → soft far). */
-let _beam = null;
-export function beamTexture() {
-  if (_beam) return _beam;
-  const c = makeCanvas(128);
-  const g = c.getContext("2d");
-  const grd = g.createLinearGradient(0, 0, 0, 128);
-  grd.addColorStop(0, "rgba(190,250,255,0.85)");
-  grd.addColorStop(0.35, "rgba(90,210,255,0.35)");
-  grd.addColorStop(1, "rgba(80,140,255,0)");
-  g.fillStyle = grd;
-  g.fillRect(0, 0, 128, 128);
-  _beam = new THREE.CanvasTexture(c);
-  return _beam;
 }
 
 /* Hologram scan-grid for the projector platform + panel under-glow. */
