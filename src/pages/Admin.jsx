@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PageHero } from "../components/Reveal.jsx";
 import {
   clearSession,
+  deleteTourEnquiry,
   getApplications,
   getAuthLog,
   getHealth,
@@ -10,6 +11,7 @@ import {
   getLeads,
   getSavedUser,
   getSessions,
+  getTourEnquiries,
   postLogout,
   postRevokeSession,
 } from "../api.js";
@@ -261,6 +263,76 @@ function SessionsPanel({ sessions, currentTokenPreview, onRevoke, busyPreview })
   );
 }
 
+function TourEnquiriesTable({ rows, onDelete, busyId }) {
+  if (!rows.length) {
+    return (
+      <div className="admin-empty">
+        <i className="bi bi-inbox"></i> No tour enquiries yet.
+      </div>
+    );
+  }
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Received</th>
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Destination</th>
+            <th>Trip details</th>
+            <th>Message</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((t) => (
+            <tr key={t.id}>
+              <td className="admin-date">{fmtDate(t.createdAt)}</td>
+              <td>
+                <strong>{t.name}</strong>
+              </td>
+              <td>
+                <a href={`tel:${t.phone}`}>{t.phone}</a>
+                <br />
+                {t.email ? <a href={`mailto:${t.email}`}>{t.email}</a> : "—"}
+              </td>
+              <td>
+                <strong>{t.destination}</strong>
+                {t.scope && <div className="admin-note">{t.scope}</div>}
+              </td>
+              <td>
+                <span className="admin-note">
+                  {t.travelDate ? `📅 ${t.travelDate}` : "📅 —"}
+                  <br />
+                  👥 {t.travelers || "—"} travellers
+                  {t.budget ? <><br />💰 {t.budget}</> : null}
+                  {t.flightNeeded ? <><br />✈️ {t.flightNeeded}</> : null}
+                  {t.passportAvailable ? <><br />🛂 {t.passportAvailable}</> : null}
+                </span>
+              </td>
+              <td className="admin-msg">
+                {t.message || "—"}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={busyId === t.id}
+                  onClick={() => onDelete(t.id)}
+                >
+                  <i className="bi bi-trash3"></i>{" "}
+                  {busyId === t.id ? "Deleting…" : "Delete"}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function LeadsTable({ rows }) {
   if (!rows.length) {
     return (
@@ -315,6 +387,8 @@ export default function Admin() {
   const [sessions, setSessions] = useState(null);
   const [revoking, setRevoking] = useState("");
   const [interns, setInterns] = useState(null);
+  const [tours, setTours] = useState(null);
+  const [deletingTour, setDeletingTour] = useState("");
   const [error, setError] = useState("");
   const [dbWarn, setDbWarn] = useState("");
   const [checkErr, setCheckErr] = useState("");
@@ -332,6 +406,7 @@ export default function Admin() {
     getAuthLog().then(setAuthlog).catch(fail(setAuthlog));
     getSessions().then(setSessions).catch(fail(setSessions));
     getInternships().then(setInterns).catch(fail(setInterns));
+    getTourEnquiries().then(setTours).catch(fail(setTours));
     // Warn (don't block) when the database is not actually connected — that is
     // why freshly submitted records can vanish from this page.
     getHealth()
@@ -376,6 +451,14 @@ export default function Admin() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const removeTour = (id) => {
+    setDeletingTour(id);
+    deleteTourEnquiry(id)
+      .then(() => setTours((prev) => (prev || []).filter((t) => t.id !== id)))
+      .catch((e) => setError(e.message))
+      .finally(() => setDeletingTour(""));
+  };
 
   const signOut = () => {
     postLogout().catch(() => {}); // record logout event server-side
@@ -475,6 +558,15 @@ export default function Admin() {
               </button>
               <button
                 role="tab"
+                aria-selected={tab === "tours"}
+                className={`tech-tab ${tab === "tours" ? "active" : ""}`}
+                onClick={() => setTab("tours")}
+              >
+                <i className="bi bi-airplane-engines me-1"></i> Tour Enquiries
+                {tours && <span className="admin-count">{tours.length}</span>}
+              </button>
+              <button
+                role="tab"
                 aria-selected={tab === "authlog"}
                 className={`tech-tab ${tab === "authlog" ? "active" : ""}`}
                 onClick={() => setTab("authlog")}
@@ -527,6 +619,18 @@ export default function Admin() {
               </div>
             ) : (
               <InternshipsTable rows={interns} />
+            )
+          ) : tab === "tours" ? (
+            tours === null ? (
+              <div className="admin-empty">
+                <i className="bi bi-hourglass-split"></i> Loading…
+              </div>
+            ) : (
+              <TourEnquiriesTable
+                rows={tours}
+                onDelete={removeTour}
+                busyId={deletingTour}
+              />
             )
           ) : authlog === null ? (
             <div className="admin-empty">

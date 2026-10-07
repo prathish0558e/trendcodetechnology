@@ -139,7 +139,7 @@ export default function Internship() {
     <>
       <PageHero
         eyebrow="Internships"
-        title="Kickstart Your Career With a TCT Internship"
+        title="Internships That Kickstart Your Career"
         text="Hands-on internships in development, marketing, design and BPO for students and freshers — mentored, certified and occasionally paid."
         crumb="Internships"
       />
@@ -167,7 +167,7 @@ export default function Internship() {
           <div className="careers-grid">
             <div>
               <h2 className="careers-col-title">
-                <i className="bi bi-briefcase"></i> Internship Domains
+                <i className="bi bi-briefcase"></i> Internship Domains ({domains.length} tracks)
               </h2>
               <div className="job-list">
                 {domains.map((d, i) => (

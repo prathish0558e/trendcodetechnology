@@ -13,6 +13,7 @@
     { "source": "/careers", "destination": "/careers.html" },
     { "source": "/careers/:track", "destination": "/careers--:track.html" },
     { "source": "/internship", "destination": "/internship.html" },
+    { "source": "/tourism", "destination": "/tourism.html" },
     { "source": "/contact", "destination": "/contact.html" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/admin", "destination": "/admin.html" },

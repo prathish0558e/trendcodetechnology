@@ -452,7 +452,7 @@ h1, h2, h3, h4, h5 {
   padding: 0;
 }
 
-@media (min-width: 1150px) {
+@media (min-width: 1250px) {
   .nav-links {
     display: flex;
   }
@@ -653,7 +653,7 @@ h1, h2, h3, h4, h5 {
   flex-shrink: 0;
 }
 
-@media (min-width: 1150px) {
+@media (min-width: 1250px) {
   .nav-cta {
     display: flex;
   }
@@ -710,7 +710,7 @@ h1, h2, h3, h4, h5 {
   border-color: var(--primary);
 }
 
-@media (min-width: 1150px) {
+@media (min-width: 1250px) {
   .hamburger {
     display: none;
   }
@@ -3133,8 +3133,14 @@ i.bi-whatsapp::after {
   height: 80px;
 }
 
-/* Keep the full desktop navigation inside its container at intermediate widths. */
-@media (min-width: 1150px) and (max-width: 1360px) {
+/* Compact navigation metrics.
+   At their full size the nine nav items, brand and CTA need ~1420px of row
+   width, so anywhere below that the row used to overflow — and because
+   `html, body { overflow-x: clip }` hides the evidence, the trailing
+   "Get a Quote" button was simply cut off on 1366px laptops with no
+   scrollbar to reveal it. These metrics fit the row from ~1220px up, and   the full-size version only kicks in past 1520px where it genuinely fits.
+   Measured slack: ~57px at 1250px and ~35px at 1521px. */
+@media (min-width: 1250px) and (max-width: 1520px) {
   .nav-inner {
     gap: 8px;
     padding-inline: 10px;
@@ -3411,7 +3417,7 @@ i.bi-whatsapp::after {
 }
 
 .footer-map-frame {
-  height: 190px;
+  height: 236px;
   overflow: hidden;
   border: 1px solid #c2defc;
   border-radius: 12px;
@@ -5256,14 +5262,18 @@ a.journey-card:focus-visible::after {
   color: var(--team-accent);
 }
 
+/* Single email CTA — stretches across the card so the lone button stays
+   visually balanced against the full-width photo above it. */
 .team-actions {
   display: flex;
   gap: 10px;
+  width: 100%;
   margin-top: auto;
   padding-top: 8px;
 }
 
 .team-btn {
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5283,18 +5293,6 @@ a.journey-card:focus-visible::after {
   color: #fff;
   transform: translateY(-2px);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--team-accent) 34%, transparent);
-}
-
-.team-btn-ghost {
-  color: color-mix(in srgb, var(--team-accent) 84%, #132238);
-  background: transparent;
-  border-color: color-mix(in srgb, var(--team-accent) 44%, var(--line));
-}
-
-.team-btn-ghost:hover {
-  color: #fff;
-  background: var(--team-accent);
-  border-color: var(--team-accent);
 }
 
 /* ============================================================
@@ -5652,5 +5650,561 @@ a.journey-card:focus-visible::after {
   .svc-facts-row {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+}
+
+/* ============================================================
+   Header mobile drawer + Tourism page styles
+   (kept after index.css so component rules win over the base ones)
+   ============================================================ */
+/* ============================================================
+   Mobile drawer — split parent row
+   The parent nav label links to the section index page while the
+   caret button expands its sub-links. Imported by Header.jsx.
+   ============================================================ */
+
+.mobile-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobile-nav .mobile-row > a,
+.mobile-nav .mobile-row > button {
+  width: auto;
+  border-bottom: none;
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+
+.mobile-nav .mobile-row > a {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mobile-nav .mobile-row > button.mobile-toggle {
+  flex: 0 0 auto;
+  width: 46px;
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+  color: var(--slate);
+}
+
+.mobile-nav .mobile-row > button.mobile-toggle i {
+  font-size: 14px;
+}
+
+.mobile-nav .mobile-row > button.mobile-toggle[aria-expanded="true"] {
+  color: var(--primary);
+}
+
+/* When the sub-links are open the whole group gets one closing rule
+   instead of a border under the parent alone. */
+.mobile-row + .mobile-sub {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0;
+  padding-bottom: 6px;
+}
+
+.tour-facts-wrap {
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+
+.tour-facts {
+  gap: 14px;
+}
+
+/* Two 1fr columns can't shrink below the tile's min-content width, and the
+   longest value ("Coimbatore & nearby") pushed the strip past the viewport
+   where `overflow-x: clip` silently cut it off. One column on phones. */
+@media (max-width: 640px) {
+  .tour-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tour-fact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #fbfdff, #f4f8fe);
+  box-shadow: var(--shadow-sm);
+}
+
+.tour-fact i {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.tour-fact .k {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tour-fact strong {
+  display: block;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+/* ---------- Package cards ---------- */
+.tour-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
+.tour-card:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--primary) 42%, #fff);
+  box-shadow: 0 20px 44px rgba(13, 110, 253, 0.16);
+}
+
+.tour-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #dbe6f4;
+}
+
+.tour-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tour-card:hover .tour-media img {
+  transform: scale(1.07);
+}
+
+.tour-media::after {
+  content: "";
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(to bottom, transparent, rgba(6, 15, 30, 0.62));
+  pointer-events: none;
+}
+
+.tour-nights {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(9, 20, 38, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(6px);
+}
+
+.tour-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(120deg, #f97316, #ef4444 55%, #ec4899);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.32);
+}
+
+.tour-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 20px 20px 18px;
+}
+
+.tour-body h3 {
+  font-size: 1.06rem;
+  margin: 0 0 6px;
+}
+
+.tour-route {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 12.8px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.tour-route i {
+  color: var(--primary);
+  margin-top: 2px;
+}
+
+.tour-hl {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.tour-hl li {
+  display: flex;
+  gap: 8px;
+  font-size: 13.6px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.tour-hl i {
+  flex: none;
+  color: #16a34a;
+  margin-top: 2px;
+}
+
+.tour-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 15px;
+  border-top: 1px dashed var(--line);
+}
+
+.tour-rate {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.tour-rate-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tour-rate-now {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tour-rate-now small {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.tour-rate-was {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.tour-book {
+  padding: 10px 18px;
+  font-size: 14px;
+  border-radius: 9px;
+}
+
+/* Inclusions block */
+.tour-includes {
+  margin-top: 40px;
+  padding: 26px 28px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.tour-includes h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  margin-bottom: 14px;
+}
+
+.tour-includes h3 i {
+  color: var(--primary);
+}
+
+.tour-includes-list {
+  display: grid;
+  gap: 9px 26px;
+  grid-template-columns: 1fr;
+  margin: 0 0 16px;
+}
+
+@media (min-width: 760px) {
+  .tour-includes-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tour-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 13.2px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.tour-note i {
+  flex: none;
+  margin-top: 3px;
+  color: var(--primary);
+}
+
+#international .tour-card,
+.tour-intl-includes {
+  /* subtle sky-tint so the international block reads as its own region */
+}
+
+#international .tour-card:hover {
+  border-color: color-mix(in srgb, var(--cyan) 46%, #fff);
+  box-shadow: 0 20px 44px rgba(6, 182, 212, 0.15);
+}
+
+#international .tour-badge {
+  background: linear-gradient(120deg, #0ea5e9, #0d6efd 55%, #7c3aed);
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.32);
+}
+
+.tour-intl-includes {
+  border-left-color: var(--cyan);
+}
+
+.tour-locations-intl {
+  background:
+    radial-gradient(900px 380px at 88% -12%, rgba(6, 182, 212, 0.12), transparent 62%),
+    radial-gradient(700px 340px at -6% 108%, rgba(124, 58, 237, 0.1), transparent 58%),
+    var(--bg-soft);
+}
+
+.tour-enquiry-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 18px;
+}
+
+/* ---------- Best tourism locations gallery ---------- */
+.tour-locations {
+  background:
+    radial-gradient(900px 380px at 88% -12%, rgba(13, 110, 253, 0.1), transparent 62%),
+    radial-gradient(700px 340px at -6% 108%, rgba(6, 182, 212, 0.1), transparent 58%),
+    var(--bg-soft);
+}
+
+.tour-grid {
+  gap: 20px;
+}
+
+.tour-loc {
+  position: relative;
+  height: 100%;
+  min-height: 380px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tour-loc:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 26px 52px rgba(15, 23, 42, 0.24);
+}
+
+.tour-loc img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tour-loc:hover img {
+  transform: scale(1.08);
+}
+
+.tour-loc-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(5, 14, 28, 0.94) 4%, rgba(5, 14, 28, 0.66) 34%, rgba(5, 14, 28, 0.08) 66%),
+    linear-gradient(to bottom, rgba(5, 14, 28, 0.34), transparent 32%);
+}
+
+.tour-loc-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 24px 22px 22px;
+  color: #e8eefb;
+}
+
+.tour-loc-state {
+  align-self: flex-start;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #eaf2ff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(6px);
+  margin-bottom: 12px;
+}
+
+.tour-loc-body h3 {
+  color: #fff;
+  font-size: 1.35rem;
+  margin: 0 0 2px;
+  letter-spacing: -0.01em;
+}
+
+.tour-loc-tag {
+  margin: 0 0 10px;
+  font-size: 12.6px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8fc0ff;
+}
+
+.tour-loc-text {
+  margin: 0 0 12px;
+  font-size: 13.4px;
+  line-height: 1.55;
+  color: #c9d6ea;
+}
+
+.tour-loc-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.4px;
+  font-weight: 600;
+  color: #a7f3d0;
+}
+
+.tour-loc-when i {
+  font-size: 12px;
+}
+
+@media (hover: hover) and (min-width: 860px) {
+  .tour-loc-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    opacity: 0.72;
+    transition: opacity 0.3s ease;
+  }
+
+  .tour-loc:hover .tour-loc-text {
+    opacity: 1;
+  }
+}
+
+/* Photo attribution (kept out of the way but always reachable) */
+.tour-credits {
+  margin-top: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12.8px;
+}
+
+.tour-credits summary {
+  cursor: pointer;
+  padding: 11px 16px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tour-credits ul {
+  margin: 0;
+  padding: 0 18px 16px 34px;
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+}
+
+.tour-credits strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- Promises + CTA ---------- */
+.tour-promise {
+  padding: 24px 22px;
+}
+
+.tour-cta .tour-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+@media (max-width: 520px) {
+  .tour-foot {
+    align-items: stretch;
+  }
+
+  .tour-book {
+    width: 100%;
+  }
+
+  .tour-loc {
+    min-height: 330px;
+  }
+
+  .tour-cta .tour-cta-actions .btn {
+    width: 100%;
   }
 }

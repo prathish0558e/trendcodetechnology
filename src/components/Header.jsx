@@ -236,26 +236,34 @@ export default function Header() {
           <ul className="mobile-nav">
             {NAV.map((item) =>
               item.children ? (
+                /* Split row: the label navigates to the section index page and
+                   the caret only expands the sub-links. The old single button
+                   forced a generated "All <section>" row inside the submenu,
+                   which duplicated the parent link ("All Careers" under
+                   "Careers"). */
                 <li key={item.label}>
-                  <button
-                    onClick={() =>
-                      setOpenKey(openKey === item.label ? null : item.label)
-                    }
-                  >
-                    {item.label}
-                    <i
-                      className={`bi ${
-                        openKey === item.label
-                          ? "bi-chevron-up"
-                          : "bi-chevron-down"
-                      }`}
-                    ></i>
-                  </button>
+                  <div className="mobile-row">
+                    <NavLink to={item.to}>{item.label}</NavLink>
+                    <button
+                      type="button"
+                      className="mobile-toggle"
+                      aria-expanded={openKey === item.label}
+                      aria-label={`${item.label} sub-menu`}
+                      onClick={() =>
+                        setOpenKey(openKey === item.label ? null : item.label)
+                      }
+                    >
+                      <i
+                        className={`bi ${
+                          openKey === item.label
+                            ? "bi-chevron-up"
+                            : "bi-chevron-down"
+                        }`}
+                      ></i>
+                    </button>
+                  </div>
                   {openKey === item.label && (
                     <ul className="mobile-sub">
-                      <li>
-                        <Link to={item.to}>All {item.label}</Link>
-                      </li>
                       {item.children.map((c) => (
                         <li key={c.to}>
                           <Link to={c.to}>{c.label}</Link>

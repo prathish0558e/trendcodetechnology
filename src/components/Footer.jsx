@@ -9,7 +9,8 @@ const QUICK_LINKS = [
   { label: "HR Services", to: "/hr-services" },
   { label: "BPO", to: "/bpo" },
   { label: "Careers", to: "/careers" },
-  { label: "Internship", to: "/internship" },
+  { label: "Internships", to: "/internship" },
+  { label: "Tourism", to: "/tourism" },
   { label: "Contact Us", to: "/contact" },
 ];
 

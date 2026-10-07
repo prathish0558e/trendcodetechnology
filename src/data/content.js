@@ -18,8 +18,14 @@ export const COMPANY = {
     { label: "Facebook", icon: "bi-facebook", url: "https://www.facebook.com/profile.php?id=61593813545533" },
     { label: "WhatsApp", icon: "bi-whatsapp", url: "https://wa.me/919384847922" },
   ],
+  /* Keyless Google Maps embed that keeps the pin neatly centred in ANY frame
+     size (footer 255x236, contact page wide). The old pb-style embed was tuned
+     for a 1024x768 box, so in the taller footer frame it looked zoomed-in with
+     the place label clipped off the right edge. The coordinate query drops that
+     clipped label and z=16 still shows the office, the surrounding streets and
+     the nearby landmarks. */
   mapEmbed:
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d4576.857768227223!2d76.98199060399196!3d11.043344392004284!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba8fca8ea954ccd%3A0x6d79791fad302083!2sTrend%20Code%20Technology!5e0!3m2!1sen!2sin!4v1790682190686!5m2!1sen!2sin",
+    "https://maps.google.com/maps?q=11.043344,76.981991&t=m&z=16&ie=UTF8&output=embed",
 };
 
 export const NAV = [
@@ -48,9 +54,10 @@ export const NAV = [
     children: [
       { label: "IT Fields", to: "/careers/it" },
       { label: "Non-IT Fields", to: "/careers/non-it" },
-      { label: "Internship", to: "/internship" },
     ],
   },
+  { label: "Internships", to: "/internship" },
+  { label: "Tourism", to: "/tourism" },
   { label: "Contact Us", to: "/contact" },
 ];
 
@@ -369,6 +376,574 @@ export const BPO_SERVICES = [
   },
 ];
 
+/* ---------- Tourism — destinations & holiday packages ----------------------
+   photo  — file served from public/tourism/. All images were pulled from
+            Wikimedia Commons by scripts/fetch-tourism-photos.mjs and are
+            CC BY / CC BY-SA / public domain; the attribution rendered under
+            the gallery lives in src/data/tourism-credits.json (generated).
+   rate   — "starting from" price per person on twin sharing, in rupees.
+   -------------------------------------------------------------------------- */
+export const TOUR_LOCATIONS = [
+  /* ---------- India ---------- */
+  {
+    slug: "ooty",
+    name: "Ooty",
+    full: "Udhagamandalam",
+    state: "Tamil Nadu",
+    tagline: "Queen of the Nilgiris",
+    photo: "/tourism/ooty.jpg",
+    best: "Mar – Jun · Sep – Nov",
+    text:
+      "Botanical gardens, the boat house on Ooty lake, Doddabetta peak and the toy train through pine and tea country — the classic Nilgiri weekend, an easy drive from Coimbatore.",
+  },
+  {
+    slug: "kodaikanal",
+    name: "Kodaikanal",
+    full: "Kodaikanal",
+    state: "Tamil Nadu",
+    tagline: "Princess of Hill Stations",
+    photo: "/tourism/kodaikanal.jpg",
+    best: "Apr – Jun · Sep – Oct",
+    text:
+      "Misty lake walks at dawn, Coaker's Walk, Pillar Rocks and forest trails through shola grassland. Cool all year and perfect for honeymooners and families alike.",
+  },
+  {
+    slug: "munnar",
+    name: "Munnar",
+    full: "Munnar",
+    state: "Kerala",
+    tagline: "Endless tea carpets",
+    photo: "/tourism/munnar.jpg",
+    best: "Aug – Mar",
+    text:
+      "Rolling tea estates, Mattupetty dam, Eravikulam National Park and Top Station viewpoints. Pair it with Thekkady spice trails for the full high-range experience.",
+  },
+  {
+    slug: "alleppey",
+    name: "Alleppey",
+    full: "Alappuzha",
+    state: "Kerala",
+    tagline: "Venice of the East",
+    photo: "/tourism/alleppey.jpg",
+    best: "Sep – Mar",
+    text:
+      "Overnight houseboats through coconut-fringed backwaters, village canals, toddy shops and Kerala's finest seafood — slow travel at its most photogenic.",
+  },
+  {
+    slug: "kanyakumari",
+    name: "Kanyakumari",
+    full: "Kanniyakumari",
+    state: "Tamil Nadu",
+    tagline: "Where three seas meet",
+    photo: "/tourism/kanyakumari.jpg",
+    best: "Oct – Feb",
+    text:
+      "Sunrise and sunset over the confluence of the Bay of Bengal, Arabian Sea and Indian Ocean, the Vivekananda Rock Memorial and the Thiruvalluvar statue.",
+  },
+  {
+    slug: "rameswaram",
+    name: "Rameswaram",
+    full: "Rameswaram",
+    state: "Tamil Nadu",
+    tagline: "Island of temples & sea",
+    photo: "/tourism/rameswaram.jpg",
+    best: "Oct – Mar",
+    text:
+      "The Ramanathaswamy temple corridors, Agni Theertham, Dhanushkodi ghost town and the Pamban bridge drive — a spiritual and coastal trip in one.",
+  },
+  {
+    slug: "madurai",
+    name: "Madurai",
+    full: "Madurai",
+    state: "Tamil Nadu",
+    tagline: "The temple city",
+    photo: "/tourism/madurai.jpg",
+    best: "Nov – Feb",
+    text:
+      "Meenakshi Amman Temple's gopurams, Thirumalai Nayakkar Mahal, the night food streets and Gandhi Memorial Museum — 2,500 years of Tamil culture in a day.",
+  },
+  {
+    slug: "thanjavur",
+    name: "Thanjavur",
+    full: "Thanjavur",
+    state: "Tamil Nadu",
+    tagline: "Chola heritage trail",
+    photo: "/tourism/thanjavur.jpg",
+    best: "Nov – Feb",
+    text:
+      "The UNESCO-listed Brihadeeswarar temple, Maratha palace, art galleries and bronze-casting workshops of Swamimalai — the great Chola capital, still standing.",
+  },
+  {
+    slug: "wayanad",
+    name: "Wayanad",
+    full: "Wayanad",
+    state: "Kerala",
+    tagline: "Forests & waterfalls",
+    photo: "/tourism/wayanad.jpg",
+    best: "Oct – May",
+    text:
+      "Meenmutty and Soochipara falls, Edakkal caves, bamboo rafting and misty plantation stays — the greenest corner of the Western Ghats.",
+  },
+  {
+    slug: "valparai",
+    name: "Valparai",
+    full: "Valparai",
+    state: "Tamil Nadu",
+    tagline: "40 hairpin bends",
+    photo: "/tourism/valparai.jpg",
+    best: "Sep – Mar",
+    text:
+      "The Aliyar dam to Valparai climb, Sholayar rainforest, Balaji temple and a real chance of spotting lion-tailed macaques and Nilgiri tahr.",
+  },
+  {
+    slug: "yercaud",
+    name: "Yercaud",
+    full: "Yercaud",
+    state: "Tamil Nadu",
+    tagline: "Jewel of the Shevaroys",
+    photo: "/tourism/yercaud.jpg",
+    best: "Sep – Mar",
+    text:
+      "Lady's Seat viewpoints, Emerald lake, coffee and orange plantations and 20 hairpin bends up from Salem — the shortest hill escape from Coimbatore.",
+  },
+  {
+    slug: "coorg",
+    name: "Coorg",
+    full: "Kodagu",
+    state: "Karnataka",
+    tagline: "Scotland of India",
+    photo: "/tourism/coorg.jpg",
+    best: "Oct – Mar",
+    text:
+      "Abbey and Raja's Seat falls, Talakaveri, coffee estate homestays and Dubare elephant camp in the misty Kodagu hills.",
+  },
+  /* ---------- International ---------- */
+  {
+    slug: "bali",
+    name: "Bali",
+    full: "Bali",
+    state: "Indonesia",
+    tagline: "Island of temples",
+    photo: "/tourism/bali.jpg",
+    best: "Apr – Oct",
+    text:
+      "Tanah Lot and Uluwatu sea temples, Ubud rice terraces, Nusa Penida cliffs and Kuta beach sunsets — five-star value honeymoon island of Asia.",
+  },
+  {
+    slug: "dubai",
+    name: "Dubai",
+    full: "Dubai",
+    state: "UAE",
+    tagline: "City of superlatives",
+    photo: "/tourism/dubai.jpg",
+    best: "Nov – Mar",
+    text:
+      "Burj Khalifa's 124th floor, desert safaris with belly dance dinner, dhow cruise at Dubai Marina and shopping festivals — family trips and honeymoons alike.",
+  },
+  {
+    slug: "singapore",
+    name: "Singapore",
+    full: "Singapore",
+    state: "Singapore",
+    tagline: "Garden city",
+    photo: "/tourism/singapore.jpg",
+    best: "Nov – Jan · Mar",
+    text:
+      "Gardens by the Bay, Sentosa's theme parks, Universal Studios, the Night Safari and Marina Skyline by night — the easiest overseas first-trip for families.",
+  },
+  {
+    slug: "thailand-bangkok",
+    name: "Bangkok",
+    full: "Bangkok",
+    state: "Thailand",
+    tagline: "City of angels",
+    photo: "/tourism/thailand-bangkok.jpg",
+    best: "Nov – Feb",
+    text:
+      "Grand Palace and Wat Arun, floating markets, Chao Phraya dinner cruises and street food all-nighters — usually paired with Pattaya beach in one trip.",
+  },
+  {
+    slug: "thailand-phuket",
+    name: "Phuket",
+    full: "Phuket",
+    state: "Thailand",
+    tagline: "Pearl of the Andaman",
+    photo: "/tourism/thailand-phuket.jpg",
+    best: "Nov – Apr",
+    text:
+      "Patong and Kata beaches, island-hopping to Phi Phi and James Bond Island, old-town caffés and the biggest water sports Λ lineup in Asia.",
+  },
+  {
+    slug: "maldives",
+    name: "Maldives",
+    full: "Maldives",
+    state: "Maldives",
+    tagline: "Overwater paradise",
+    photo: "/tourism/maldives.jpg",
+    best: "Nov – Apr",
+    text:
+      "Overwater villas, glass-floored lagoons, snorkelling with mantas and candlelit sandbank dinners — the forever-classic honeymoon in the Indian Ocean.",
+  },
+  {
+    slug: "vietnam-halong",
+    name: "Halong Bay",
+    full: "Vietnam",
+    state: "Vietnam",
+    tagline: "Bay of descending dragons",
+    photo: "/tourism/vietnam-halong.jpg",
+    best: "Oct – Apr",
+    text:
+      "Overnight cruise among 1,600 limestone islands, Hanoi's old quarter, Sapa terraces and the lantern streets of Hoi An — Vietnam packs it all.",
+  },
+  {
+    slug: "sri-lanka",
+    name: "Sri Lanka",
+    full: "Sri Lanka",
+    state: "Sri Lanka",
+    tagline: "Pearl of the Indian Ocean",
+    photo: "/tourism/sri-lanka.jpg",
+    best: "Dec – Apr",
+    text:
+      "Nine Arch Bridge tea country, Yala leopards, whale watching at Mirissa and the Galle fort ramparts — three hours from Chennai by flight.",
+  },
+  {
+    slug: "switzerland",
+    name: "Switzerland",
+    full: "Switzerland",
+    state: "Europe",
+    tagline: "Alps & lakes",
+    photo: "/tourism/switzerland.jpg",
+    best: "Apr – Oct",
+    text:
+      "Jungfraujoch train to the top of Europe, Interlaken adventure parks, Lucerne's covered bridge and the Golden Pass panoramic rail — Europe two-in-one with Paris.",
+  },
+  {
+    slug: "santorini",
+    name: "Santorini",
+    full: "Greece",
+    state: "Europe",
+    tagline: "White & blue isles",
+    photo: "/tourism/santorini.jpg",
+    best: "Apr – Jun · Sep",
+    text:
+      "Caldera-view sunsets at Oia, catamaran volcano cruises, black-sand beaches and cave suites carved into the cliffside — the bucket-list Greek honeymoon.",
+  },
+];
+
+export const TOUR_PACKAGES = [
+  {
+    slug: "ooty-coonoor-weekend",
+    title: "Ooty & Coonoor Weekend",
+    cover: "/tourism/ooty.jpg",
+    nights: 1,
+    days: 2,
+    badge: "Best Seller",
+    route: "Coimbatore → Mettupalayam → Ooty → Coonoor",
+    rate: 3499,
+    was: 4299,
+    highlights: [
+      "Ooty lake boating & Botanical Garden",
+      "Doddabetta peak and Rose Garden",
+      "Coonoor Sim's Park & tea factory visit",
+    ],
+  },
+  {
+    slug: "kodaikanal-hills",
+    title: "Kodaikanal Hills Getaway",
+    cover: "/tourism/kodaikanal.jpg",
+    nights: 2,
+    days: 3,
+    badge: "Honeymoon Pick",
+    route: "Coimbatore → Palani → Kodaikanal",
+    rate: 5299,
+    was: 6499,
+    highlights: [
+      "Coaker's Walk & Pillar Rocks",
+      "Kodai lake cycling and Bryant Park",
+      "Silver Cascade & Pine Forest photo stops",
+    ],
+  },
+  {
+    slug: "munnar-alleppey",
+    title: "Munnar + Alleppey Backwaters",
+    cover: "/tourism/munnar.jpg",
+    nights: 3,
+    days: 4,
+    badge: "Most Booked",
+    route: "Coimbatore → Munnar → Thekkady → Alleppey",
+    rate: 8999,
+    was: 10999,
+    highlights: [
+      "Tea estate & Eravikulam National Park",
+      "Periyar boat safari at Thekkady",
+      "Overnight houseboat with all meals",
+    ],
+  },
+  {
+    slug: "kanyakumari-rameswaram",
+    title: "Kanyakumari & Rameswaram Darshan",
+    cover: "/tourism/kanyakumari.jpg",
+    nights: 2,
+    days: 3,
+    badge: "Family Special",
+    route: "Coimbatore → Madurai → Rameswaram → Kanyakumari",
+    rate: 5999,
+    was: 7299,
+    highlights: [
+      "Vivekananda Rock & Thiruvalluvar statue",
+      "Ramanathaswamy temple & Dhanushkodi",
+      "Sunrise and sunset at the three-sea point",
+    ],
+  },
+  {
+    slug: "madurai-thanjavur",
+    title: "Madurai & Thanjavur Heritage Trail",
+    cover: "/tourism/madurai.jpg",
+    nights: 2,
+    days: 3,
+    badge: "Culture",
+    route: "Coimbatore → Madurai → Thanjavur → Trichy",
+    rate: 6499,
+    was: 7999,
+    highlights: [
+      "Meenakshi Amman Temple & night market walk",
+      "Brihadeeswarar temple, a UNESCO site",
+      "Rockfort temple and Srirangam in Trichy",
+    ],
+  },
+  {
+    slug: "wayanad-coorg",
+    title: "Wayanad & Coorg Nature Trail",
+    cover: "/tourism/wayanad.jpg",
+    nights: 3,
+    days: 4,
+    badge: "Adventure",
+    route: "Coimbatore → Wayanad → Coorg → Mysore",
+    rate: 9499,
+    was: 11499,
+    highlights: [
+      "Meenmutty & Soochipara waterfalls",
+      "Edakkal caves and bamboo rafting",
+      "Coffee estate stay and Dubare elephant camp",
+    ],
+  },
+  {
+    slug: "valparai-aliyar",
+    title: "Valparai & Aliyar Family Trip",
+    cover: "/tourism/valparai.jpg",
+    nights: 1,
+    days: 2,
+    badge: "Weekend",
+    route: "Coimbatore → Aliyar → Valparai → Sholayar",
+    rate: 4299,
+    was: 5199,
+    highlights: [
+      "Scenic 40-hairpin climb from Aliyar",
+      "Monkey Falls and Sholayar rainforest",
+      "Balaji temple and tea estate walks",
+    ],
+  },
+  {
+    slug: "yercaud-retreat",
+    title: "Yercaud Weekend Retreat",
+    cover: "/tourism/yercaud.jpg",
+    nights: 1,
+    days: 2,
+    badge: "Budget",
+    route: "Coimbatore → Salem → Yercaud",
+    rate: 3999,
+    was: 4799,
+    highlights: [
+      "Lady's Seat and Pagoda Point views",
+      "Emerald lake and Killiyur falls",
+      "Coffee & orange plantation drive",
+    ],
+  },
+  /* ---------- International packages (flight-inclusive rates) ---------- */
+  {
+    slug: "bali-5n",
+    title: "Bali Honeymoon Special",
+    cover: "/tourism/bali.jpg",
+    nights: 5,
+    days: 6,
+    badge: "Honeymoon",
+    region: "international",
+    route: "Chennai → Denpasar (Bali) · 4★ resorts",
+    rate: 62999,
+    was: 74999,
+    highlights: [
+      "Return flights + visa on arrival support",
+      "Ubud & Seminyak stay with candlelit dinner",
+      "Kintamani volcano & Tanah Lot day tours",
+    ],
+  },
+  {
+    slug: "dubai-4n",
+    title: "Dubai Family Explorer",
+    cover: "/tourism/dubai.jpg",
+    nights: 4,
+    days: 5,
+    badge: "Family",
+    region: "international",
+    route: "Chennai → Dubai · city + desert",
+    rate: 54999,
+    was: 66999,
+    highlights: [
+      "Burj Khalifa 124th floor + Dubai Mall",
+      "Desert safari with BBQ dinner",
+      "Marina dhow cruise & Global Village",
+    ],
+  },
+  {
+    slug: "singapore-thailand-6n",
+    title: "Singapore + Thailand Twin",
+    cover: "/tourism/singapore.jpg",
+    nights: 6,
+    days: 7,
+    badge: "Twin Country",
+    region: "international",
+    route: "Chennai → Singapore → Bangkok/Pattaya",
+    rate: 79999,
+    was: 92999,
+    highlights: [
+      "Gardens by the Bay & Sentosa tour",
+      "Universal Studios day pass",
+      "Coral island + Bangkok city temple tour",
+    ],
+  },
+  {
+    slug: "maldives-4n",
+    title: "Maldives Overwater Escape",
+    cover: "/tourism/maldives.jpg",
+    nights: 4,
+    days: 5,
+    badge: "Luxury",
+    region: "international",
+    route: "Chennai/Kochi → Male · water-villa",
+    rate: 84999,
+    was: 99999,
+    highlights: [
+      "Overwater villa with all meals",
+      "Speedboat transfers & sunset cruise",
+      "Snorkelling trip to the house reef",
+    ],
+  },
+  {
+    slug: "thailand-5n",
+    title: "Bangkok + Phuket Beaches",
+    cover: "/tourism/thailand-bangkok.jpg",
+    nights: 5,
+    days: 6,
+    badge: "Combo",
+    region: "international",
+    route: "Chennai → Bangkok → Phuket",
+    rate: 59999,
+    was: 71999,
+    highlights: [
+      "Grand Palace & Chao Phraya dinner cruise",
+      "Phi Phi island-hopping day tour",
+      "Patong beach stay with water sports",
+    ],
+  },
+  {
+    slug: "sri-lanka-4n",
+    title: "Sri Lanka Tea & Coast",
+    cover: "/tourism/sri-lanka.jpg",
+    nights: 4,
+    days: 5,
+    badge: "Nearby",
+    region: "international",
+    route: "Chennai → Colombo → Ella → Galle",
+    rate: 44999,
+    was: 53999,
+    highlights: [
+      "Nine Arch Bridge & Nuwara Eliya tea hills",
+      "Yala National Park safari",
+      "Galle Fort & Madu river boat ride",
+    ],
+  },
+  {
+    slug: "vietnam-5n",
+    title: "Vietnam Halong Discovery",
+    cover: "/tourism/vietnam-halong.jpg",
+    nights: 5,
+    days: 6,
+    badge: "New",
+    region: "international",
+    route: "Chennai → Hanoi → Halong → Ho Chi Minh",
+    rate: 68999,
+    was: 82999,
+    highlights: [
+      "Overnight Halong Bay cruise",
+      "Hanoi old quarter & Ho Chi Minh city",
+      "Ba Na hills golden bridge day trip",
+    ],
+  },
+  {
+    slug: "europe-9n",
+    title: "Switzerland + Paris Grand Tour",
+    cover: "/tourism/switzerland.jpg",
+    nights: 9,
+    days: 10,
+    badge: "Europe",
+    region: "international",
+    route: "Chennai → Zurich → Paris · group tour",
+    rate: 189999,
+    was: 219999,
+    highlights: [
+      "Mt Titlis, Jungfraujoch & Interlaken",
+      "Eiffel Tower summit + Seine cruise",
+      "Schengen visa guidance included",
+    ],
+  },
+];
+
+/* India packages are quoted from Coimbatore with this baseline, so the price
+   on the card means the same thing everywhere on the page. */
+export const TOUR_INCLUDES = [
+  "AC vehicle from Coimbatore with driver bata",
+  "Hotel / resort stay on twin sharing",
+  "Daily breakfast and sightseeing as per plan",
+  "Tolls, parking, permits and GST",
+];
+
+export const TOUR_INTERNATIONAL_INCLUDES = [
+  "Return economy flights from Chennai / Kochi",
+  "Visa guidance and documentation support",
+  "Handpicked 4★/5★ stays with daily breakfast",
+  "Airport transfers and all sightseeing tours",
+];
+
+export const TOUR_FACTS = [
+  { icon: "bi-geo-alt", k: "Pickup", v: "Coimbatore & nearby" },
+  { icon: "bi-person-check", k: "Group size", v: "2 – 40 guests" },
+  { icon: "bi-calendar2-week", k: "Departures", v: "Any date you pick" },
+  { icon: "bi-wallet2", k: "Payment", v: "30% advance to book" },
+];
+
+export const TOUR_PROMISES = [
+  {
+    icon: "bi-patch-check",
+    title: "Curated stays, not gambles",
+    text: "We inspect the hotels and resorts we sell — clean rooms, safe locations and honest star ratings.",
+  },
+  {
+    icon: "bi-person-badge",
+    title: "Driver who knows the route",
+    text: "Experienced hill-route drivers, GPS-tracked vehicles and 24×7 support on the road.",
+  },
+  {
+    icon: "bi-receipt",
+    title: "One price, no surprises",
+    text: "Tolls, parking, permits and driver bata are inside the quote. What we say is what you pay.",
+  },
+  {
+    icon: "bi-sliders",
+    title: "Custom + corporate tours",
+    text: "College trips, company outings and family groups of 40+ quoted separately with a dedicated coordinator.",
+  },
+];
+
 export const CAREERS = {
   it: {
     slug: "it",
@@ -389,8 +964,8 @@ export const CAREERS = {
     icon: "bi-headset",
     title: "Non-IT Fields",
     blurb:
-      "People-first roles with clear growth paths, paid training and performance-linked incentives in our BPO and operations teams.",
-    roles: ["Data Entry", "Voice Process"],
+      "People-first roles with clear growth paths, paid training and performance-linked incentives in our BPO, banking and core operations teams.",
+    roles: ["Data Entry", "Voice Process", "Banking", "Core Jobs"],
   },
 };
 
@@ -399,7 +974,7 @@ export const CAREERS = {
 export const JOB_LISTINGS = {
   "non-it": {
     intro: [
-      "We're hiring dedicated people for our Data Entry and Voice Process teams at Trend Code Technology. If you are accurate, disciplined and love working with people or numbers, we want to hear from you!",
+      "We're hiring dedicated people for our Data Entry, Voice Process, Banking and Core Jobs teams at Trend Code Technology. If you are accurate, disciplined and love working with people, numbers or machines, we want to hear from you!",
       "At TCT, you get paid training, comfortable AC workspace, performance incentives and a clear growth path from executive to team lead — with daily-format work and supportive supervisors.",
       "We offer competitive salaries, daily/weekly payout options for select roles, and continuous skill training at our Ganapathy, Coimbatore centre.",
     ],
@@ -556,6 +1131,36 @@ export const ROLE_JDS = {
       "Present findings clearly to non-technical stakeholders",
     ],
     experience: "Fresher to 3 years — project portfolio or Kaggle preferred",
+  },
+  "Banking": {
+    qualification: "Any degree (B.Com/BBA/B.Sc preferred); banking or finance certification a plus",
+    skills:
+      "Customer handling, basic accounting & numeracy, KYC/AML awareness, MS Excel, Tamil & English communication",
+    tools: "Core banking / CRM software, MS Excel, MIS dashboards, banking portals",
+    description: [
+      "Support daily banking operations — account opening, KYC verification and documentation",
+      "Handle customer queries on products, statements and transactions",
+      "Process loan, deposit and card applications with accurate data entry",
+      "Cross-sell banking products to meet branch and referral targets",
+      "Maintain daily MIS and reconcile records for audit readiness",
+      "Escalate compliance or fraud red flags immediately to the supervisor",
+    ],
+    experience: "Fresher to 3 years — process training on banking products provided",
+  },
+  "Core Jobs": {
+    qualification: "Diploma / B.E. in Mechanical, Electrical, Civil or a related core branch",
+    skills:
+      "Core technical fundamentals, drawing reading, quality & safety awareness, teamwork, problem solving",
+    tools: "AutoCAD, MS Office, measurement & quality instruments, basic ERP",
+    description: [
+      "Support core engineering teams on production, quality and site activities",
+      "Prepare and read technical drawings, reports and inspection checklists",
+      "Assist in quality inspection and document results accurately",
+      "Follow safety norms and keep the workspace clean and compliant",
+      "Coordinate with vendors, supervisors and cross-functional teams",
+      "Track daily output and report deviations to the engineer in charge",
+    ],
+    experience: "Fresher to 3 years — diploma holders welcome",
   },
 };
 

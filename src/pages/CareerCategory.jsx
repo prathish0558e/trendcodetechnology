@@ -13,11 +13,14 @@ const ROLE_META = {
   "Machine Learning": { icon: "bi-graph-up-arrow", text: "Train, evaluate and ship ML models that solve real business problems." },
   "Data Entry": { icon: "bi-keyboard", text: "Keep client records accurate and fast with multi-level quality checks." },
   "Voice Process": { icon: "bi-headset", text: "Own customer conversations on support, retention and sales calls." },
+  "Banking": { icon: "bi-bank", text: "Run banking operations, KYC and customer service for BFSI clients." },
+  "Core Jobs": { icon: "bi-gear-wide-connected", text: "Apply your core-branch engineering skills on live production and site work." },
 };
 
 const EXPERIENCE_OPTIONS = ["Fresher", "1-2 Years", "2-5 Years", "5+ Years"];
 
-/* Expandable role card with full JD + per-role dedicated apply form */
+/* Expandable role card with full JD. Roles without a curated JD fall back
+   to the contact form — kept for any future role added without a JD. */
 function RoleCard({ role, onApply, defaultOpen }) {
   const meta = ROLE_META[role] || { icon: "bi-briefcase", text: "Join our growing team." };
   const jd = ROLE_JDS[role];
@@ -97,7 +100,7 @@ function RoleCard({ role, onApply, defaultOpen }) {
   );
 }
 
-/* Dedicated apply form with resume upload for the non-listed tracks */
+/* Apply form with resume upload for tracks without curated listings */
 function TrackApplyForm({ roles }) {
   const [form, setForm] = useState({
     name: "",
@@ -258,10 +261,17 @@ export default function CareerCategory() {
   const applyRef = useRef(null);
   const roles = cat?.roles || [];
 
-  const curated = JOB_LISTINGS[track]?.jobs.map((j) => j.title) || [];
-  const extraRoles = roles.filter(
-    (r) => !curated.includes(r) && ROLE_JDS[r]
-  );
+  /* ONE listing, ONE form: curated JDs and the extra per-role JDs are merged
+     into a single job list, so every role appears as a normal card in the
+     same "Current Openings" grid and the single apply form's position
+     dropdown covers all of them. (Previously the extra roles sat in a
+     separate "Other Openings" section with their own second form.) */
+  const curatedJobs = JOB_LISTINGS[track]?.jobs || [];
+  const curatedTitles = curatedJobs.map((j) => j.title);
+  const extraJobs = roles
+    .filter((r) => !curatedTitles.includes(r) && ROLE_JDS[r])
+    .map((r) => ({ title: r, ...ROLE_JDS[r] }));
+  const allJobs = [...curatedJobs, ...extraJobs];
 
   const setFormRef = useMemo(() => ({ current: null }), []);
 
@@ -303,40 +313,20 @@ export default function CareerCategory() {
         crumb="Careers"
       />
 
-      {/* Tracks with curated multi-role listings (web dev / non-it) keep the
-          dedicated JobListings layout — plus any extra roles that only have
-          per-role JDs (the remaining IT roles). */}
-      {JOB_LISTINGS[track] ? (
+      {/* One merged listing: curated JDs + per-role JDs, one shared apply form. */}
+      {allJobs.length > 0 ? (
         <>
           <JobListings
             trackTitle={track === "it" ? "IT" : cat.title}
-            intro={JOB_LISTINGS[track].intro}
-            jobs={JOB_LISTINGS[track].jobs}
+            intro={
+              JOB_LISTINGS[track]?.intro || [
+                cat.blurb,
+                "Check out our current openings below and apply today!",
+              ]
+            }
+            jobs={allJobs}
             showGithubField={track === "it"}
           />
-          {extraRoles.length > 0 && (
-            <section className="section" style={{ paddingTop: 0 }}>
-              <div className="container">
-                <SectionHead
-                  eyebrow="More IT Roles"
-                  title="Other Openings on the IT Team"
-                  text="Click a role to see the full job description, then apply below with your resume."
-                />
-                <div className="job-list" style={{ maxWidth: 860, margin: "0 auto" }}>
-                  {extraRoles.map((r, i) => (
-                    <RoleCard key={r} role={r} onApply={scrollToApply} defaultOpen={i === 0} />
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-          {extraRoles.length > 0 && (
-            <section className="section" style={{ paddingTop: 10 }}>
-              <div className="container" ref={applyRef} style={{ maxWidth: 860 }}>
-                <TrackApplyForm roles={extraRoles} />
-              </div>
-            </section>
-          )}
         </>
       ) : (
         <>

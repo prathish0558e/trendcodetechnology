@@ -15,6 +15,7 @@ import Careers from "./pages/Careers.jsx";
 import CareerCategory from "./pages/CareerCategory.jsx";
 import Contact from "./pages/Contact.jsx";
 import Internship from "./pages/Internship.jsx";
+import Tourism from "./pages/Tourism.jsx";
 import Login from "./pages/Login.jsx";
 import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/bpo/:slug" element={<BpoDetail />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/internship" element={<Internship />} />
+          <Route path="/tourism" element={<Tourism />} />
           <Route path="/careers/:track" element={<CareerCategory />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />

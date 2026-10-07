@@ -87,6 +87,12 @@ export const postLead = (form) =>
     body: JSON.stringify(form),
   });
 
+export const postTourEnquiry = (form) =>
+  request("/api/tour-enquiries", {
+    method: "POST",
+    body: JSON.stringify(form),
+  });
+
 export const postLogin = (creds) =>
   request("/api/login", {
     method: "POST",
@@ -96,6 +102,14 @@ export const postLogin = (creds) =>
 export const getApplications = () => request("/api/admin/applications");
 
 export const getLeads = () => request("/api/admin/leads");
+
+export const getTourEnquiries = () => request("/api/admin/tour-enquiries");
+
+export const deleteTourEnquiry = (id) =>
+  request("/api/admin/tour-enquiries", {
+    method: "DELETE",
+    body: JSON.stringify({ id }),
+  });
 
 export const getInternships = () => request("/api/admin/internships");
 

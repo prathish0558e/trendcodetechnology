@@ -11,5 +11,6 @@ server/.env
 *.log
 .DS_Store
 .vercel-token
-.vercel/
+.vercel-deploy-body.json
 .vercel-env-state.json
+.vercel/

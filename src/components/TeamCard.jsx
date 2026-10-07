@@ -11,7 +11,7 @@ export const TEAM = [
     accent: "blue",
   },
   {
-    name: "Mohanapriya K",
+    name: "Ms. Mohana Priya D",
     role: "Managing Director (MD)",
     photo: "/team/mohanapriya.jpg",
     initials: "MP",
@@ -47,15 +47,12 @@ export default function TeamCard({ member }) {
           <i className="bi bi-geo-alt" aria-hidden="true"></i> {COMPANY.addressShort}
         </p>
         <div className="team-actions">
-          <a className="team-btn" href={`mailto:${COMPANY.email}`}>
-            <i className="bi bi-envelope" aria-hidden="true"></i> Email us
-          </a>
           <a
-            className="team-btn team-btn-ghost"
-            href={`tel:${COMPANY.phoneRaw}`}
-            aria-label={`Call ${COMPANY.short}`}
+            className="team-btn"
+            href={`mailto:${COMPANY.email}`}
+            aria-label={`Email ${COMPANY.short}`}
           >
-            <i className="bi bi-telephone" aria-hidden="true"></i> Call
+            <i className="bi bi-envelope" aria-hidden="true"></i> Email us
           </a>
         </div>
       </div>

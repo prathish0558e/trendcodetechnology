@@ -11,7 +11,10 @@
     "build": "vite build && node scripts/generate-seo.mjs",
     "start": "cross-env NODE_ENV=production node server/index.js",
     "preview": "vite preview",
-    "seo:check": "node scripts/seo-check.mjs"
+    "seo:check": "node scripts/seo-check.mjs",
+    "whatsapp:status": "node scripts/whatsapp-test.mjs --status",
+    "whatsapp:test": "node scripts/whatsapp-test.mjs --send",
+    "deploy:vercel": "node scripts/vercel-deploy.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^8.17.10",

@@ -52,6 +52,10 @@ export const SEO_ROUTES = {
     "Internships at TCT | Software, Web, App, AI & Digital",
     "Build practical skills through TCT internship tracks in software, web and app development, digital marketing, AI and IoT."
   ),
+  "/tourism": page(
+    "Tour Packages from Coimbatore | India & International | TCT Tourism",
+    "TCT Tourism offers India tour packages from Coimbatore — Ooty, Kodaikanal, Munnar, Alleppey, Wayanad — and international trips to Bali, Dubai, Singapore, Thailand, Maldives and Europe with clear per-person rates."
+  ),
   "/contact": page(
     "Contact TCT | Get a Technology Project Quote",
     "Contact Trend Code Technology in Coimbatore to discuss software, web, mobile app, digital marketing, HR or BPO requirements."

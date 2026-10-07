@@ -9,6 +9,7 @@ import multer from "multer";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { DEFAULT_PUBLIC_SITE_URL, normalizeSiteUrl } from "../shared/site.js";
+import { sendWhatsApp, whatsappMode } from "./whatsapp.js";
 
 // load server/.env if present (email notifications). Values already set in
 // the environment (Vercel dashboard env vars) always win — dotenv never
@@ -54,6 +55,7 @@ const FILES = {
   messages: path.join(DATA_DIR, "messages.json"),
   applications: path.join(DATA_DIR, "applications.json"),
   internships: path.join(DATA_DIR, "internships.json"),
+  "tour-enquiries": path.join(DATA_DIR, "tour-enquiries.json"),
 };
 // A developer machine can hold the real connection string (server/.env) without
 // its own test submissions landing in the live database: locally the file store
@@ -79,6 +81,7 @@ const MEMORY = {
   messages: [],
   applications: [],
   internships: [],
+  "tour-enquiries": [],
   authlog: [],
   sessions: [],
 };
@@ -352,32 +355,17 @@ function buildResumeAttachment(record, buffer) {
   return [{ filename, path: path.join(UPLOAD_DIR, record.resumeFile) }];
 }
 
-// ---------- WhatsApp lead alert (free, via CallMeBot) ----------
-const WA_PHONE = (process.env.WA_PHONE || "").replace(/\D/g, "");
-const WA_APIKEY = (process.env.WA_APIKEY || "").trim();
-
+// ---------- WhatsApp alerts (see server/whatsapp.js) ----------
+// Meta WhatsApp Cloud API when configured, CallMeBot as the legacy fallback.
 async function notifyWhatsApp(lead) {
-  if (!WA_PHONE || !WA_APIKEY) {
-    console.log("[lead] WhatsApp alert skipped (WA_PHONE/WA_APIKEY not set)");
-    return;
-  }
-  const text = encodeURIComponent(
+  const text =
     `🔔 New enquiry — ${lead.name}\n` +
-      `📞 ${lead.phone || "-"}\n` +
+    `📞 ${lead.phone || "-"}\n` +
     (lead.email ? `📧 ${lead.email}\n` : "") +
-      `🛠 ${lead.service || "-"}\n\n` +
-      `${lead.message.slice(0, 300)}`
-  );
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${WA_PHONE}&text=${text}&apikey=${WA_APIKEY}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.text();
-    if (/error/i.test(body.slice(0, 120))) throw new Error(body.slice(0, 120));
-    console.log(`[lead] WhatsApp alert sent for ${lead.name}`);
-  } catch (err) {
-    console.error("[lead] WhatsApp alert failed:", err.message);
-  }
+    `🛠 ${lead.service || "-"}\n\n` +
+    `${String(lead.message || "").slice(0, 300)}`;
+  const result = await sendWhatsApp(text);
+  if (result.ok) console.log(`[lead] WhatsApp alert sent for ${lead.name}`);
 }
 
 async function notifyNewLead(lead) {
@@ -448,6 +436,17 @@ function attachMailAsset(attachments, base, cid) {
 }
 
 const THANK_YOU_KINDS = {
+  tour: {
+    subject: "Thank you for your interest — TCT Tourism",
+    intro: (detail) =>
+      `We've received your tour enquiry${
+        detail ? ` for <b>${escapeHtml(detail)}</b>` : ""
+      }.`,
+    next: "Our travel desk will send you 2–3 itinerary options with final pricing within 24 hours.",
+    more:
+      "Want it faster? WhatsApp +91 93848 47922 any time — the desk replies 24×7.",
+    cta: { label: "Browse tour packages", href: `${PUBLIC_SITE_URL}/tourism` },
+  },
   career: {
     subject: "Thank you for your interest — Trend Code Technology",
     intro: (detail) =>
@@ -638,6 +637,8 @@ app.get("/api/health", requireAdmin, async (req, res) => {
     db,
     dbError: db === "unavailable" || db === "not-tried-yet" ? g.__tctMongoErr || "" : "",
     smtp: mailer ? "configured" : "not-configured",
+    // "meta" = Meta WhatsApp Cloud API, "callmebot" = legacy fallback, "off"
+    whatsapp: whatsappMode(),
   });
 });
 
@@ -716,25 +717,146 @@ async function notifyApplication(app_, resumeBuffer = null) {
     }
   }
   // WhatsApp
-  if (WA_PHONE && WA_APIKEY) {
-    const text2 = encodeURIComponent(
-      `💼 New job application — ${app_.name}\n` +
-        `📋 ${app_.position} (${app_.experience})\n` +
-        `📞 ${app_.phone || "-"}\n` +
-        `📧 ${app_.email}\n` +
-        (app_.github ? `🐙 ${app_.github}\n` : "") +
-        (app_.resumeFile ? `📎 resume attached\n` : "")
-    );
+  const result = await sendWhatsApp(
+    `💼 New job application — ${app_.name}\n` +
+      `📋 ${app_.position} (${app_.experience})\n` +
+      `📞 ${app_.phone || "-"}\n` +
+      `📧 ${app_.email}\n` +
+      (app_.github ? `🐙 ${app_.github}\n` : "") +
+      (app_.resumeFile ? `📎 resume attached` : "")
+  );
+  if (result.ok) console.log(`[application] WhatsApp alert sent for ${app_.name}`);
+}
+
+// ---------- Tour / travel enquiries (Tourism page form) ----------
+async function notifyTourEnquiry(en) {
+  // Email — the travel desk's copy of the enquiry
+  if (mailer) {
+    const text = [
+      "New TOUR enquiry from the Tourism page:",
+      "",
+      `Name:        ${en.name}`,
+      `Phone:       ${en.phone}`,
+      `Email:       ${en.email || "-"}`,
+      `Destination: ${en.destination}`,
+      `Scope:       ${en.scope || "-"}`,
+      `Travel date: ${en.travelDate || "-"}`,
+      `Travellers:  ${en.travelers || "-"}`,
+      `Budget:      ${en.budget || "-"}`,
+      `Flights:     ${en.flightNeeded || "-"}`,
+      `Passports:   ${en.passportAvailable || "-"}`,
+      `Message:  ${en.message || "-"}`,
+      "",
+      `Time: ${en.createdAt}`,
+    ].join("\n");
     try {
-      await fetch(
-        `https://api.callmebot.com/whatsapp.php?phone=${WA_PHONE}&text=${text2}&apikey=${WA_APIKEY}`
-      );
-      console.log(`[application] WhatsApp alert sent for ${app_.name}`);
+      await mailer.sendMail({
+        from: `"TCT Website" <${process.env.SMTP_USER}>`,
+        to: NOTIFY_EMAIL,
+        subject: `✈️ New tour enquiry — ${en.name} (${en.destination})`,
+        text,
+        ...(en.email && VALID_EMAIL.test(en.email) ? { replyTo: en.email } : {}),
+      });
+      console.log(`[tour] emailed notification for ${en.name}`);
     } catch (err) {
-      console.error("[application] WhatsApp failed:", err.message);
+      console.error("[tour] email failed:", err.message);
     }
   }
+  // WhatsApp — one screen, owner-readable
+  const result = await sendWhatsApp(
+    `✈️ New tour enquiry — ${en.name}\n` +
+      `🌍 ${en.destination}\n` +
+      `📅 ${en.travelDate || "—"} · 👥 ${en.travelers || "—"}\n` +
+      (en.budget ? `💰 ${en.budget}\n` : "") +
+      `📞 ${en.phone}\n` +
+      (en.email ? `📧 ${en.email}\n` : "") +
+      (en.message ? `\n${String(en.message).slice(0, 200)}` : "")
+  );
+  if (result.ok) console.log(`[tour] WhatsApp alert sent for ${en.name}`);
 }
+
+app.post("/api/tour-enquiries", async (req, res) => {
+  const {
+    name,
+    phone,
+    email,
+    travelers,
+    travelDate,
+    destination,
+    budget,
+    message,
+    indiaOrInternational,
+    flightNeeded,
+    passportAvailable,
+  } = req.body || {};
+
+  if (!name || !phone || !destination) {
+    return res
+      .status(400)
+      .json({ error: "Name, phone and destination are required." });
+  }
+  if (email && !VALID_EMAIL.test(email)) {
+    return res.status(400).json({ error: "Please enter a valid email address." });
+  }
+
+  const enquiry = {
+    id: `${Date.now()}`,
+    name: String(name).slice(0, 120),
+    phone: String(phone).slice(0, 40),
+    email: String(email || "").slice(0, 160),
+    travelers: String(travelers || "").slice(0, 20),
+    travelDate: String(travelDate || "").slice(0, 40),
+    destination: String(destination).slice(0, 120),
+    budget: String(budget || "").slice(0, 60),
+    message: String(message || "").slice(0, 2000),
+    scope: String(indiaOrInternational || "").slice(0, 20),
+    flightNeeded: String(flightNeeded || "").slice(0, 40),
+    passportAvailable: String(passportAvailable || "").slice(0, 40),
+    source: "tourism-page",
+    status: "new",
+    createdAt: new Date().toISOString(),
+  };
+
+  await appendList(FILES["tour-enquiries"], enquiry);
+
+  await runNotifications([
+    () => notifyTourEnquiry(enquiry),
+    () =>
+      sendThankYou(
+        enquiry.email,
+        enquiry.name,
+        "tour",
+        enquiry.destination
+      ),
+  ]);
+
+  res.status(201).json({
+    ok: true,
+    id: enquiry.id,
+    message:
+      "Thanks! Your tour enquiry reached our travel desk — we'll reply with itineraries within 24 hours.",
+  });
+});
+
+app.get("/api/admin/tour-enquiries", requireAdmin, async (_req, res) => {
+  res.json(
+    (await readList(FILES["tour-enquiries"]))
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      .slice(0, 200)
+  );
+});
+
+app.delete("/api/admin/tour-enquiries", requireAdmin, async (req, res) => {
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ error: "Enquiry id is required." });
+  const list = await readList(FILES["tour-enquiries"]);
+  const next = list.filter((e) => e.id !== String(id));
+  if (next.length === list.length) {
+    return res.status(404).json({ error: "Enquiry not found." });
+  }
+  await writeList(FILES["tour-enquiries"], next);
+  res.json({ ok: true, deleted: String(id), remaining: next.length });
+});
 
 app.post("/api/apply", uploadResume.single("resume"), async (req, res) => {
   const { name, email, phone, position, experience, github, coverLetter } =
@@ -1284,14 +1406,9 @@ app.post(
           console.error("[internship] email failed:", err.message);
         }
       }
-      if (WA_PHONE && WA_APIKEY) {
-        const t2 = encodeURIComponent(
-          `🎓 Internship application — ${app_.name}\n📚 ${app_.domain} (${app_.duration || "flexible"})\n🏫 ${app_.college}\n📞 ${app_.phone}\n📧 ${app_.email}`
-        );
-        try {
-          await fetch(`https://api.callmebot.com/whatsapp.php?phone=${WA_PHONE}&text=${t2}&apikey=${WA_APIKEY}`);
-        } catch {}
-      }
+      await sendWhatsApp(
+        `🎓 Internship application — ${app_.name}\n📚 ${app_.domain} (${app_.duration || "flexible"})\n🏫 ${app_.college}\n📞 ${app_.phone}\n📧 ${app_.email}`
+      );
     })();
 
     // "Thank you for your interest" auto reply to the applicant's own mail id
