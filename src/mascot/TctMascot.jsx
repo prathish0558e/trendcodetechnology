@@ -5,8 +5,8 @@ import {
   setProjectionPixel, state as mstate,
 } from "./store.js";
 import {
-  QUICK_CHIPS, buildLeadPayload, leadPrompt,
-  validateLead, wantsLead,
+  JOB_STEPS, QUICK_CHIPS, buildJobPayload, buildLeadPayload, jobPrompt, leadPrompt,
+  validateJob, validateLead, wantsJob, wantsLead,
 } from "./brain.js";
 import { sendMessage } from "./assistantService.js";
 import { postLead } from "../api.js";
@@ -29,7 +29,8 @@ import "./mascot.css";
 
 const Scene = lazy(() => import("./Scene.jsx"));
 
-const GREETING = "Hi \u{1F44B}\nI'm the TCT Assistant.\nHow can I help you today?";
+const GREETING =
+  "Hi \u{1F44B}\nI'm the TCT Assistant.\nAsk me about our services, who runs TCT, or say \"I want a job\" and I'll take your details straight to HR.";
 
 export default function TctMascot() {
   const { pathname } = useLocation();
@@ -39,6 +40,7 @@ export default function TctMascot() {
   /* ---------------- messages / lead flow ---------------- */
   const [messages, setMessages] = useState([]);
   const [leadStep, setLeadStep] = useState(null); // null | 'name' | 'contact' | 'message'
+  const [jobStep, setJobStep] = useState(null);   // null | 'name' | 'email' | 'phone' | 'role' | 'experience'
   const [draft, setDraft] = useState({});
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -186,12 +188,49 @@ export default function TctMascot() {
     setLeadStep(null);
   };
 
+  /* Job interest → collect name, email, phone, role, experience and hand the
+     whole thing to /api/leads (the same pipeline that emails + WhatsApps HR). */
+  const submitJob = async (finalDraft) => {
+    const d = finalDraft || draft;
+    await pushBot("Got it — sending your details to our HR desk\u2026 \u{1F680}", 800);
+    try {
+      await postLead(buildJobPayload(d));
+      await pushBot("\u2705 Done! Your profile has reached our HR team.", 600);
+      await pushBot(
+        `They'll reach you on ${d.email || d.phone} if there's a match. Meanwhile every opening is listed on our Careers page — anything else I can help with?`,
+        550
+      );
+    } catch {
+      await pushBot(
+        `Hmm, that didn't go through. Please WhatsApp your CV to ${COMPANY.phone} or email ${COMPANY.email} — HR will pick it up.`,
+        600
+      );
+    }
+    setJobStep(null);
+  };
+
   const handleText = async (raw) => {
     const text = raw.trim();
     if (!text) return;
     setMessages((m) => [...m, { from: "user", text }]);
     setInput("");
     setNudge("");
+
+    if (jobStep) {
+      const err = validateJob(jobStep, text);
+      if (err) return setNudge(err);
+      const nd = { ...draft, [jobStep]: text };
+      setDraft(nd);
+      const idx = JOB_STEPS.indexOf(jobStep);
+      if (idx < JOB_STEPS.length - 1) {
+        const next = JOB_STEPS[idx + 1];
+        setJobStep(next);
+        await pushBot(jobPrompt(next, nd), 550);
+      } else {
+        await submitJob(nd);
+      }
+      return;
+    }
 
     if (leadStep) {
       const err = validateLead(leadStep, text);
@@ -209,7 +248,15 @@ export default function TctMascot() {
       return;
     }
 
+    if (wantsJob(text)) {
+      setDraft({});
+      setJobStep(JOB_STEPS[0]);
+      await pushBot(jobPrompt(JOB_STEPS[0], {}), 550);
+      return;
+    }
+
     if (wantsLead(text)) {
+      setDraft({});
       setLeadStep("name");
       await pushBot(leadPrompt("name", {}), 550);
       return;
@@ -250,6 +297,7 @@ export default function TctMascot() {
     if (typing) return;
     setMessages([{ from: "bot", text: GREETING }]);
     setLeadStep(null);
+    setJobStep(null);
     setDraft({});
     setInput("");
     setNudge("");
@@ -275,6 +323,11 @@ export default function TctMascot() {
     leadStep === "name" ? "Type your name\u2026"
     : leadStep === "contact" ? "Phone or email\u2026"
     : leadStep === "message" ? "Describe your requirement\u2026"
+    : jobStep === "name" ? "Your full name\u2026"
+    : jobStep === "email" ? "Your email\u2026"
+    : jobStep === "phone" ? "Phone / WhatsApp\u2026"
+    : jobStep === "role" ? "Role you want\u2026"
+    : jobStep === "experience" ? "Fresher / 1\u20133 / 3\u20135 / 5+ years\u2026"
     : "Ask TCT Assistant...";
 
   return (

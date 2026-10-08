@@ -16,6 +16,7 @@ import CareerCategory from "./pages/CareerCategory.jsx";
 import Contact from "./pages/Contact.jsx";
 import Internship from "./pages/Internship.jsx";
 import Tourism from "./pages/Tourism.jsx";
+import SisterSite from "./pages/SisterSite.jsx";
 import Login from "./pages/Login.jsx";
 import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -64,6 +65,12 @@ export default function App() {
           <Route path="/careers" element={<Careers />} />
           <Route path="/internship" element={<Internship />} />
           <Route path="/tourism" element={<Tourism />} />
+          {/* Sister sites — real domains get wired up in src/data/sites.js */}
+          <Route
+            path="/tct-fashionhub"
+            element={<SisterSite siteKey="fashionhub" />}
+          />
+          <Route path="/tct-trader" element={<SisterSite siteKey="trader" />} />
           <Route path="/careers/:track" element={<CareerCategory />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />

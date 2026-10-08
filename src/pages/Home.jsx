@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Reveal, SectionHead, useCountUp } from "../components/Reveal.jsx";
+import SiteShowcase from "../components/SiteShowcase.jsx";
 import QuoteForm from "../components/QuoteForm.jsx";
 import ToTop from "../components/ToTop.jsx";
 import CookieConsent from "../components/CookieConsent.jsx";
@@ -148,97 +149,102 @@ function ClientsShowcase() {
   );
 }
 
-/* ---------- Home hero slider — full-bleed photo slides ---------- */
-const SLIDES = [
-  {
-    img: "/hero/slide-1.jpg",
-    alt: "Developer working on a software project in a modern office",
-    eyebrow: "Creative & Innovative",
-    title: "Empowering Brands with Smart, Stunning & Scalable Digital Experiences",
-  },
-  {
-    img: "/hero/slide-2.jpg",
-    alt: "Professional using a computer to create a digital experience",
-    eyebrow: "Creative & Innovative",
-    title: "Modern, Creative & Innovative Digital Solutions",
-  },
-];
+/* ---------- Home hero — full-bleed background video ---------- */
+const HERO_COPY = {
+  eyebrow: "Creative & Innovative",
+  title:
+    "Empowering Brands with Smart, Stunning & Scalable Digital Experiences",
+  text:
+    "Software, websites and apps built in Coimbatore — one team, shipping since 2019.",
+};
 
-function HeroSlider() {
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+/* Background video is a progressive enhancement: it is skipped on small
+   screens, on data-saver connections and whenever the visitor asks for
+   reduced motion — the poster still is shown instead. */
+function HeroMedia() {
+  const videoRef = useRef(null);
+  const [withVideo, setWithVideo] = useState(false);
 
-  // Auto-advance every 6.5s — pauses while the visitor hovers the slider
   useEffect(() => {
-    if (paused) return undefined;
-    const t = window.setInterval(
-      () => setIndex((v) => (v + 1) % SLIDES.length),
-      6500
-    );
-    return () => window.clearInterval(t);
-  }, [paused]);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const small = window.matchMedia?.("(max-width: 720px)")?.matches;
+    const saveData = navigator.connection?.saveData === true;
+    if (!reduce && !small && !saveData) setWithVideo(true);
+  }, []);
 
-  const go = (dir) =>
-    setIndex((v) => (v + dir + SLIDES.length) % SLIDES.length);
+  /* A few browsers refuse the very first autoplay attempt. Retry on the first
+     interaction instead of dropping the video — the poster covers either way. */
+  useEffect(() => {
+    if (!withVideo) return undefined;
+    const el = videoRef.current;
+    if (!el) return undefined;
+    const retry = () => {
+      const attempt = el.play?.();
+      if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
+    };
+    const start = el.play?.();
+    if (start && typeof start.catch === "function") {
+      start.catch(() => {
+        window.addEventListener("pointerdown", retry, { once: true });
+        window.addEventListener("keydown", retry, { once: true });
+        window.addEventListener("touchstart", retry, { once: true });
+      });
+    }
+    return () => {
+      window.removeEventListener("pointerdown", retry);
+      window.removeEventListener("keydown", retry);
+      window.removeEventListener("touchstart", retry);
+    };
+  }, [withVideo]);
 
   return (
-    <section
-      className="hero-slider"
-      aria-label="TCT highlights"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      {SLIDES.map((s, i) => (
-        <div
-          key={s.img}
-          className={`hero-slide${i === index ? " current" : ""}`}
-          aria-hidden={i !== index}
-        >
-          <img src={s.img} alt={s.alt} loading={i === 0 ? "eager" : "lazy"} />
-          <div className="hero-slide-shade"></div>
-          <div className="container hero-slide-content">
-            <span className="eyebrow on-dark">{s.eyebrow}</span>
-            {i === 0 ? (
-              <h1 className="hero-slide-title">{s.title}</h1>
-            ) : (
-              <h2 className="hero-slide-title">{s.title}</h2>
-            )}
-            <div className="hero-slide-actions">
-              <Link to="/contact" className="btn btn-primary btn-lg">
-                Get Free Quote <i className="bi bi-arrow-right"></i>
-              </Link>
-              <Link to="/contact" className="btn btn-lg hs-ghost">
-                Contact Us
-              </Link>
-            </div>
-          </div>
+    <div className={`hero-media${withVideo ? " has-video" : ""}`} aria-hidden="true">
+      <img
+        className="hero-poster"
+        src="/hero/hero-poster.jpg"
+        alt=""
+        width="1280"
+        height="720"
+      />
+      {/* The poster frame above covers the wait, so the video never needs a
+          fade — it simply paints over it once it has data. */}
+      {withVideo ? (
+        <video
+          ref={videoRef}
+          className="hero-video"
+          src="/hero/hero-bg.mp4"
+          poster="/hero/hero-poster.jpg"
+          muted
+          loop
+          playsInline
+          autoPlay
+          preload="auto"
+          tabIndex={-1}
+          onError={() => setWithVideo(false)}
+        ></video>
+      ) : null}
+      <span className="hero-shade"></span>
+    </div>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="hero-live" aria-label="Trend Code Technology highlights">
+      <HeroMedia />
+      <div className="container hero-live-inner">
+        <span className="eyebrow on-dark">{HERO_COPY.eyebrow}</span>
+        <h1 className="hero-live-title">{HERO_COPY.title}</h1>
+        <p className="hero-live-text">{HERO_COPY.text}</p>
+        <div className="hero-live-actions">
+          <Link to="/contact" className="btn btn-primary btn-lg">
+            Get Free Quote <i className="bi bi-arrow-right"></i>
+          </Link>
+          <Link to="/contact" className="btn btn-lg hs-ghost">
+            Contact Us
+          </Link>
         </div>
-      ))}
-
-      <button
-        className="hero-arrow prev"
-        onClick={() => go(-1)}
-        aria-label="Previous slide"
-      >
-        <i className="bi bi-chevron-left"></i>
-      </button>
-      <button
-        className="hero-arrow next"
-        onClick={() => go(1)}
-        aria-label="Next slide"
-      >
-        <i className="bi bi-chevron-right"></i>
-      </button>
-
-      <div className="hero-dots">
-        {SLIDES.map((_, i) => (
-          <button
-            key={i}
-            className={`hero-dot${i === index ? " on" : ""}`}
-            onClick={() => setIndex(i)}
-            aria-label={`Go to slide ${i + 1}`}
-          ></button>
-        ))}
+        <SiteShowcase variant="hero" />
       </div>
     </section>
   );
@@ -247,8 +253,8 @@ function HeroSlider() {
 export default function Home() {
   return (
     <>
-      {/* ---------- Hero slider ---------- */}
-      <HeroSlider />
+      {/* ---------- Hero (background video + sister-site showcase) ---------- */}
+      <HeroSection />
 
       {/* ---------- Stats ---------- */}
       <div className="stats">

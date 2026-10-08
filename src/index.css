@@ -882,71 +882,7 @@ h1, h2, h3, h4, h5 {
   margin-top: 18px;
 }
 
-/* ---------- Hero (typography-led, flat, no AI-look) ---------- */
-.hero {
-  position: relative;
-  overflow: hidden;
-  background: #fbfcfe;
-  border-bottom: 1px solid var(--line);
-}
-
-/* faint radial glow behind the hero copy */
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(
-    75% 80% at 45% 15%,
-    rgba(13, 110, 253, 0.06),
-    transparent 70%
-  );
-  pointer-events: none;
-}
-
-.hero-inner {
-  position: relative;
-  z-index: 1;
-  max-width: 860px;
-  padding: 84px 0 64px;
-}
-
-.hero h1 {
-  font-size: clamp(2.3rem, 5vw, 3.9rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
-  margin-bottom: 22px;
-  color: var(--ink);
-}
-
-.hero h1 .grad {
-  color: var(--primary);
-}
-
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .hero h1 .grad {
-    background: linear-gradient(92deg, var(--primary) 10%, var(--cyan) 90%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
-}
-
-.hero p.lead {
-  font-size: clamp(1.02rem, 1.9vw, 1.2rem);
-  color: var(--slate);
-  max-width: 660px;
-  margin: 0 0 30px;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 56px;
-}
-
+/* ---------- Secondary "call us" button (used on Tourism) ---------- */
 .btn-call {
   background: #fff;
   border: 1.5px solid var(--line);
@@ -959,57 +895,36 @@ h1, h2, h3, h4, h5 {
   transform: translateY(-1px);
 }
 
-.hero-points {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 26px;
-  border-top: 1px solid var(--line);
-  padding-top: 22px;
-  max-width: 720px;
-}
-
-.hero-points span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--slate);
-}
-
-.hero-points i {
-  color: var(--primary);
-  font-size: 16px;
-}
-
-/* ---------- Hero slider — full-bleed photo slides with overlay copy ---------- */
-.hero-slider {
+/* ---------- Hero — full-bleed background video, centred copy ---------- */
+.hero-live {
   position: relative;
-  height: clamp(520px, 76vh, 700px);
+  isolation: isolate;
+  overflow: hidden;
+  min-height: clamp(560px, 78vh, 720px);
+  display: flex;
+  align-items: center;
+  background: #070d1a;
 }
 
-.hero-slide {
+.hero-media {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  transition: opacity 0.9s ease;
-  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
 }
 
-.hero-slide.current {
-  opacity: 1;
-  pointer-events: auto;
-  z-index: 1;
-}
-
-.hero-slide img {
+.hero-poster,
+.hero-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* slow Ken-Burns drift so each slide feels alive */
-  animation: hero-zoom 9s ease-out forwards;
+}
+
+/* the still keeps a slow drift while the video buffers (or never plays) */
+.hero-poster {
+  animation: hero-zoom 20s ease-out forwards;
 }
 
 @keyframes hero-zoom {
@@ -1017,53 +932,103 @@ h1, h2, h3, h4, h5 {
     transform: scale(1);
   }
   to {
-    transform: scale(1.07);
+    transform: scale(1.08);
   }
 }
 
-.hero-slide-shade {
+/* keeps the white headline and cards readable over any frame */
+.hero-shade {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(
-      90deg,
-      rgba(7, 13, 26, 0.82) 0%,
-      rgba(7, 13, 26, 0.55) 46%,
-      rgba(7, 13, 26, 0.2) 100%
+    radial-gradient(
+      62% 66% at 50% 44%,
+      rgba(6, 12, 24, 0.72) 0%,
+      rgba(6, 12, 24, 0.46) 58%,
+      rgba(6, 12, 24, 0.24) 100%
     ),
-    linear-gradient(0deg, rgba(7, 13, 26, 0.55) 0%, transparent 45%);
+    linear-gradient(
+      180deg,
+      rgba(5, 10, 20, 0.78) 0%,
+      rgba(5, 10, 20, 0.34) 42%,
+      rgba(5, 10, 20, 0.86) 100%
+    );
 }
 
-.hero-slide-content {
+.hero-live-inner {
   position: relative;
   z-index: 2;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  padding-bottom: 26px;
+  align-items: center;
+  text-align: center;
+  /* extra bottom room keeps the showcase clear of the fixed cookie bar */
+  padding: 44px 0 96px;
 }
 
-.hero-slide-title {
+.hero-live-title {
   font-family: var(--font-display);
   color: #fff;
-  font-size: clamp(1.9rem, 4.6vw, 3.4rem);
+  font-size: clamp(1.7rem, 3.5vw, 2.85rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.12;
-  max-width: 780px;
-  margin: 14px 0 26px;
+  max-width: 1040px;
+  margin: 12px 0 16px;
   text-wrap: balance;
 }
 
-.hero-slide-actions {
+.hero-live-text {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: clamp(0.98rem, 1.6vw, 1.12rem);
+  max-width: 680px;
+  margin: 0 0 24px;
+}
+
+.hero-live-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: center;
 }
 
-/* translucent ghost button that sits on the photo */
+/* hero copy rises in once, while the video is still loading */
+.hero-live .eyebrow,
+.hero-live-title,
+.hero-live-text,
+.hero-live-actions,
+.site-showcase.ss-hero {
+  animation: hero-rise 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.hero-live-title {
+  animation-delay: 0.08s;
+}
+
+.hero-live-text {
+  animation-delay: 0.16s;
+}
+
+.hero-live-actions {
+  animation-delay: 0.24s;
+}
+
+.site-showcase.ss-hero {
+  animation-delay: 0.34s;
+}
+
+/* Transform-only on purpose: if a browser ever freezes CSS animations, the
+   hero copy must still be visible (an opacity-0 start can leave it blank). */
+@keyframes hero-rise {
+  from {
+    transform: translateY(18px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* translucent ghost button that sits on the video */
 .btn.hs-ghost {
   background: rgba(255, 255, 255, 0.12);
   border: 1.5px solid rgba(255, 255, 255, 0.55);
@@ -1077,108 +1042,245 @@ h1, h2, h3, h4, h5 {
   color: var(--ink);
 }
 
-/* copy entrance animation on each slide change */
-.hero-slide .eyebrow,
-.hero-slide .hero-slide-title,
-.hero-slide .hero-slide-actions {
-  opacity: 0;
-  transform: translateY(22px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+@media (max-width: 720px) {
+  .hero-live {
+    min-height: 560px;
+  }
+
+  .hero-live-inner {
+    padding: 44px 0 58px;
+  }
 }
 
-.hero-slide.current .eyebrow,
-.hero-slide.current .hero-slide-title,
-.hero-slide.current .hero-slide-actions {
-  opacity: 1;
-  transform: none;
+/* ---------- Sister-site showcase — TCT · FashionHub · Trader ---------- */
+.site-showcase.ss-hero {
+  width: 100%;
+  margin-top: 34px;
 }
 
-.hero-slide.current .hero-slide-title {
-  transition-delay: 0.12s;
+.ss-label {
+  margin: 0 0 18px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
 }
 
-.hero-slide.current .hero-slide-actions {
-  transition-delay: 0.24s;
+.site-showcase.ss-hero .ss-label {
+  color: rgba(255, 255, 255, 0.74);
 }
 
-/* prev / next arrows */
-.hero-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 3;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(10, 16, 30, 0.35);
-  color: #fff;
-  font-size: 19px;
+.site-showcase.ss-page .ss-label {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.6vw, 1.75rem);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.ss-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.site-showcase.ss-page .ss-grid {
+  max-width: 980px;
+}
+
+.site-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  /* thin per-business colour spine so the three cards stay distinguishable */
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-top: 3px solid var(--sc, var(--primary));
+  border-radius: 16px;
+  text-align: left;
+  box-shadow: 0 16px 34px rgba(6, 12, 24, 0.22);
+  transition: transform 0.28s ease, box-shadow 0.28s ease;
+}
+
+.site-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 46px rgba(6, 12, 24, 0.3);
+}
+
+/* the real TCT logo sits directly on the white card */
+.sc-mark {
+  flex: none;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: background 0.25s ease, border-color 0.25s ease;
 }
 
-.hero-arrow:hover {
+.sc-mark img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.sc-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sc-body strong {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.sc-body small {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+  .sc-body strong,
+  .sc-body small {
+    white-space: normal;
+  }
+}
+
+.sc-go {
+  flex: none;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 13px;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.site-card:hover .sc-go {
   background: var(--primary);
-  border-color: var(--primary);
+  color: #fff;
 }
 
-.hero-arrow.prev {
-  left: 22px;
+@media (max-width: 860px) {
+  .ss-grid {
+    grid-template-columns: 1fr;
+    max-width: 430px;
+  }
+
+  .site-showcase.ss-hero {
+    margin-top: 34px;
+  }
 }
 
-.hero-arrow.next {
-  right: 22px;
+/* ---------- Sister-site launch pages (/tct-fashionhub, /tct-trader) ---------- */
+.site-launch {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 40px);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow-md);
 }
 
-/* progress dots */
-.hero-dots {
-  position: absolute;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  z-index: 3;
+.launch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.site-launch h2 {
+  margin: 16px 0 12px;
+  font-size: clamp(1.4rem, 2.8vw, 2rem);
+  text-wrap: balance;
+}
+
+.site-launch > p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.launch-grid {
+  margin-top: 28px;
+}
+
+.launch-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.launch-item h3 {
+  margin: 2px 0 6px;
+  font-size: 15.5px;
+}
+
+.launch-item p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.li-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: #fff;
+  background: linear-gradient(
+    140deg,
+    var(--sc, var(--primary)),
+    var(--sc2, var(--cyan))
+  );
+}
+
+.launch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.launch-note {
   display: flex;
   gap: 10px;
+  align-items: flex-start;
+  margin: 22px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-soft);
+  color: var(--muted);
+  font-size: 13.5px;
 }
 
-.hero-dot {
-  width: 30px;
-  height: 5px;
-  border-radius: 999px;
-  border: none;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  transition: background 0.25s ease, width 0.25s ease;
-}
-
-.hero-dot.on {
-  background: var(--primary);
-  width: 46px;
-}
-
-@media (max-width: 720px) {
-  .hero-slider {
-    height: 520px;
-  }
-
-  .hero-slide-content {
-    justify-content: flex-end;
-    padding-bottom: 72px;
-  }
-
-  .hero-slide-title {
-    font-size: clamp(1.6rem, 7vw, 2.2rem);
-  }
-
-  .hero-arrow {
-    display: none;
-  }
+.launch-note i {
+  margin-top: 1px;
+  font-size: 16px;
+  color: var(--primary);
 }
 
 /* Fact-sheet panel (right of hero on desktop) */
@@ -5456,18 +5558,20 @@ a.journey-card:focus-visible::after {
     -webkit-text-fill-color: #0284c7;
     filter: none;
   }
-  .hero-slide {
-    transition: none;
-  }
-  .hero-slide img {
+  .hero-poster {
     animation: none;
   }
-  .hero-slide .eyebrow,
-  .hero-slide .hero-slide-title,
-  .hero-slide .hero-slide-actions {
-    transition: none;
-    transform: none;
+  .hero-live .eyebrow,
+  .hero-live-title,
+  .hero-live-text,
+  .hero-live-actions,
+  .site-showcase.ss-hero {
+    animation: none;
     opacity: 1;
+    transform: none;
+  }
+  .site-card {
+    transition: none;
   }
   .why-choose-section .card:hover::before {
     animation: none;

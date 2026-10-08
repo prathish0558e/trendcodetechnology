@@ -5,6 +5,7 @@ import {
   HR_SERVICES,
   SERVICES,
 } from "../data/content.js";
+import { SITES } from "../data/sites.js";
 
 function conciseDescription(description) {
   const clean = String(description).replace(/\s+/g, " ").trim();
@@ -93,6 +94,18 @@ for (const [slug, career] of Object.entries(CAREERS)) {
   SEO_ROUTES[path] = page(
     `${career.title} Careers in Coimbatore | TCT`,
     `${career.blurb} View current ${career.title.toLowerCase()} roles and apply to Trend Code Technology.`
+  );
+}
+
+/* Sister-site launch pages (/tct-fashionhub, /tct-trader). They are kept out
+   of the index while they are placeholders — flip `indexable` once the real
+   sites are live on their own domains. */
+for (const site of SITES) {
+  if (site.key === "tct") continue;
+  SEO_ROUTES[site.path] = page(
+    `${site.name} | ${site.tagline} | Trend Code Technology`,
+    `${site.name} — ${site.headline}. Handled today by the Trend Code Technology team in Coimbatore.`,
+    { indexable: false }
   );
 }
 
