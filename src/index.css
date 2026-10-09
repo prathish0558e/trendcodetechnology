@@ -936,7 +936,8 @@ h1, h2, h3, h4, h5 {
   }
 }
 
-/* keeps the white headline and cards readable over any frame */
+/* keeps the white headline and cards readable over any frame, and warms the
+   frame with the two brand accents (blue top-left, orange bottom-right) */
 .hero-shade {
   position: absolute;
   inset: 0;
@@ -947,6 +948,8 @@ h1, h2, h3, h4, h5 {
       rgba(6, 12, 24, 0.46) 58%,
       rgba(6, 12, 24, 0.24) 100%
     ),
+    radial-gradient(46% 42% at 12% 8%, rgba(13, 110, 253, 0.28), rgba(13, 110, 253, 0) 70%),
+    radial-gradient(44% 40% at 88% 96%, rgba(249, 115, 22, 0.22), rgba(249, 115, 22, 0) 70%),
     linear-gradient(
       180deg,
       rgba(5, 10, 20, 0.78) 0%,
@@ -992,11 +995,50 @@ h1, h2, h3, h4, h5 {
   justify-content: center;
 }
 
+/* brand-gradient emphasis word — blue → cyan → orange, the site palette */
+.hero-grad {
+  background: linear-gradient(100deg, #7dd3fc 0%, #38bdf8 32%, #fbbf24 72%, #fb923c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #7dd3fc;
+}
+
+/* credibility row — one line of facts under the buttons */
+.hero-trust {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  margin: 22px 0 0;
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.hero-trust li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.hero-trust i {
+  color: #7dd3fc;
+  font-size: 14px;
+}
+
+.hero-trust li:last-child i {
+  color: #fb923c;
+}
+
 /* hero copy rises in once, while the video is still loading */
 .hero-live .eyebrow,
 .hero-live-title,
 .hero-live-text,
 .hero-live-actions,
+.hero-trust,
 .site-showcase.ss-hero {
   animation: hero-rise 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
@@ -1013,8 +1055,12 @@ h1, h2, h3, h4, h5 {
   animation-delay: 0.24s;
 }
 
+.hero-trust {
+  animation-delay: 0.3s;
+}
+
 .site-showcase.ss-hero {
-  animation-delay: 0.34s;
+  animation-delay: 0.38s;
 }
 
 /* Transform-only on purpose: if a browser ever freezes CSS animations, the
@@ -1050,12 +1096,71 @@ h1, h2, h3, h4, h5 {
   .hero-live-inner {
     padding: 44px 0 58px;
   }
+
+  /* The clip plays on phones too, over a smaller viewport — deepen the veil
+     and drop the poster's drift so the copy stays crisp. */
+  .hero-shade {
+    background:
+      radial-gradient(
+        88% 62% at 50% 40%,
+        rgba(6, 12, 24, 0.78) 0%,
+        rgba(6, 12, 24, 0.58) 58%,
+        rgba(6, 12, 24, 0.42) 100%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(5, 10, 20, 0.82) 0%,
+        rgba(5, 10, 20, 0.56) 46%,
+        rgba(5, 10, 20, 0.9) 100%
+      );
+  }
+
+  .hero-poster {
+    animation: none;
+  }
+
+  .hero-trust {
+    font-size: 12.5px;
+    gap: 6px 14px;
+  }
 }
 
 /* ---------- Sister-site showcase — TCT · FashionHub · Trader ---------- */
 .site-showcase.ss-hero {
   width: 100%;
-  margin-top: 34px;
+  margin-top: 30px;
+}
+
+/* the hero row is a compact teaser — the full-size cards live on /about */
+.site-showcase.ss-hero .ss-grid {
+  max-width: 900px;
+  gap: 12px;
+}
+
+.site-showcase.ss-hero .site-card {
+  padding: 11px 14px;
+  border-radius: 14px;
+  box-shadow: 0 14px 30px rgba(6, 12, 24, 0.22);
+}
+
+.site-showcase.ss-hero .sc-mark,
+.site-showcase.ss-hero .sc-mark img {
+  width: 42px;
+  height: 42px;
+}
+
+.site-showcase.ss-hero .sc-body strong {
+  font-size: 13.5px;
+}
+
+.site-showcase.ss-hero .sc-body small {
+  font-size: 11.5px;
+}
+
+.site-showcase.ss-hero .sc-go {
+  width: 27px;
+  height: 27px;
+  font-size: 12px;
 }
 
 .ss-label {
@@ -5565,6 +5670,7 @@ a.journey-card:focus-visible::after {
   .hero-live-title,
   .hero-live-text,
   .hero-live-actions,
+  .hero-trust,
   .site-showcase.ss-hero {
     animation: none;
     opacity: 1;
@@ -5600,6 +5706,62 @@ a.journey-card:focus-visible::after {
   }
   .cl-card img {
     max-height: 36px;
+  }
+
+  /* Phone hero — the whole pitch (copy, buttons, trust line and the three
+     business cards) has to fit roughly inside one screen now that the clip
+     plays there too. */
+  .hero-live-inner {
+    padding: 30px 0 40px;
+  }
+
+  .hero-live-title {
+    font-size: 1.58rem;
+    margin: 10px 0 12px;
+  }
+
+  .hero-live-text {
+    font-size: 0.94rem;
+    margin-bottom: 18px;
+  }
+
+  .hero-live-actions {
+    gap: 10px;
+  }
+
+  .hero-live-actions .btn {
+    padding: 11px 18px;
+    font-size: 14.5px;
+  }
+
+  .hero-trust {
+    margin-top: 16px;
+    font-size: 12px;
+    gap: 5px 12px;
+  }
+
+  .site-showcase.ss-hero {
+    margin-top: 22px;
+  }
+
+  .site-showcase.ss-hero .ss-label {
+    margin-bottom: 12px;
+    font-size: 11.5px;
+    letter-spacing: 0.2em;
+  }
+
+  .site-showcase.ss-hero .ss-grid {
+    gap: 9px;
+  }
+
+  .site-showcase.ss-hero .site-card {
+    padding: 9px 12px;
+  }
+
+  .site-showcase.ss-hero .sc-mark,
+  .site-showcase.ss-hero .sc-mark img {
+    width: 38px;
+    height: 38px;
   }
 }
 

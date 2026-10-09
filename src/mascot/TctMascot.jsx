@@ -1,9 +1,11 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Component, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  boot, closeChat, finishPanelClose, getUi, projectToScreen, setThinking, subscribe, wake,
-  setProjectionPixel, state as mstate,
+  boot, closeChat, closeChatInstant, finishPanelClose, getUi, openChatInstant, projectToScreen,
+  setThinking, subscribe, wake, setProjectionPixel, state as mstate,
 } from "./store.js";
+import { probeWebGL } from "./support.js";
+import Robot2D from "./Robot2D.jsx";
 import {
   JOB_STEPS, QUICK_CHIPS, buildJobPayload, buildLeadPayload, jobPrompt, leadPrompt,
   validateJob, validateLead, wantsJob, wantsLead,
@@ -29,6 +31,31 @@ import "./mascot.css";
 
 const Scene = lazy(() => import("./Scene.jsx"));
 
+/*
+ * If the 3D scene throws while mounting (WebGL2 unavailable, context refused,
+ * driver quirk) React must not take the whole page down with it: the CSS
+ * robot steps in instead. This is why Apple phones/tablets used to show an
+ * empty corner — the error had nowhere to go.
+ */
+class MascotBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    this.props.onFail?.(error?.message || "scene-error");
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 const GREETING =
   "Hi \u{1F44B}\nI'm the TCT Assistant.\nAsk me about our services, who runs TCT, or say \"I want a job\" and I'll take your details straight to HR.";
 
@@ -36,6 +63,14 @@ export default function TctMascot() {
   const { pathname } = useLocation();
   const ui = useSyncExternalStore(subscribe, getUi);
   const [ready, setReady] = useState(false);
+  /* "pending" until the WebGL2 probe answers, then either the three.js scene
+     or the SVG robot. Stored on state so it survives re-renders. */
+  const [mode, setMode] = useState("pending");
+
+  const fallbackTo2d = (reason) => {
+    if (typeof window !== "undefined") window.__tct2dReason = reason || "unknown";
+    setMode("2d");
+  };
 
   /* ---------------- messages / lead flow ---------------- */
   const [messages, setMessages] = useState([]);
@@ -57,6 +92,16 @@ export default function TctMascot() {
     boot(w.matchMedia("(prefers-reduced-motion: reduce)").matches);
     // dev/test bridge — lets the console drive the mascot loop
     w.__tct3d = { state: mstate, wake, closeChat, setThinking, gsap };
+
+    /* Can this device actually run the 3D scene? (WebGL2 + a context that
+       survives one real draw call.) */
+    const probe = probeWebGL();
+    w.__tctProbe = probe;
+    if (!probe.ok) {
+      fallbackTo2d(probe.reason);
+      return undefined;
+    }
+    setMode("3d");
     let id;
     if (typeof w.requestIdleCallback === "function") {
       id = w.requestIdleCallback(() => setReady(true), { timeout: 2500 });
@@ -67,7 +112,41 @@ export default function TctMascot() {
       if (typeof w.cancelIdleCallback === "function") w.cancelIdleCallback(id);
       else clearTimeout(id);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* Watchdog: a canvas that exists but never draws a single frame (a real iOS
+     Safari failure mode) falls back to the CSS robot. The clock starts when
+     the canvas actually appears, so a slow download of the three.js chunk on
+     a phone is never mistaken for a broken scene. */
+  useEffect(() => {
+    if (mode !== "3d" || !ready) return undefined;
+    const startedAt = Date.now();
+    let canvasSeenAt = 0;
+    const settled = () => {
+      const gl = window.__tct3dGl;
+      const canvas = gl?.domElement;
+      if (!canvas || !canvas.isConnected) {
+        // Still fetching/mounting the scene — only give up after a long wait.
+        if (Date.now() - startedAt > 25000) {
+          fallbackTo2d("scene-never-mounted");
+          return true;
+        }
+        return false;
+      }
+      if (!canvasSeenAt) canvasSeenAt = Date.now();
+      if (canvas.width > 0 && canvas.height > 0 && (gl?.info?.render?.frame || 0) > 0) return true;
+      if (Date.now() - canvasSeenAt > 7000) {
+        fallbackTo2d("no-first-frame");
+        return true;
+      }
+      return false;
+    };
+    if (settled()) return undefined;
+    const iv = setInterval(() => { if (settled()) clearInterval(iv); }, 700);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, ready]);
 
   // The DOM hologram stays accessible and responsive, but its visible impact
   // point is measured in layout pixels so the 3D mouth beam ends on its edge.
@@ -290,7 +369,9 @@ export default function TctMascot() {
 
   const close = () => {
     if (typing) return; // don't cut the assistant mid-sentence
-    closeChat();
+    // The 2D robot has no walk-back animation, so it closes in one step.
+    if (mode === "2d") closeChatInstant();
+    else closeChat();
   };
 
   const resetConversation = () => {
@@ -332,14 +413,27 @@ export default function TctMascot() {
 
   return (
     <div className="tct3d-wrap" aria-hidden="false">
-      {ready && (
-        <Suspense fallback={null}>
-          <Scene />
-        </Suspense>
+      {mode === "3d" && ready && (
+        <MascotBoundary onFail={fallbackTo2d}>
+          <Suspense fallback={null}>
+            <Scene onFail={fallbackTo2d} />
+          </Suspense>
+        </MascotBoundary>
+      )}
+
+      {/* WebGL-free robot — same corner, same chat, drawn in SVG */}
+      {mode === "2d" && (
+        <Robot2D
+          hitPos={hitPos}
+          onTap={openChatInstant}
+          awake={ui.phase !== "sleep" || ui.chatOpen}
+          busy={ui.thinking}
+          open={ui.chatOpen}
+        />
       )}
 
       {/* the sleeping cloud — click / tap / keyboard to wake the robot */}
-      {ui.phase === "sleep" && hitPos && (
+      {mode === "3d" && ui.phase === "sleep" && hitPos && (
         <button
           type="button"
           className="tct3d-hit"

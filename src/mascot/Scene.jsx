@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { LOW_POWER } from "./support.js";
 import { state } from "./store.js";
 import { glowTexture, zzzTexture, shadowTexture } from "./textures.js";
 import Robot from "./Robot.jsx";
@@ -75,23 +75,47 @@ function CameraRig() {
 
 /* Neutral studio reflections make the ceramic shell, visor and metal joints
  * read as PBR surfaces. This environment belongs to this transparent canvas;
- * it never changes the website's CSS background or lighting. */
+ * it never changes the website's CSS background or lighting.
+ *
+ * RoomEnvironment is a heavy PMREM pass (and an ~800 kB module). Phones and
+ * tablets skip it entirely — they get the filler lights in <Lights /> instead,
+ * which keeps the extra download and GPU cost away from iOS, where both are
+ * the usual reason the scene never appears. */
 function StudioReflections() {
   const { gl, scene } = useThree();
   useEffect(() => {
-    const generator = new THREE.PMREMGenerator(gl);
-    const room = new RoomEnvironment();
-    const target = generator.fromScene(room, 0.04);
-    const previousEnvironment = scene.environment;
-    const previousIntensity = scene.environmentIntensity;
-    scene.environment = target.texture;
-    scene.environmentIntensity = 0.62;
+    if (LOW_POWER) return undefined;
+    let cancelled = false;
+    let generator = null;
+    let room = null;
+    let target = null;
+    let previousEnvironment;
+    let previousIntensity;
+    let applied = false;
+
+    import("three/addons/environments/RoomEnvironment.js")
+      .then(({ RoomEnvironment }) => {
+        if (cancelled) return;
+        generator = new THREE.PMREMGenerator(gl);
+        room = new RoomEnvironment();
+        target = generator.fromScene(room, 0.04);
+        previousEnvironment = scene.environment;
+        previousIntensity = scene.environmentIntensity;
+        scene.environment = target.texture;
+        scene.environmentIntensity = 0.62;
+        applied = true;
+      })
+      .catch(() => { /* no reflections is a far better outcome than no robot */ });
+
     return () => {
-      scene.environment = previousEnvironment;
-      scene.environmentIntensity = previousIntensity;
-      target.dispose();
-      generator.dispose();
-      room.dispose();
+      cancelled = true;
+      if (applied) {
+        scene.environment = previousEnvironment;
+        scene.environmentIntensity = previousIntensity;
+      }
+      target?.dispose();
+      generator?.dispose();
+      room?.dispose();
     };
   }, [gl, scene]);
   return null;
@@ -156,13 +180,21 @@ function Lights() {
     <>
       <ambientLight intensity={0.72} color="#fffaf4" />
       <hemisphereLight args={["#eaf4ff", "#737d98", 0.42]} />
+      {/* Without the PMREM environment (phones/tablets) these two keep the
+          shell and metal joints from reading flat. */}
+      {LOW_POWER && (
+        <>
+          <hemisphereLight args={["#dceaff", "#9aa6c2", 0.6]} />
+          <pointLight position={[-2.4, 2.8, 2.4]} intensity={0.75} distance={10} color="#eaf2ff" />
+        </>
+      )}
       <directionalLight
         ref={sun}
         position={[3.5, 6, 4]}
         intensity={1.45}
         color="#ffffff"
         castShadow
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={LOW_POWER ? [512, 512] : [1024, 1024]}
         shadow-camera-left={-6}
         shadow-camera-right={6}
         shadow-camera-top={6}
@@ -751,22 +783,44 @@ function SceneContent() {
   );
 }
 
-export default function Scene() {
+export default function Scene({ onFail }) {
+  const glOptions = LOW_POWER
+    ? {
+      antialias: false,
+      alpha: true,
+      powerPreference: "default",
+      toneMapping: THREE.ACESFilmicToneMapping,
+      outputColorSpace: THREE.SRGBColorSpace,
+    }
+    : {
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance",
+      toneMapping: THREE.ACESFilmicToneMapping,
+      outputColorSpace: THREE.SRGBColorSpace,
+    };
   return (
     <Canvas
-      dpr={[1, 1.35]}
+      dpr={LOW_POWER ? [0.9, 1.25] : [1, 1.35]}
       // Let R3F own one render clock. A second manual rAF/timer driver can
       // interleave frames with GSAP and produce visible pose/camera jitter.
       frameloop="always"
       shadows
       resize={{ polyfill: TimerResizeObserver }}
-      gl={{ antialias: true, alpha: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, outputColorSpace: THREE.SRGBColorSpace }}
+      gl={glOptions}
       camera={{ fov: 42, position: [0, 0.9, 8.6], near: 0.1, far: 60 }}
       onCreated={({ gl, scene, camera }) => {
         gl.setClearAlpha(0);
         window.__tct3dGl = gl;
         window.__tct3dScene = scene;
         window.__tct3dCam = camera;
+        /* iOS kills WebGL contexts aggressively (memory pressure, backgrounding,
+           Lockdown Mode). Hand the failure to the parent so the CSS robot can
+           take over instead of leaving an empty corner. */
+        gl.domElement.addEventListener("webglcontextlost", (event) => {
+          event.preventDefault?.();
+          onFail?.("context-lost");
+        });
       }}
       style={{ pointerEvents: "none" }}
     >

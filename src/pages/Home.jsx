@@ -152,75 +152,111 @@ function ClientsShowcase() {
 /* ---------- Home hero — full-bleed background video ---------- */
 const HERO_COPY = {
   eyebrow: "Creative & Innovative",
-  title:
-    "Empowering Brands with Smart, Stunning & Scalable Digital Experiences",
   text:
     "Software, websites and apps built in Coimbatore — one team, shipping since 2019.",
 };
 
-/* Background video is a progressive enhancement: it is skipped on small
-   screens, on data-saver connections and whenever the visitor asks for
-   reduced motion — the poster still is shown instead. */
+/* Phones get their own, lighter clip (≈3.6 MB instead of ≈5.2 MB) so the
+   background still starts quickly on 4G. Desktops get the longer cut. */
+const HERO_CLIP = {
+  desktop: "/hero/hero-bg.mp4",
+  mobile: "/hero/hero-bg-mobile.mp4",
+};
+const HERO_FRAME = {
+  desktop: "/hero/hero-poster.jpg",
+  mobile: "/hero/hero-poster-mobile.jpg",
+};
+
+/* Background video is a progressive enhancement: it is skipped on data-saver
+   connections and whenever the visitor asks for reduced motion — the poster
+   still is shown instead. Mobile is NOT skipped any more: iOS/Android only
+   need `muted` + `playsInline` (both present below) to autoplay. */
 function HeroMedia() {
   const videoRef = useRef(null);
-  const [withVideo, setWithVideo] = useState(false);
+  const [media, setMedia] = useState({ src: null, poster: HERO_FRAME.desktop });
 
   useEffect(() => {
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    const small = window.matchMedia?.("(max-width: 720px)")?.matches;
-    const saveData = navigator.connection?.saveData === true;
-    if (!reduce && !small && !saveData) setWithVideo(true);
+    const reduceMq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const smallMq = window.matchMedia?.("(max-width: 720px)");
+    const apply = () => {
+      const key = smallMq?.matches ? "mobile" : "desktop";
+      const saveData = navigator.connection?.saveData === true;
+      const skip = Boolean(reduceMq?.matches) || saveData;
+      setMedia((current) => {
+        const next = { src: skip ? null : HERO_CLIP[key], poster: HERO_FRAME[key] };
+        return current.src === next.src && current.poster === next.poster ? current : next;
+      });
+    };
+    apply();
+    /* Crossing the phone breakpoint (rotate, resize, desktop window) must swap
+       the clip instead of leaving the visitor on the wrong one. */
+    const onChange = () => apply();
+    smallMq?.addEventListener?.("change", onChange);
+    reduceMq?.addEventListener?.("change", onChange);
+    return () => {
+      smallMq?.removeEventListener?.("change", onChange);
+      reduceMq?.removeEventListener?.("change", onChange);
+    };
   }, []);
 
-  /* A few browsers refuse the very first autoplay attempt. Retry on the first
-     interaction instead of dropping the video — the poster covers either way. */
+  /* Autoplay is best-effort: iOS low-power mode and the first-load race can
+     still refuse it. Retry on the first interaction, and once more when the
+     tab becomes visible again, instead of dropping the video. */
   useEffect(() => {
-    if (!withVideo) return undefined;
     const el = videoRef.current;
-    if (!el) return undefined;
+    if (!media.src || !el) return undefined;
+    el.defaultMuted = true;
+    el.muted = true;
     const retry = () => {
+      if (!el.paused) return;
       const attempt = el.play?.();
       if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
     };
     const start = el.play?.();
-    if (start && typeof start.catch === "function") {
-      start.catch(() => {
-        window.addEventListener("pointerdown", retry, { once: true });
-        window.addEventListener("keydown", retry, { once: true });
-        window.addEventListener("touchstart", retry, { once: true });
-      });
-    }
+    if (start && typeof start.catch === "function") start.catch(() => {});
+    el.addEventListener("loadeddata", retry);
+    el.addEventListener("canplay", retry);
+    window.addEventListener("pointerdown", retry);
+    window.addEventListener("keydown", retry);
+    window.addEventListener("touchstart", retry);
+    document.addEventListener("visibilitychange", retry);
     return () => {
+      el.removeEventListener("loadeddata", retry);
+      el.removeEventListener("canplay", retry);
       window.removeEventListener("pointerdown", retry);
       window.removeEventListener("keydown", retry);
       window.removeEventListener("touchstart", retry);
+      document.removeEventListener("visibilitychange", retry);
     };
-  }, [withVideo]);
+  }, [media.src]);
 
   return (
-    <div className={`hero-media${withVideo ? " has-video" : ""}`} aria-hidden="true">
+    <div className={`hero-media${media.src ? " has-video" : ""}`} aria-hidden="true">
       <img
         className="hero-poster"
-        src="/hero/hero-poster.jpg"
+        src={media.poster}
         alt=""
         width="1280"
         height="720"
       />
       {/* The poster frame above covers the wait, so the video never needs a
           fade — it simply paints over it once it has data. */}
-      {withVideo ? (
+      {media.src ? (
         <video
           ref={videoRef}
           className="hero-video"
-          src="/hero/hero-bg.mp4"
-          poster="/hero/hero-poster.jpg"
+          src={media.src}
+          poster={media.poster}
           muted
           loop
           playsInline
+          webkit-playsinline=""
+          x5-playsinline=""
+          disablePictureInPicture
           autoPlay
           preload="auto"
           tabIndex={-1}
-          onError={() => setWithVideo(false)}
+          onError={() => setMedia((m) => ({ ...m, src: null }))}
         ></video>
       ) : null}
       <span className="hero-shade"></span>
@@ -228,13 +264,24 @@ function HeroMedia() {
   );
 }
 
+/* Credibility line under the hero buttons — plain facts already stated
+   elsewhere on the site, kept in one visual row. */
+const HERO_TRUST = [
+  { icon: "bi-patch-check-fill", label: "6+ years in business" },
+  { icon: "bi-kanban-fill", label: "1,150+ projects delivered" },
+  { icon: "bi-geo-alt-fill", label: "Coimbatore · serving all of India" },
+];
+
 function HeroSection() {
   return (
     <section className="hero-live" aria-label="Trend Code Technology highlights">
       <HeroMedia />
       <div className="container hero-live-inner">
         <span className="eyebrow on-dark">{HERO_COPY.eyebrow}</span>
-        <h1 className="hero-live-title">{HERO_COPY.title}</h1>
+        <h1 className="hero-live-title">
+          Empowering Brands with Smart, Stunning &amp;{" "}
+          <span className="hero-grad">Scalable</span> Digital Experiences
+        </h1>
         <p className="hero-live-text">{HERO_COPY.text}</p>
         <div className="hero-live-actions">
           <Link to="/contact" className="btn btn-primary btn-lg">
@@ -244,6 +291,14 @@ function HeroSection() {
             Contact Us
           </Link>
         </div>
+        <ul className="hero-trust">
+          {HERO_TRUST.map((t) => (
+            <li key={t.label}>
+              <i className={`bi ${t.icon}`}></i>
+              {t.label}
+            </li>
+          ))}
+        </ul>
         <SiteShowcase variant="hero" />
       </div>
     </section>

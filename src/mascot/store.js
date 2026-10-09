@@ -331,6 +331,32 @@ export function closeChat() {
   goto("goodnight");
 }
 
+/* Fallback (2D) path: the CSS robot has no walk animation to play, so the
+   conversation is opened and closed instantly instead of running the full
+   cinematic loop. Keeps the same phase names so the chat UI is unchanged. */
+export function openChatInstant() {
+  killTweens();
+  state.phase = "chat";
+  state.t = 1;
+  state.chatOpen = true;
+  state.panelVisible = true;
+  state.bubble = false;
+  state.smile = false;
+  emit();
+}
+
+export function closeChatInstant() {
+  killTweens();
+  state.phase = "sleep";
+  state.t = 1;
+  state.chatOpen = false;
+  state.panelVisible = false;
+  state.thinking = false;
+  state.bubble = false;
+  state.smile = false;
+  emit();
+}
+
 export function finishPanelClose() {
   if (state.chatOpen || !state.panelVisible) return;
   state.panelVisible = false;
