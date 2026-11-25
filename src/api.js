@@ -165,3 +165,58 @@ export const deleteOffer = (id) =>
     method: "DELETE",
     body: JSON.stringify({ id }),
   });
+
+// ---------- Advertisement & Popup APIs ----------
+export const getAds = (params = {}) => {
+  const q = new URLSearchParams();
+  if (params.page) q.set("page", params.page);
+  if (params.placement) q.set("placement", params.placement);
+  const qs = q.toString();
+  return request(`/api/ads${qs ? `?${qs}` : ""}`);
+};
+
+export const trackAd = (id, type = "view") =>
+  request(`/api/ads/${id}/track`, {
+    method: "POST",
+    body: JSON.stringify({ type }),
+  }).catch(() => {});
+
+export const getAdminAds = () => request("/api/admin/ads");
+
+export const postAdminAd = (data) => {
+  if (typeof FormData !== "undefined" && data instanceof FormData) {
+    return request("/api/admin/ads", {
+      method: "POST",
+      body: data,
+    });
+  }
+  return request("/api/admin/ads", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+
+export const putAdminAd = (id, data) => {
+  if (typeof FormData !== "undefined" && data instanceof FormData) {
+    return request(`/api/admin/ads/${id}`, {
+      method: "PUT",
+      body: data,
+    });
+  }
+  return request(`/api/admin/ads/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+};
+
+export const toggleAdminAd = (id) =>
+  request(`/api/admin/ads/${id}/toggle`, {
+    method: "PATCH",
+    body: "{}",
+  });
+
+export const deleteAdminAd = (id) =>
+  request(`/api/admin/ads/${id}`, {
+    method: "DELETE",
+  });
+

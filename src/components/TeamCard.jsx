@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { COMPANY } from "../data/content.js";
-import ceoPhoto from "../../ceo.png";
+import ceoPhoto from "../../ceo.webp";
 
 export const TEAM = [
   {

@@ -46,6 +46,18 @@ export default function Footer() {
           </ul>
         </div>
 
+        <div className="footer-col footer-map-col">
+          <h4>Find Us</h4>
+          <div className="footer-map-frame">
+            <iframe
+              title="Trend Code Technology location"
+              src={COMPANY.mapEmbed}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            ></iframe>
+          </div>
+        </div>
+
         <div className="footer-col">
           <h4>Get In Touch</h4>
           <ul className="footer-contact">
@@ -58,7 +70,7 @@ export default function Footer() {
               <span>
                 Office Timing: 10:00 AM – 6:00 PM
                 <br />
-                <small style={{ color: "#ef4444", fontWeight: 600 }}>Sunday Holiday</small>
+                <span className="holiday-badge">Sunday Holiday</span>
               </span>
             </li>
             <li>
@@ -78,18 +90,6 @@ export default function Footer() {
                 <i className={`bi ${s.icon}`}></i>
               </a>
             ))}
-          </div>
-        </div>
-
-        <div className="footer-col footer-map-col">
-          <h4>Find Us</h4>
-          <div className="footer-map-frame">
-            <iframe
-              title="Trend Code Technology location"
-              src={COMPANY.mapEmbed}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            ></iframe>
           </div>
         </div>
       </div>

@@ -152,9 +152,9 @@ function ClientsShowcase() {
 
 /* ---------- Home hero — full-bleed background video ---------- */
 const HERO_COPY = {
-  eyebrow: "Creative & Innovative",
+  eyebrow: "Software & IT Services in Coimbatore",
   text:
-    "Software, websites and apps built in Coimbatore — one team, shipping since 2019.",
+    "Custom software, high-performance websites and mobile apps built in Coimbatore — empowering businesses since 2019.",
 };
 
 /* Phones get their own, lighter clip (≈3.6 MB instead of ≈5.2 MB) so the
@@ -280,8 +280,8 @@ function HeroSection() {
       <div className="container hero-live-inner">
         <span className="eyebrow on-dark">{HERO_COPY.eyebrow}</span>
         <h1 className="hero-live-title">
-          Empowering Brands with Smart, Stunning &amp;{" "}
-          <span className="hero-grad">Scalable</span> Digital Experiences
+          Empowering Brands with Smart, Scalable &amp;{" "}
+          <span className="hero-grad">Digital Solutions</span> in Coimbatore
         </h1>
         <p className="hero-live-text">{HERO_COPY.text}</p>
         <div className="hero-live-actions">

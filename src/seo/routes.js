@@ -130,11 +130,15 @@ export function createOrganizationSchema(siteUrl) {
     alternateName: COMPANY.short,
     url: siteUrl,
     logo: `${siteUrl}/tct-logo.png`,
+    image: `${siteUrl}/tct-logo.png`,
     description:
-      "Trend Code Technology provides software, web, mobile app, digital marketing, HR and BPO services.",
+      "Trend Code Technology provides software, web, mobile app, digital marketing, HR and BPO services in Coimbatore.",
     foundingDate: String(COMPANY.founded),
     telephone: COMPANY.phone,
     email: COMPANY.email,
+    sameAs: COMPANY.socials
+      .map((s) => s.url)
+      .filter((url) => !url.includes("wa.me")),
     address: {
       "@type": "PostalAddress",
       streetAddress: "No. 215, 2nd Floor, Shakthi Nagar, Near ICICI Bank, Ganapathy",
@@ -142,6 +146,79 @@ export function createOrganizationSchema(siteUrl) {
       addressRegion: "Tamil Nadu",
       postalCode: "641006",
       addressCountry: "IN",
+    },
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: "11.043344",
+      longitude: "76.981991",
+    },
+    areaServed: {
+      "@type": "City",
+      name: "Coimbatore",
+    },
+  };
+}
+
+export function createBreadcrumbSchema(siteUrl, pathname) {
+  const cleanPath = String(pathname || "/").split(/[?#]/, 1)[0].replace(/\/$/, "") || "/";
+  if (cleanPath === "/") return null;
+
+  const parts = cleanPath.slice(1).split("/");
+  const items = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: siteUrl,
+    },
+  ];
+
+  let currentPath = "";
+  parts.forEach((part, index) => {
+    currentPath += `/${part}`;
+    const route = SEO_ROUTES[currentPath];
+    let name = route ? route.title.split("|")[0].replace("in Coimbatore", "").trim() : part.replace(/-/g, " ");
+    if (name.length > 40) name = part.replace(/-/g, " ");
+    name = name.replace(/\b\w/g, (c) => c.toUpperCase());
+
+    items.push({
+      "@type": "ListItem",
+      position: index + 2,
+      name,
+      item: `${siteUrl}${currentPath}`,
+    });
+  });
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items,
+  };
+}
+
+export function createServiceSchema(siteUrl, pathname) {
+  const cleanPath = String(pathname || "/").split(/[?#]/, 1)[0].replace(/\/$/, "") || "/";
+  if (!cleanPath.startsWith("/services/") || cleanPath === "/services") return null;
+
+  const slug = cleanPath.replace("/services/", "");
+  const service = SERVICES.find((s) => s.slug === slug);
+  if (!service) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: service.title,
+    serviceType: service.title,
+    description: service.blurb,
+    provider: {
+      "@type": "ProfessionalService",
+      name: COMPANY.name,
+      url: siteUrl,
+      telephone: COMPANY.phone,
+    },
+    areaServed: {
+      "@type": "City",
+      name: "Coimbatore",
     },
   };
 }

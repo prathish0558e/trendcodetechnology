@@ -2,6 +2,14 @@ import { useMemo, useRef, useState } from "react";
 import { PageHero, Reveal } from "../components/Reveal.jsx";
 import { COMPANY, INTERNSHIP_JDS } from "../data/content.js";
 import { apiUrl } from "../config/site.js";
+import {
+  InternshipTrustRibbon,
+  CertificateShowcase,
+  IsoLogo,
+  StartupIndiaLogo,
+  NptelLogo,
+  MetaLogo,
+} from "../components/TrustBadges.jsx";
 
 /*
  * Internships page in the same style as the careers pages: every internship
@@ -143,6 +151,9 @@ export default function Internship() {
         text="Hands-on internships in development, marketing, design and BPO for students and freshers — mentored, certified and occasionally paid."
         crumb="Internships"
       />
+
+      {/* Trust & Accreditations Banner */}
+      <InternshipTrustRibbon />
 
       {/* Perks */}
       <section className="section" style={{ paddingBottom: 30 }}>
@@ -297,6 +308,18 @@ export default function Internship() {
                   </button>
                 </div>
 
+                <div className="internship-form-trust">
+                  <div className="form-trust-label">
+                    <i className="bi bi-patch-check-fill text-primary me-1"></i> Recognized Credentials:
+                  </div>
+                  <div className="form-trust-badges-inline">
+                    <IsoLogo style={{ height: 26, width: "auto" }} />
+                    <NptelLogo style={{ height: 24, width: "auto" }} />
+                    <StartupIndiaLogo style={{ height: 24, width: "auto" }} />
+                    <MetaLogo style={{ height: 22, width: "auto" }} />
+                  </div>
+                </div>
+
                 <p className="form-note">
                   <i className="bi bi-shield-lock me-1"></i>
                   Your details stay private — HR replies within 3–5 working days. Questions?{" "}
@@ -307,6 +330,9 @@ export default function Internship() {
           </div>
         </div>
       </section>
+
+      {/* Official Verified Certificate Showcase */}
+      <CertificateShowcase />
 
       {/* How it works + who can apply */}
       <section className="section" style={{ paddingTop: 0 }}>

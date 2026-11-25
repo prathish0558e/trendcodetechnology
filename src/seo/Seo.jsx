@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { canonicalUrl, PUBLIC_SITE_URL } from "../config/site.js";
-import { createOrganizationSchema, getSeoRoute } from "./routes.js";
+import {
+  createBreadcrumbSchema,
+  createOrganizationSchema,
+  createServiceSchema,
+  getSeoRoute,
+} from "./routes.js";
 
 function setMeta(attribute, key, content) {
   let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
@@ -63,6 +68,34 @@ export default function Seo() {
       schema.textContent = JSON.stringify(createOrganizationSchema(PUBLIC_SITE_URL));
     } else {
       schema?.remove();
+    }
+
+    const breadcrumbs = createBreadcrumbSchema(PUBLIC_SITE_URL, pathname);
+    let bcSchema = document.head.querySelector("script#tct-breadcrumb-schema");
+    if (breadcrumbs) {
+      if (!bcSchema) {
+        bcSchema = document.createElement("script");
+        bcSchema.id = "tct-breadcrumb-schema";
+        bcSchema.type = "application/ld+json";
+        document.head.appendChild(bcSchema);
+      }
+      bcSchema.textContent = JSON.stringify(breadcrumbs);
+    } else {
+      bcSchema?.remove();
+    }
+
+    const serviceJson = createServiceSchema(PUBLIC_SITE_URL, pathname);
+    let srvSchema = document.head.querySelector("script#tct-service-schema");
+    if (serviceJson) {
+      if (!srvSchema) {
+        srvSchema = document.createElement("script");
+        srvSchema.id = "tct-service-schema";
+        srvSchema.type = "application/ld+json";
+        document.head.appendChild(srvSchema);
+      }
+      srvSchema.textContent = JSON.stringify(serviceJson);
+    } else {
+      srvSchema?.remove();
     }
   }, [pathname]);
 

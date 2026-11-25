@@ -2,7 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_PUBLIC_SITE_URL, normalizePath, normalizeSiteUrl } from "../shared/site.js";
-import { PUBLIC_SEO_ROUTES, SEO_ROUTES, createOrganizationSchema } from "../src/seo/routes.js";
+import {
+  PUBLIC_SEO_ROUTES,
+  SEO_ROUTES,
+  createBreadcrumbSchema,
+  createOrganizationSchema,
+  createServiceSchema,
+} from "../src/seo/routes.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
@@ -52,6 +58,26 @@ function withMetadata(template, pathname, metadata) {
   } else {
     html = html.replace(schemaPattern, "");
   }
+
+  const breadcrumb = createBreadcrumbSchema(siteUrl, pathname);
+  const breadcrumbPattern = /<script\b(?=[^>]*\bid=["']tct-breadcrumb-schema["'])[^>]*>[\s\S]*?<\/script>/i;
+  if (breadcrumb) {
+    const jsonLd = JSON.stringify(breadcrumb).replace(/</g, "\\u003c");
+    const script = `<script id="tct-breadcrumb-schema" type="application/ld+json">${jsonLd}</script>`;
+    html = breadcrumbPattern.test(html) ? html.replace(breadcrumbPattern, script) : html.replace("</head>", `    ${script}\n  </head>`);
+  } else {
+    html = html.replace(breadcrumbPattern, "");
+  }
+
+  const serviceSchema = createServiceSchema(siteUrl, pathname);
+  const servicePattern = /<script\b(?=[^>]*\bid=["']tct-service-schema["'])[^>]*>[\s\S]*?<\/script>/i;
+  if (serviceSchema) {
+    const jsonLd = JSON.stringify(serviceSchema).replace(/</g, "\\u003c");
+    const script = `<script id="tct-service-schema" type="application/ld+json">${jsonLd}</script>`;
+    html = servicePattern.test(html) ? html.replace(servicePattern, script) : html.replace("</head>", `    ${script}\n  </head>`);
+  } else {
+    html = html.replace(servicePattern, "");
+  }
   return html;
 }
 
@@ -64,14 +90,21 @@ for (const [pathname, metadata] of Object.entries(SEO_ROUTES)) {
   await fs.writeFile(output, html, "utf8");
 }
 
+const today = new Date().toISOString().split("T")[0];
 const sitemap = [
   '<?xml version="1.0" encoding="UTF-8"?>',
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-  ...PUBLIC_SEO_ROUTES.map(({ path: route }) => `  <url><loc>${siteUrl}${normalizePath(route)}</loc></url>`),
+  ...PUBLIC_SEO_ROUTES.map(({ path: route }) => {
+    const loc = `${siteUrl}${normalizePath(route)}`;
+    const priority = route === "/" ? "1.0" : route.startsWith("/services") ? "0.9" : "0.8";
+    const changefreq = route === "/" ? "daily" : "weekly";
+    return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+  }),
   '</urlset>',
   '',
 ].join("\n");
 await fs.writeFile(path.join(dist, "sitemap.xml"), sitemap, "utf8");
+await fs.writeFile(path.join(root, "public", "sitemap.xml"), sitemap, "utf8");
 await fs.writeFile(
   path.join(dist, "robots.txt"),
   `User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${siteUrl}/sitemap.xml\n`,

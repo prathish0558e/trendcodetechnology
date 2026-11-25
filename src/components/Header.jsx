@@ -14,7 +14,7 @@ function isActive(pathname, item) {
 }
 
 function DropCaret() {
-  return <i className="bi bi-chevron-down" style={{ fontSize: 10 }}></i>;
+  return <i className="bi bi-chevron-down drop-caret-icon"></i>;
 }
 
 function SocialMark({ label, fallback }) {
@@ -141,7 +141,7 @@ export default function Header() {
         <div className="container nav-inner">
           <Link to="/" className="brand">
             <span className="logo-art">
-              <img src="/tct-logo.png" alt="Trend Code Technology logo" className="brand-img" />
+              <img src="/tct-logo-tight.png" alt="Trend Code Technology logo" className="brand-img" />
             </span>
             <span className="brand-text">
               Trend Code Technology
@@ -217,7 +217,7 @@ export default function Header() {
             <span className="brand">
               <span className="logo-art">
                 <img
-                  src="/tct-logo.png"
+                  src="/tct-logo-tight.png"
                   alt="Trend Code Technology logo"
                   className="brand-img"
                 />

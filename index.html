@@ -13,6 +13,8 @@
     <meta name="geo.region" content="IN-TN" />
     <meta name="geo.placename" content="Coimbatore" />
     <link rel="icon" type="image/png" href="/tct-logo.png" />
+    <link rel="apple-touch-icon" href="/tct-logo.png" />
+    <meta name="theme-color" content="#0284c7" />
 
     <!-- Open Graph / social -->
     <meta property="og:type" content="website" />
@@ -188,8 +190,8 @@
         var el = document.getElementById("boot-loader");
         if (!el) return;
         var start = Date.now();
-        var MIN = 1500;
-        var MAX = 2600;
+        var MIN = 350;
+        var MAX = 1200;
         var done = false;
         function hide() {
           if (done) return;

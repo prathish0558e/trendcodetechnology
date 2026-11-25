@@ -828,12 +828,12 @@ export default function Scene({ onFail }) {
         window.__tct3dGl = gl;
         window.__tct3dScene = scene;
         window.__tct3dCam = camera;
-        /* iOS kills WebGL contexts aggressively (memory pressure, backgrounding,
-           Lockdown Mode). Hand the failure to the parent so the CSS robot can
-           take over instead of leaving an empty corner. */
         gl.domElement.addEventListener("webglcontextlost", (event) => {
           event.preventDefault?.();
-          onFail?.("context-lost");
+          // Do not kill 3D scene permanently; allow WebGL to restore when tab regains focus
+        });
+        gl.domElement.addEventListener("webglcontextrestored", () => {
+          // Context restored successfully
         });
       }}
       style={{ pointerEvents: "none" }}

@@ -7,7 +7,8 @@ import { gsap } from "gsap";
  *   sleep → waking → stretch → transform → walk → arrive → chat
  *        → goodnight → dissolve → walkback → board → settle → sleep
  * The companion gesture branch is:
- *   sleep → pickup → pickupIdle → throw → throwLand → pickupIdle
+ *   sleep → pickup → pickupIdle → throw → throwLand → recover → walkback
+ *        → board → settle → sleep
  *
  * `state.t` is the 0→1 progress of the current phase. It is mutated every
  * frame by a gsap tween but is NOT emitted to React (no per-frame renders).
@@ -23,6 +24,10 @@ export const state = {
   thinking: false,
   smile: false,
   bubble: false,
+  interactionNotice: "",
+  pickupFromChat: false,
+  pickupBase: null,
+  panelCarried: false,
   reduced: false,
   mobile: false,
   layout: null,
@@ -33,7 +38,8 @@ export const state = {
   pickupX: 0,
   pickupLookX: 0,
   pickupLookY: 0,
-  throwMotion: { x: 0, y: 0, vx: 0, vy: 0, spin: 0, angularVelocity: 0, landX: 0, impact: 0, impactSerial: 0, bounces: 0 },
+  returningHome: false,
+  throwMotion: { x: 0, y: 0, vx: 0, vy: 0, spin: 0, angularVelocity: 0, startX: 0, startY: 0, targetX: 0, targetY: 0, flight: 0, flightDuration: 1, force: 0, landX: 0, landY: 0, impact: 0, impactSerial: 0, bounces: 0 },
   rig: { x: 0, y: 0.9, z: 8.6 }, // camera rig — tweened, read per frame by Scene
 };
 
@@ -47,6 +53,8 @@ function snapshot() {
     panelVisible: state.panelVisible,
     thinking: state.thinking,
     bubble: state.bubble,
+    interactionNotice: state.interactionNotice,
+    panelCarried: state.panelCarried,
     reduced: state.reduced,
   };
 }
@@ -190,7 +198,8 @@ const NEXT = {
   waking: "stretch",
   stretch: "transform",
   pickup: "pickupIdle",
-  throwLand: "pickupIdle",
+  throwLand: "recover",
+  recover: "walkback",
   transform: "walk",
   walk: "arrive",
   arrive: "project",
@@ -207,6 +216,7 @@ const EASE = {
   stretch: "power2.inOut",
   pickup: "power2.out",
   throwLand: "power2.out",
+  recover: "power2.out",
   transform: "power1.inOut",
   walk: "none",
   walkback: "none",
@@ -230,12 +240,15 @@ function duration(phase) {
       case "stretch": return 0.62;
       case "pickup": return 0.42;
       case "throwLand": return 0.72;
+      case "recover": return 0.5;
       case "transform": return 0.62;
       case "walk":
       case "walkback": {
         if (!L) return 1.4;
-        const d = Math.hypot(L.stage.x - L.home.x, L.stage.y - L.home.y);
-        return Math.max(1.35, d / 3.1);
+        const d = state.returningHome && phase === "walkback"
+          ? Math.hypot(state.throwMotion.landX - L.home.x, state.throwMotion.landY - (L.floorY + L.legLift))
+          : Math.hypot(L.stage.x - L.home.x, L.stage.y - L.home.y);
+        return Math.max(state.returningHome && phase === "walkback" ? 0.92 : 1.35, d / (state.returningHome && phase === "walkback" ? 4.1 : 3.1));
       }
       case "arrive": return 0.34;
       case "project": return 0.5;
@@ -251,12 +264,15 @@ function duration(phase) {
     case "stretch": return 1.0;
     case "pickup": return 0.7;
     case "throwLand": return 0.9;
+    case "recover": return 0.78;
     case "transform": return 1.1;
     case "walk":
     case "walkback": {
       if (!L) return 3;
-      const d = Math.hypot(L.stage.x - L.home.x, L.stage.y - L.home.y);
-      return Math.max(1.8, d / 2.25);
+      const d = state.returningHome && phase === "walkback"
+        ? Math.hypot(state.throwMotion.landX - L.home.x, state.throwMotion.landY - (L.floorY + L.legLift))
+        : Math.hypot(L.stage.x - L.home.x, L.stage.y - L.home.y);
+      return Math.max(state.returningHome && phase === "walkback" ? 1.15 : 1.8, d / (state.returningHome && phase === "walkback" ? 3.25 : 2.25));
     }
     case "arrive": return 0.5;
     case "project": return 0.72;
@@ -282,6 +298,15 @@ function goto(phase) {
   killTweens();
   state.phase = phase;
   state.t = phase === "sleep" || phase === "chat" ? 1 : 0;
+  if (phase === "sleep") {
+    state.returningHome = false;
+    state.pickupFromChat = false;
+    state.pickupBase = null;
+    state.panelCarried = false;
+    state.interactionNotice = "";
+    state.chatOpen = false;
+    state.panelVisible = false;
+  }
   if (phase === "pickupIdle" && previousPhase === "throwLand") {
     state.pickupHeight = 0;
     state.pickupX = 0;
@@ -293,6 +318,7 @@ function goto(phase) {
     state.throwMotion.angularVelocity = 0;
     state.throwMotion.landX = 0;
   }
+  if (phase === "recover") state.interactionNotice = "";
   state.smile = phase === "goodnight";
   if (phase === "chat") {
     state.chatOpen = true;
@@ -327,7 +353,7 @@ function moveRig(phase) {
     : { x: 0.2, y: 0.98, z: 7.75 };
   const targets = {
     sleep: base, waking: base, stretch: base, pickup: base, pickupIdle: base,
-    throw: base, throwLand: base, board: base, settle: base,
+    throw: base, throwLand: base, recover: base, board: base, settle: base,
     transform: near, walk: near, walkback: near,
     arrive: near, project: near, chat: near, goodnight: near, dissolve: base,
   };
@@ -349,13 +375,31 @@ export function wake() {
   }
 }
 
-export function beginPickup() {
-  if (state.phase !== "sleep" && state.phase !== "pickupIdle") return false;
+export function beginPickup({ fromChat = false } = {}) {
+  if (!["sleep", "pickupIdle", "chat", "throw", "throwLand", "recover", "walkback"].includes(state.phase)) return false;
+  const L = state.layout;
+  let pickupBase = null;
+  if (L) {
+    if (state.phase === "throw") pickupBase = { x: state.throwMotion.x, y: state.throwMotion.y };
+    else if (["throwLand", "recover"].includes(state.phase)) pickupBase = { x: state.throwMotion.landX, y: state.throwMotion.landY };
+    else if (state.phase === "walkback" && state.returningHome) {
+      const homeY = L.floorY + 0.158 * (L.activeMascotScale || 1);
+      pickupBase = {
+        x: state.throwMotion.landX + (L.home.x - state.throwMotion.landX) * state.t,
+        y: state.throwMotion.landY + (homeY - state.throwMotion.landY) * state.t,
+      };
+    } else if (fromChat) pickupBase = { x: L.stage.x, y: L.stage.y + 0.158 * (L.activeMascotScale || 1) };
+  }
   state.pickupHeight = 0;
   state.pickupX = 0;
   state.pickupLookX = 0;
   state.pickupLookY = 0;
-  Object.assign(state.throwMotion, { x: 0, y: 0, vx: 0, vy: 0, spin: 0, angularVelocity: 0, landX: 0, impact: 0, bounces: 0 });
+  state.returningHome = false;
+  state.pickupFromChat = fromChat;
+  state.pickupBase = pickupBase;
+  state.panelCarried = fromChat || state.panelCarried;
+  state.interactionNotice = "Hey! Don’t do that!";
+  Object.assign(state.throwMotion, { x: 0, y: 0, vx: 0, vy: 0, spin: 0, angularVelocity: 0, startX: 0, startY: 0, targetX: 0, targetY: 0, flight: 0, flightDuration: 1, force: 0, impact: 0, bounces: 0 });
   goto("pickup");
   return true;
 }
@@ -369,23 +413,45 @@ export function movePickup({ height, x, lookX, lookY }) {
   state.pickupLookY = Math.max(-1, Math.min(1, Number(lookY) || 0));
 }
 
-export function releasePickup({ velocityX = 0, velocityY = 0 } = {}) {
+export function releasePickup({ velocityX = 0, velocityY = 0, dropX, dropY } = {}) {
   if (state.phase !== "pickup" && state.phase !== "pickupIdle") return;
   const motion = state.throwMotion;
-  motion.x = state.pickupX;
-  motion.y = state.pickupHeight;
-  motion.vx = Math.max(-1.5, Math.min(1.5, Number(velocityX) || 0));
-  motion.vy = Math.max(-1.6, Math.min(2.1, Number(velocityY) || 0));
+  const L = state.layout;
+  const edgeX = L ? Math.max(0.55, L.halfW * 0.94) : 2.7;
+  const floorY = L ? L.floorY + 0.158 * (L.activeMascotScale || 1) : 0;
+  // A release can land anywhere in the visible scene, rather than being
+  // artificially clipped to the small cloud. The throw animation still uses
+  // a short, safe arc and the recovery walk brings the robot back home.
+  const pickupBaseX = state.pickupBase?.x ?? (L ? (state.pickupFromChat ? L.stage.x : L.home.x) : 0);
+  const pickupBaseY = state.pickupBase?.y ?? (L ? (state.pickupFromChat ? L.stage.y + 0.158 * (L.activeMascotScale || 1) : L.cloudTop) : 0);
+  motion.x = pickupBaseX + state.pickupX;
+  motion.y = pickupBaseY + state.pickupHeight;
+  motion.vx = Math.max(-3.8, Math.min(3.8, Number(velocityX) || 0));
+  motion.vy = Math.max(-2.2, Math.min(2.8, Number(velocityY) || 0));
+  const force = Math.hypot(motion.vx, motion.vy);
+  const aimedX = Number.isFinite(dropX) ? dropX : motion.x;
+  const aimedY = Number.isFinite(dropY) ? dropY : floorY;
+  // The release speed materially extends the throw; cursor position only
+  // supplies its direction. This avoids the old short fixed-range toss.
+  motion.force = force;
+  motion.targetX = Math.max(-edgeX, Math.min(edgeX, motion.x + (aimedX - motion.x) * 1.15 + motion.vx * 0.58));
+  motion.targetY = Math.max(floorY, Math.min((L?.camY || 0.9) + (L?.halfH || 3.3) * 0.88, motion.y + (aimedY - motion.y) * 0.72 + motion.vy * 0.22));
+  motion.startX = motion.x;
+  motion.startY = motion.y;
+  motion.flight = 0;
+  motion.flightDuration = Math.max(0.48, Math.min(1.72, 0.52 + force * 0.13 + Math.hypot(motion.targetX - motion.x, motion.targetY - motion.y) * 0.11));
+  state.returningHome = true;
   motion.spin = 0;
   motion.angularVelocity = Math.max(-2.2, Math.min(2.2, motion.vx * 1.2));
-  motion.landX = motion.x;
+  motion.landX = motion.targetX;
+  motion.landY = motion.targetY;
   motion.impact = 0;
   motion.bounces = 0;
   goto("throw");
 }
 
-/* Integrate a short, bounded ballistic toss in the mascot scene. The cloud is
-   the landing surface; a soft damped bounce hands off to the seated idle pose. */
+/* Integrate a short, bounded toss to a visible landing point. After the impact
+   the robot gets up, walks back to its cloud-bed and goes back to sleep. */
 export function advanceThrow(dt) {
   if (state.phase !== "throw") return;
   const motion = state.throwMotion;
@@ -394,42 +460,26 @@ export function advanceThrow(dt) {
   const step = Math.min(Math.max(Number(dt) || 0, 0), 0.05);
   if (!step) return;
 
-  const gravity = state.reduced ? 5.2 : 4.6;
-  motion.vy -= gravity * step;
-  motion.y += motion.vy * step;
-  motion.x += motion.vx * step;
-  motion.vx *= Math.exp(-0.32 * step);
+  motion.flight += step / (state.reduced ? Math.min(0.85, motion.flightDuration) : motion.flightDuration);
+  const p = Math.min(1, motion.flight);
+  const travel = p * p * (3 - 2 * p);
+  const arc = Math.sin(Math.PI * p) * Math.max(0.38, Math.min(1.32, 0.34 + motion.force * 0.16));
+  motion.x = motion.startX + (motion.targetX - motion.startX) * travel;
+  motion.y = motion.startY + (motion.targetY - motion.startY) * travel + arc;
   motion.angularVelocity *= Math.exp(-1.6 * step);
-  motion.spin = Math.max(-0.3, Math.min(0.3, motion.spin + motion.angularVelocity * step));
+  motion.spin = Math.max(-0.48, Math.min(0.48, motion.spin + motion.angularVelocity * step));
 
-  // Keep the small companion over the cloud, even after a vigorous flick.
-  const edge = Math.max(0.1, Math.min(0.34, L.cloudR * 0.5));
-  if (motion.x > edge || motion.x < -edge) {
-    motion.x = Math.max(-edge, Math.min(edge, motion.x));
-    motion.vx *= -0.22;
-  }
-  if (motion.y > 1.9) {
-    motion.y = 1.9;
-    motion.vy = Math.min(0, motion.vy) * -0.18;
-  }
-
-  if (motion.y <= 0 && motion.vy < 0) {
-    motion.y = 0;
-    motion.impact = Math.min(1, Math.abs(motion.vy) / 3.4);
+  if (p >= 1) {
+    motion.x = motion.targetX;
+    motion.y = motion.targetY;
+    motion.impact = Math.min(1, 0.38 + Math.hypot(motion.vx, motion.vy) / 5);
     motion.impactSerial += 1;
-    motion.bounces += 1;
-    motion.vy = -motion.vy * 0.22;
-    motion.vx *= 0.46;
-    motion.angularVelocity *= 0.28;
-    if (motion.bounces >= 2 || motion.vy < 0.48) {
-      motion.y = 0;
-      motion.vy = 0;
-      motion.landX = motion.x;
-      state.pickupHeight = 0;
-      state.pickupX = motion.x;
-      goto("throwLand");
-      return;
-    }
+    motion.landX = motion.x;
+    motion.landY = motion.y;
+    state.pickupHeight = 0;
+    state.pickupX = 0;
+    goto("throwLand");
+    return;
   }
 
   state.pickupHeight = motion.y;

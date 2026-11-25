@@ -64,9 +64,8 @@ const RULES = [
     id: "businesses",
     k: [
       "business",
-      "our paths",
-      "paths",
       "our group",
+      "group of",
       "fashionhub",
       "fashion hub",
       "trader",
@@ -79,7 +78,7 @@ const RULES = [
       "tct group",
     ],
     a: () =>
-      `Our Paths spans ${SITES.length} businesses: ${businessLine()}. Trend Code Technology is this site; TCT FashionHub, TCT Trader, and TCT Overseas & Education are our sister businesses — the showcase cards link directly to their pages. 🚀`,
+      `The TCT group runs ${SITES.length} businesses: ${businessLine()}. Trend Code Technology is this site; TCT FashionHub, TCT Trader, and TCT Overseas & Education are our sister businesses — the showcase cards link directly to their pages. 🚀`,
   },
   {
     id: "services",
@@ -239,6 +238,7 @@ export const JOB_STEPS = ["name", "email", "phone", "role", "experience"];
 
 const JOB_TRIGGERS = [
   "i want a job", "want a job", "need a job", "looking for a job", "looking for job",
+  "i need job", "need job", "want job", "job please", "need work", "looking for work",
   "job venum", "velai venum", "job kudunga", "give me a job", "i want to apply",
   "want to apply", "apply for job", "apply job", "job apply", "send my resume",
   "share my resume", "submit my resume", "send resume", "any vacancy", "vacancy for",
@@ -246,14 +246,19 @@ const JOB_TRIGGERS = [
 ];
 
 export function wantsJob(text) {
-  return hits(String(text || "").toLowerCase(), JOB_TRIGGERS);
+  const query = String(text || "").toLowerCase().replace(/[’']/g, "");
+  if (hits(query, JOB_TRIGGERS)) return true;
+  // Visitors phrase this in many natural ways ("can I get a job?", "I am
+  // searching for work"). Match the intent, not only a small fixed sentence.
+  return /\b(?:need|want|looking|searching|seek|find|get|give|apply)\b[\s\S]{0,36}\b(?:job|work|vacanc(?:y|ies)|position|opening)\b/i.test(query)
+    || /\b(?:job|work|vacanc(?:y|ies)|position|opening)\b[\s\S]{0,28}\b(?:apply|available|please|for me)\b/i.test(query);
 }
 
 export function jobPrompt(step, draft = {}) {
   const first = String(draft.name || "").split(" ")[0];
   switch (step) {
     case "name":
-      return "Love the ambition! 💼 Let's put your profile in front of our HR team. What's your full name?";
+      return "Absolutely — I can send your application straight to our HR desk. 💼 What's your full name?";
     case "email":
       return `Nice to meet you, ${first}! Which email should HR reply to?`;
     case "phone":

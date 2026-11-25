@@ -512,30 +512,32 @@ export default function Robot({ onStep }) {
       T.kneeLX = lerp(-0.28, -0.08, e); T.kneeRX = lerp(-0.5, -0.08, e);
       T.eyeOpen = 1; T.eyeGlow = 2.1; T.eyeHappy = 0.4;
       T.antenna = 0.8;
-    } else if (["pickup", "pickupIdle", "throw", "throwLand"].includes(s.phase)) {
+    } else if (["pickup", "pickupIdle", "throw", "throwLand", "recover"].includes(s.phase)) {
       Object.assign(T, SLEEP);
       const alert = s.phase === "pickup" ? easeInOut(seg(t, 0.08, 0.72)) : 1;
-      const landing = s.phase === "throwLand" ? easeInOut(t) : 0;
-      const heldHeight = s.phase === "throw" ? s.throwMotion.y
-        : s.phase === "throwLand" ? 0
-          : s.pickupHeight;
-      const heldX = s.phase === "throw" ? s.throwMotion.x
-        : s.phase === "throwLand" ? lerp(s.throwMotion.landX, 0, landing)
-          : s.pickupX;
+      const recovery = s.phase === "recover" ? easeInOut(t) : 0;
+      const isThrown = s.phase === "throw";
+      const isLanded = s.phase === "throwLand" || s.phase === "recover";
+      const heldHeight = isThrown ? s.throwMotion.y : s.pickupHeight;
+      const heldX = isThrown ? s.throwMotion.x : s.pickupX;
       const lookX = clamp(s.pickupLookX, -1, 1);
       const lookY = clamp(s.pickupLookY, -1, 1);
 
-      // Follow the visitor's lift gesture, then integrate a bounded gravity
-      // arc and soft cloud landing while the robot stays awake and curious.
-      px = L.home.x + heldX;
+      // While held, follow the visitor. A released robot travels to the
+      // selected visible point, lands there, stands up, and walks home.
+      const pickupBaseX = s.pickupBase?.x ?? (s.pickupFromChat ? L.stage.x : L.home.x);
+      const pickupBaseY = s.pickupBase?.y ?? (s.pickupFromChat ? L.stage.y + lift : SLEEP_Y + bob);
+      px = isLanded ? s.throwMotion.landX : isThrown ? heldX : pickupBaseX + heldX;
       const landingBounce = s.phase === "throwLand"
-        ? Math.sin(Math.PI * t) * 0.12 * s.throwMotion.impact
+        ? Math.sin(Math.PI * t) * 0.08 * s.throwMotion.impact
         : 0;
-      py = SLEEP_Y + bob + heldHeight + landingBounce;
+      py = isLanded ? s.throwMotion.landY + landingBounce : isThrown ? heldHeight : pickupBaseY + heldHeight;
       pz = 0.18;
-      T.bodyZ = lerp(SLEEP.bodyZ, -0.66, alert) + (s.phase === "throw" ? s.throwMotion.spin : 0);
-      T.yaw = s.phase === "throw" ? s.throwMotion.spin * 0.42 : 0;
-      T.recline = lerp(SLEEP.recline, -0.18, alert);
+      T.bodyZ = isLanded
+        ? lerp(-1.28, 0, recovery)
+        : lerp(SLEEP.bodyZ, -0.66, alert) + (isThrown ? s.throwMotion.spin : 0);
+      T.yaw = isThrown ? s.throwMotion.spin * 0.42 : 0;
+      T.recline = isLanded ? lerp(-0.38, 0.08, recovery) : lerp(SLEEP.recline, -0.18, alert);
       T.headX = lerp(SLEEP.headX, clamp(-lookY * 0.14, -0.08, 0.16), alert);
       T.headY = clamp(lookX * 0.34, -0.38, 0.38);
       T.headZ = clamp(-lookX * 0.13 + lookY * 0.035, -0.16, 0.16);
@@ -544,7 +546,7 @@ export default function Robot({ onStep }) {
       T.eyeGlow = lerp(0.3, 1.65, alert);
       T.mouth = lerp(0, 0.12, alert);
       T.antenna = lerp(0.12, 0.72, alert) + Math.sin(clock * 5) * 0.035 * alert;
-      const flightReact = s.phase === "throw"
+      const flightReact = isThrown
         ? clamp(Math.abs(s.throwMotion.vy) * 0.13 + Math.abs(s.throwMotion.vx) * 0.2, 0, 0.7)
         : s.phase === "throwLand" ? Math.sin(Math.PI * t) * s.throwMotion.impact : 0;
       T.armLZ = lerp(SLEEP.armLZ, 0.18, alert) + flightReact * 0.18;
@@ -559,7 +561,13 @@ export default function Robot({ onStep }) {
       T.hipRZ = lerp(SLEEP.hipRZ, -0.12, alert);
       T.kneeLX = lerp(SLEEP.kneeLX, -0.24, alert);
       T.kneeRX = lerp(SLEEP.kneeRX, -0.34, alert);
-      if (s.phase === "throw") {
+      if (isLanded) {
+        T.hipLX = lerp(0.62, 0.08, recovery); T.hipRX = lerp(0.45, 0.08, recovery);
+        T.kneeLX = lerp(-0.85, -0.12, recovery); T.kneeRX = lerp(-0.68, -0.12, recovery);
+        T.armLZ = lerp(0.85, 0.16, recovery); T.armRZ = lerp(-1.0, -0.16, recovery);
+        T.eyeHappy = recovery * 0.25;
+      }
+      if (isThrown) {
         T.headX += clamp(-s.throwMotion.vy * 0.025, -0.12, 0.12);
         T.headZ += clamp(-s.throwMotion.vx * 0.08, -0.12, 0.12);
       }
@@ -580,22 +588,27 @@ export default function Robot({ onStep }) {
       T.eyeGlow = 2.2; T.antenna = 1;
     } else if (s.phase === "walk" || s.phase === "walkback") {
       const homeFloor = { x: L.home.x, y: L.floorY + lift };
-      const from = s.phase === "walk" ? homeFloor : { x: L.stage.x, y: L.stage.y + lift };
+      const recoveryStart = { x: s.throwMotion.landX, y: s.throwMotion.landY };
+      const from = s.phase === "walk" ? homeFloor : s.returningHome ? recoveryStart : { x: L.stage.x, y: L.stage.y + lift };
       const to = s.phase === "walk" ? { x: L.stage.x, y: L.stage.y + lift } : homeFloor;
       const dist = Math.hypot(to.x - from.x, to.y - from.y);
+      const runningHome = s.phase === "walkback" && s.returningHome;
       px = lerp(from.x, to.x, e);
       // Round to a whole number of alternating foot contacts so the stride
       // lands cleanly when the travel phase ends.
       // Keep stride length consistent and finish on a balanced pair of steps.
-      let halfSteps = Math.max(4, Math.round(dist / 0.56));
+      let halfSteps = Math.max(runningHome ? 6 : 4, Math.round(dist / (runningHome ? 0.39 : 0.56)));
       if (halfSteps % 2) halfSteps += 1;
       const cyc = e * halfSteps * Math.PI;
-      const gait = s.reduced ? 0.72 : 1;
+      const gait = s.reduced ? 0.72 : runningHome ? 1.24 : 1;
       // cinematic gait bounce: a smooth double-frequency sine that bottoms
       // out EXACTLY at each foot contact (puffs spawn at the lowest point,
       // feet on the ground) and crests midway through the stride — the old
       // |cos| shape peaked AT contact and had jerk cusps.
-      py = lerp(from.y, to.y, e) + (1 - Math.cos(2 * cyc)) * 0.016 * gait;
+      const strideLift = runningHome
+        ? Math.max(0, Math.sin(cyc)) * 0.04 * gait
+        : (1 - Math.cos(2 * cyc)) * 0.016 * gait;
+      py = lerp(from.y, to.y, e) + strideLift;
       pz = 0.05;
       const turnIn = easeInOut(seg(e, 0, 0.14));
       const turnOut = easeInOut(seg(e, 0.84, 1));
@@ -603,18 +616,18 @@ export default function Robot({ onStep }) {
       // the route is mostly vertical, so the robot keeps its face toward us.
       const turnAngle = clamp(Math.atan2(to.x - from.x, Math.max(Math.abs(to.y - from.y), 0.18)), -1.0, 1.0);
       T.yaw = lerp(turnAngle * turnIn, 0, turnOut);
-      T.recline = 0.08;
-      T.bodyZ = Math.sin(cyc) * 0.045 * gait; // hip roll — weight shifts over the stance foot
-      T.bodyX = Math.sin(cyc) * 0.015 * gait;
-      T.hipLX = 0.1 + Math.sin(cyc) * 0.48 * gait;
-      T.hipRX = 0.1 + Math.sin(cyc + Math.PI) * 0.48 * gait;
+      T.recline = runningHome ? 0.2 : 0.08; // a purposeful forward run home
+      T.bodyZ = Math.sin(cyc) * (runningHome ? 0.032 : 0.045) * gait;
+      T.bodyX = Math.sin(cyc) * (runningHome ? 0.025 : 0.015) * gait;
+      T.hipLX = 0.1 + Math.sin(cyc) * (runningHome ? 0.7 : 0.48) * gait;
+      T.hipRX = 0.1 + Math.sin(cyc + Math.PI) * (runningHome ? 0.7 : 0.48) * gait;
       /* knee phase: the swing-leg bend must happen BETWEEN contacts, not at
          them — L bends during its swing (ph π→2π), R during its own. The old
          shared phase flexed the stance knee at every footfall (crouch-walk). */
-      T.kneeLX = -0.12 - Math.max(0, Math.sin(cyc - Math.PI + 1.1)) * 0.7 * gait;
-      T.kneeRX = -0.12 - Math.max(0, Math.sin(cyc + 1.1)) * 0.7 * gait;
-      T.armLX = Math.sin(cyc + Math.PI) * 0.5 * gait;
-      T.armRX = Math.sin(cyc) * 0.5 * gait;
+      T.kneeLX = -0.12 - Math.max(0, Math.sin(cyc - Math.PI + 1.1)) * (runningHome ? 0.94 : 0.7) * gait;
+      T.kneeRX = -0.12 - Math.max(0, Math.sin(cyc + 1.1)) * (runningHome ? 0.94 : 0.7) * gait;
+      T.armLX = Math.sin(cyc + Math.PI) * (runningHome ? 0.78 : 0.5) * gait;
+      T.armRX = Math.sin(cyc) * (runningHome ? 0.78 : 0.5) * gait;
       // elbow pump: the forearm folds on the forward swing
       T.elbowLX = -0.3 - Math.max(0, Math.sin(cyc)) * 0.28;
       T.elbowRX = -0.3 - Math.max(0, Math.sin(cyc + Math.PI)) * 0.28;
@@ -775,7 +788,7 @@ export default function Robot({ onStep }) {
     root.current.position.set(c.px, c.py, c.pz);
     root.current.rotation.y = c.yaw;
     let scaleGoal = compactScale;
-    if (["transform", "walk", "walkback", "arrive", "project", "chat", "goodnight", "dissolve"].includes(s.phase)) {
+    if (["transform", "walk", "walkback", "arrive", "project", "chat", "goodnight", "dissolve", "throw", "throwLand", "recover"].includes(s.phase)) {
       scaleGoal = displayScale;
     } else if (s.phase === "waking" || s.phase === "stretch") {
       scaleGoal = lerp(compactScale, displayScale, easeInOut(t));

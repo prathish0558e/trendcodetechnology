@@ -32,7 +32,7 @@ export const COMPANY = {
 export const NAV = [
   { label: "Home", to: "/" },
   { label: "About Us", to: "/about" },
-  { label: "Services", to: "/services" },
+  { label: "IT Services", to: "/services" },
   {
     label: "HR Services",
     to: "/hr-services",

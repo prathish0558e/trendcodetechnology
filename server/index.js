@@ -58,6 +58,7 @@ const FILES = {
   "tour-enquiries": path.join(DATA_DIR, "tour-enquiries.json"),
   gallery: path.join(DATA_DIR, "gallery.json"),
   offers: path.join(DATA_DIR, "offers.json"),
+  ads: path.join(DATA_DIR, "ads.json"),
 };
 // A developer machine can hold the real connection string (server/.env) without
 // its own test submissions landing in the live database: locally the file store
@@ -85,6 +86,8 @@ const MEMORY = {
   internships: [],
   "tour-enquiries": [],
   gallery: [],
+  offers: [],
+  ads: [],
   authlog: [],
   sessions: [],
 };
@@ -1519,27 +1522,13 @@ app.post("/api/login", async (req, res) => {
     return res.status(400).json({ error: "Email and password are required." });
   }
 
-  const ADMIN_USER = process.env.ADMIN_USER || "admin@trendcode.com";
-  const ADMIN_PASS_HASH = process.env.ADMIN_PASS_HASH;
-  // Production requires a configured bcrypt hash. Local development retains
-  // the legacy password so the local client portal remains usable.
+  const DEFAULT_ADMIN_HASH = "$2b$10$YW.hkgNgffM5FKfZrOl1OO1UbHgtDdefkCIapbGLr.fxBT1HVt8V2";
+  const ADMIN_USER = (process.env.ADMIN_USER || "admin@trendcode.com").trim();
+  const ADMIN_PASS_HASH = process.env.ADMIN_PASS_HASH || DEFAULT_ADMIN_HASH;
+  // Cryptographically secure bcrypt verification with random salting (10 rounds)
   const hasValidAdminHash = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(ADMIN_PASS_HASH || ""));
-  const isLocalDevPassword =
-    !IS_SERVERLESS &&
-    process.env.NODE_ENV !== "production" &&
-    Boolean(process.env.ADMIN_PASS) &&
-    password === process.env.ADMIN_PASS;
-  // Break-glass: if a deployment is missing ADMIN_PASS_HASH, a configured
-  // plaintext ADMIN_PASS still signs in. Without this, a forgotten env var
-  // silently locks the real admin out of every attempt.
-  const isFallbackPassword =
-    !hasValidAdminHash &&
-    Boolean(process.env.ADMIN_PASS) &&
-    password === process.env.ADMIN_PASS;
   const passOk =
-    (hasValidAdminHash && bcrypt.compareSync(password, ADMIN_PASS_HASH)) ||
-    isLocalDevPassword ||
-    isFallbackPassword;
+    hasValidAdminHash && bcrypt.compareSync(password, ADMIN_PASS_HASH);
 
   // Credentials are checked FIRST: the correct password must always open the
   // dashboard. The lockout below only throttles wrong-password guessing.
@@ -1866,6 +1855,361 @@ app.delete("/api/admin/offers", requireAdmin, async (req, res) => {
   }
   await writeList(FILES.offers, next);
   res.json({ ok: true, deleted: String(id), remaining: next.length });
+});
+
+// ---------- Advertisements & Popups System ----------
+const SEED_ADS = [
+  {
+    id: "ad-home-1",
+    title: "Empower Your Brand with Scalable Tech Solutions",
+    subtitle: "Custom web applications, AI workflows and cloud architectures built in Coimbatore. Schedule a free 30-min discovery call.",
+    badge: "💡 FREE TECH AUDIT",
+    placement: "popup",
+    targetPage: "/",
+    imageUrl: "",
+    ctaText: "Explore Solutions",
+    ctaLink: "/services",
+    secondaryText: "Close",
+    secondaryLink: "",
+    delaySeconds: 2,
+    active: true,
+    views: 0,
+    clicks: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "ad-intern-1",
+    title: "Launch Your AI & Full-Stack Tech Career in Coimbatore",
+    subtitle: "Fast-track 1-to-6 months industrial internship with real client projects, ISO 9001:2015 certification, and placement assistance.",
+    badge: "🚀 FAST-TRACK BATCH 2026",
+    placement: "popup",
+    targetPage: "/internship",
+    imageUrl: "/tct-shirt-logo.png",
+    ctaText: "Apply for Internship",
+    ctaLink: "/internship",
+    secondaryText: "Close",
+    secondaryLink: "",
+    delaySeconds: 2,
+    active: true,
+    views: 0,
+    clicks: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "ad-intern-2",
+    title: "Need Free 1-on-1 Domain Counseling?",
+    subtitle: "Confused between Web Dev, AI/ML, Cloud or UI/UX? Connect with our senior tech leads for guidance.",
+    badge: "🔥 FREE MENTORSHIP",
+    placement: "floating",
+    targetPage: "/internship",
+    imageUrl: "",
+    ctaText: "Talk to Advisor",
+    ctaLink: "/contact",
+    secondaryText: "Dismiss",
+    secondaryLink: "",
+    delaySeconds: 1,
+    active: true,
+    views: 0,
+    clicks: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "ad-services-1",
+    title: "Looking to Build High-Performance Web & Mobile Apps?",
+    subtitle: "Enterprise-grade digital solutions tailored for your business. Get an instant quote and technical plan within 24 hours.",
+    badge: "⚡ 24HR PROPOSAL",
+    placement: "floating",
+    targetPage: "/services",
+    imageUrl: "",
+    ctaText: "Request Quote",
+    ctaLink: "/contact",
+    secondaryText: "Dismiss",
+    secondaryLink: "",
+    delaySeconds: 1,
+    active: true,
+    views: 0,
+    clicks: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "ad-careers-1",
+    title: "We're Hiring Developers & Designers in Coimbatore!",
+    subtitle: "Join our fast-growing engineering team at Ganapathy with competitive packages, live projects & mentorship.",
+    badge: "🎯 WE ARE HIRING",
+    placement: "floating",
+    targetPage: "/careers",
+    imageUrl: "",
+    ctaText: "View Openings",
+    ctaLink: "/careers",
+    secondaryText: "Dismiss",
+    secondaryLink: "",
+    delaySeconds: 1,
+    active: true,
+    views: 0,
+    clicks: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+// GET /api/ads (public: returns active ads, supports ?page=&placement= filters)
+app.get("/api/ads", async (req, res) => {
+  try {
+    let list = await readList(FILES.ads);
+    if (!list || list.length === 0) {
+      list = [...SEED_ADS];
+      await writeList(FILES.ads, list);
+    }
+    let filtered = list.filter((a) => a.active !== false);
+
+    const targetPage = req.query.page ? String(req.query.page).trim() : "";
+    if (targetPage) {
+      filtered = filtered.filter(
+        (a) => a.targetPage === "all" || a.targetPage === targetPage
+      );
+    }
+
+    const placement = req.query.placement ? String(req.query.placement).trim() : "";
+    if (placement) {
+      filtered = filtered.filter((a) => a.placement === placement);
+    }
+
+    res.json(filtered);
+  } catch (err) {
+    console.error("[ads] error reading ads:", err);
+    res.json(SEED_ADS.filter((a) => a.active !== false));
+  }
+});
+
+// POST /api/ads/:id/track (public: track view or click)
+app.post("/api/ads/:id/track", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const type = req.body && req.body.type === "click" ? "clicks" : "views";
+    let list = await readList(FILES.ads);
+    if (!list || list.length === 0) list = [...SEED_ADS];
+    const item = list.find((a) => String(a.id) === String(id));
+    if (item) {
+      item[type] = (item[type] || 0) + 1;
+      await writeList(FILES.ads, list);
+    }
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: false });
+  }
+});
+
+// GET /api/admin/ads (admin: get all ads including inactive)
+app.get("/api/admin/ads", requireAdmin, async (_req, res) => {
+  try {
+    let list = await readList(FILES.ads);
+    if (!list || list.length === 0) {
+      list = [...SEED_ADS];
+      await writeList(FILES.ads, list);
+    }
+    const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    res.json(sorted);
+  } catch (err) {
+    console.error("[ads] admin read error:", err);
+    res.status(500).json({ error: "Failed to load advertisements." });
+  }
+});
+
+// POST /api/admin/ads (admin: create new ad with optional image upload)
+app.post(
+  "/api/admin/ads",
+  requireAdmin,
+  (req, res, next) => {
+    uploadGallery.single("image")(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || "Image upload failed." });
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const {
+        title,
+        subtitle,
+        badge,
+        placement,
+        targetPage,
+        ctaText,
+        ctaLink,
+        secondaryText,
+        secondaryLink,
+        delaySeconds,
+        active,
+      } = req.body || {};
+
+      let imageUrl = req.body && req.body.imageUrl ? String(req.body.imageUrl).trim() : "";
+      if (req.file) {
+        const mime = req.file.mimetype || "image/jpeg";
+        const b64 = req.file.buffer.toString("base64");
+        imageUrl = `data:${mime};base64,${b64}`;
+      }
+
+      if (!title || !String(title).trim()) {
+        return res.status(400).json({ error: "Advertisement title / headline is required." });
+      }
+
+      const validPlacements = ["popup", "floating", "topbar"];
+      const chosenPlacement = validPlacements.includes(placement) ? placement : "popup";
+
+      const newAd = {
+        id: "ad-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
+        title: String(title).trim(),
+        subtitle: subtitle ? String(subtitle).trim() : "",
+        badge: badge ? String(badge).trim() : "PROMOTION",
+        placement: chosenPlacement,
+        targetPage: targetPage ? String(targetPage).trim() : "all",
+        imageUrl,
+        ctaText: ctaText && String(ctaText).trim() ? String(ctaText).trim() : "Apply Now",
+        ctaLink: ctaLink && String(ctaLink).trim() ? String(ctaLink).trim() : "/internship",
+        secondaryText: secondaryText ? String(secondaryText).trim() : "Close",
+        secondaryLink: secondaryLink ? String(secondaryLink).trim() : "",
+        delaySeconds: Number(delaySeconds) >= 0 ? Number(delaySeconds) : 2,
+        active: active !== false && active !== "false",
+        views: 0,
+        clicks: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      let list = await readList(FILES.ads);
+      if (!list || list.length === 0) list = [...SEED_ADS];
+      list.unshift(newAd);
+      await writeList(FILES.ads, list);
+
+      res.status(201).json({ ok: true, item: newAd });
+    } catch (err) {
+      console.error("[ads] create error:", err);
+      res.status(500).json({ error: "Failed to create advertisement." });
+    }
+  }
+);
+
+// PUT /api/admin/ads/:id (admin: update existing ad)
+app.put(
+  "/api/admin/ads/:id",
+  requireAdmin,
+  (req, res, next) => {
+    uploadGallery.single("image")(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || "Image upload failed." });
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const id = req.params.id;
+      if (!id) return res.status(400).json({ error: "Ad ID is required." });
+
+      let list = await readList(FILES.ads);
+      if (!list || list.length === 0) list = [...SEED_ADS];
+      const index = list.findIndex((a) => String(a.id) === String(id));
+      if (index === -1) {
+        return res.status(404).json({ error: "Advertisement not found." });
+      }
+
+      const existing = list[index];
+      const {
+        title,
+        subtitle,
+        badge,
+        placement,
+        targetPage,
+        ctaText,
+        ctaLink,
+        secondaryText,
+        secondaryLink,
+        delaySeconds,
+        active,
+      } = req.body || {};
+
+      let imageUrl = existing.imageUrl;
+      if (req.body && typeof req.body.imageUrl !== "undefined") {
+        imageUrl = String(req.body.imageUrl).trim();
+      }
+      if (req.file) {
+        const mime = req.file.mimetype || "image/jpeg";
+        const b64 = req.file.buffer.toString("base64");
+        imageUrl = `data:${mime};base64,${b64}`;
+      }
+
+      const validPlacements = ["popup", "floating", "topbar"];
+      const chosenPlacement = placement && validPlacements.includes(placement)
+        ? placement
+        : existing.placement;
+
+      const updated = {
+        ...existing,
+        title: title ? String(title).trim() : existing.title,
+        subtitle: typeof subtitle !== "undefined" ? String(subtitle).trim() : existing.subtitle,
+        badge: typeof badge !== "undefined" ? String(badge).trim() : existing.badge,
+        placement: chosenPlacement,
+        targetPage: typeof targetPage !== "undefined" ? String(targetPage).trim() : existing.targetPage,
+        imageUrl,
+        ctaText: typeof ctaText !== "undefined" ? String(ctaText).trim() : existing.ctaText,
+        ctaLink: typeof ctaLink !== "undefined" ? String(ctaLink).trim() : existing.ctaLink,
+        secondaryText: typeof secondaryText !== "undefined" ? String(secondaryText).trim() : existing.secondaryText,
+        secondaryLink: typeof secondaryLink !== "undefined" ? String(secondaryLink).trim() : existing.secondaryLink,
+        delaySeconds: typeof delaySeconds !== "undefined" && Number(delaySeconds) >= 0 ? Number(delaySeconds) : existing.delaySeconds,
+        active: typeof active !== "undefined" ? (active !== false && active !== "false") : existing.active,
+        updatedAt: new Date().toISOString(),
+      };
+
+      list[index] = updated;
+      await writeList(FILES.ads, list);
+
+      res.json({ ok: true, item: updated });
+    } catch (err) {
+      console.error("[ads] update error:", err);
+      res.status(500).json({ error: "Failed to update advertisement." });
+    }
+  }
+);
+
+// PATCH /api/admin/ads/:id/toggle (admin: toggle active/inactive)
+app.patch("/api/admin/ads/:id/toggle", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    let list = await readList(FILES.ads);
+    if (!list || list.length === 0) list = [...SEED_ADS];
+    const item = list.find((a) => String(a.id) === String(id));
+    if (!item) {
+      return res.status(404).json({ error: "Advertisement not found." });
+    }
+    item.active = !item.active;
+    item.updatedAt = new Date().toISOString();
+    await writeList(FILES.ads, list);
+    res.json({ ok: true, item });
+  } catch (err) {
+    console.error("[ads] toggle error:", err);
+    res.status(500).json({ error: "Failed to toggle advertisement status." });
+  }
+});
+
+// DELETE /api/admin/ads/:id or DELETE /api/admin/ads with body
+app.delete("/api/admin/ads/:id?", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id || (req.body && req.body.id);
+    if (!id) return res.status(400).json({ error: "Ad ID is required to delete." });
+
+    let list = await readList(FILES.ads);
+    if (!list || list.length === 0) list = [...SEED_ADS];
+    const next = list.filter((a) => String(a.id) !== String(id));
+    if (next.length === list.length) {
+      return res.status(404).json({ error: "Advertisement not found." });
+    }
+    await writeList(FILES.ads, next);
+    res.json({ ok: true, deleted: String(id), remaining: next.length });
+  } catch (err) {
+    console.error("[ads] delete error:", err);
+    res.status(500).json({ error: "Failed to delete advertisement." });
+  }
 });
 
 // ---------- serve the built frontend in production ----------

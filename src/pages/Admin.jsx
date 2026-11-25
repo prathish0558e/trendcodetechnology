@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { PageHero } from "../components/Reveal.jsx";
+import AdminAdsManager from "../components/AdminAdsManager.jsx";
 import {
   clearSession,
   deleteTourEnquiry,
@@ -20,6 +21,11 @@ import {
   getOffers,
   postSendOffer,
   deleteOffer,
+  getAdminAds,
+  postAdminAd,
+  putAdminAd,
+  toggleAdminAd,
+  deleteAdminAd,
 } from "../api.js";
 
 function fmtDate(iso) {
@@ -1489,6 +1495,8 @@ export default function Admin() {
   const [offers, setOffers] = useState(null);
   const [deletingOfferId, setDeletingOfferId] = useState("");
   const [offerPrefill, setOfferPrefill] = useState(null);
+  const [ads, setAds] = useState(null);
+  const [deletingAdId, setDeletingAdId] = useState("");
   const [error, setError] = useState("");
   const [dbWarn, setDbWarn] = useState("");
   const [checkErr, setCheckErr] = useState("");
@@ -1509,6 +1517,7 @@ export default function Admin() {
     getTourEnquiries().then(setTours).catch(fail(setTours));
     getGallery().then(setGalleryPhotos).catch(fail(setGalleryPhotos));
     getOffers().then(setOffers).catch(fail(setOffers));
+    getAdminAds().then(setAds).catch(fail(setAds));
     // Warn (don't block) when the database is not actually connected — that is
     // why freshly submitted records can vanish from this page.
     getHealth()
@@ -1606,6 +1615,40 @@ export default function Admin() {
       field: intern.domain || "Web Development & Coding",
     });
     setTab("offers");
+  };
+
+  const handleAddAd = async (payload) => {
+    const res = await postAdminAd(payload);
+    if (res && res.item) {
+      setAds((prev) => [res.item, ...(prev || [])]);
+    }
+    return res;
+  };
+
+  const handleUpdateAd = async (id, payload) => {
+    const res = await putAdminAd(id, payload);
+    if (res && res.item) {
+      setAds((prev) => (prev || []).map((a) => (a.id === id ? res.item : a)));
+    }
+    return res;
+  };
+
+  const handleToggleAd = async (id) => {
+    const res = await toggleAdminAd(id);
+    if (res && res.item) {
+      setAds((prev) => (prev || []).map((a) => (a.id === id ? res.item : a)));
+    }
+    return res;
+  };
+
+  const handleDeleteAd = async (id) => {
+    setDeletingAdId(id);
+    try {
+      await deleteAdminAd(id);
+      setAds((prev) => (prev || []).filter((a) => a.id !== id));
+    } finally {
+      setDeletingAdId("");
+    }
   };
 
   const signOut = () => {
@@ -1735,6 +1778,15 @@ export default function Admin() {
               </button>
               <button
                 role="tab"
+                aria-selected={tab === "ads"}
+                className={`tech-tab ${tab === "ads" ? "active" : ""}`}
+                onClick={() => setTab("ads")}
+              >
+                <i className="bi bi-megaphone me-1"></i> Advertisements & Popups
+                {ads && <span className="admin-count">{ads.length}</span>}
+              </button>
+              <button
+                role="tab"
                 aria-selected={tab === "authlog"}
                 className={`tech-tab ${tab === "authlog" ? "active" : ""}`}
                 onClick={() => setTab("authlog")}
@@ -1826,6 +1878,21 @@ export default function Admin() {
                 deletingId={deletingOfferId}
                 prefill={offerPrefill}
                 onClearPrefill={() => setOfferPrefill(null)}
+              />
+            )
+          ) : tab === "ads" ? (
+            ads === null ? (
+              <div className="admin-empty">
+                <i className="bi bi-hourglass-split"></i> Loading…
+              </div>
+            ) : (
+              <AdminAdsManager
+                ads={ads}
+                onAddAd={handleAddAd}
+                onUpdateAd={handleUpdateAd}
+                onToggleAd={handleToggleAd}
+                onDeleteAd={handleDeleteAd}
+                deletingId={deletingAdId}
               />
             )
           ) : authlog === null ? (

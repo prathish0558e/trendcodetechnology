@@ -5,8 +5,7 @@ import {
   openChatInstant, projectToScreen, releasePickup, setThinking, subscribe, wake,
   setProjectionPixel, state as mstate,
 } from "./store.js";
-import { handleRobotTap, probeWebGL } from "./support.js";
-import Robot2D from "./Robot2D.jsx";
+import { handleRobotTap } from "./support.js";
 import {
   JOB_STEPS, QUICK_CHIPS, buildJobPayload, buildLeadPayload, jobPrompt, leadPrompt,
   validateJob, validateLead, wantsJob, wantsLead,
@@ -63,14 +62,11 @@ const GREETING =
 export default function TctMascot() {
   const { pathname } = useLocation();
   const ui = useSyncExternalStore(subscribe, getUi);
-  const [ready, setReady] = useState(false);
-  /* "pending" until the WebGL2 probe answers, then either the three.js scene
-     or the SVG robot. Stored on state so it survives re-renders. */
-  const [mode, setMode] = useState("pending");
+  const [ready, setReady] = useState(true);
+  const [mode, setMode] = useState("3d");
 
-  const fallbackTo2d = (reason) => {
-    if (typeof window !== "undefined") window.__tct2dReason = reason || "unknown";
-    setMode("2d");
+  const fallbackTo2d = () => {
+    // 2D cartoon robot is completely disabled per user requirement - always retain 3D mascot
   };
 
   /* ---------------- messages / lead flow ---------------- */
@@ -86,71 +82,20 @@ export default function TctMascot() {
   const inputRef = useRef(null);
   const [hitPos, setHitPos] = useState(null);
   const [bubblePos, setBubblePos] = useState(null);
+  const [panelFollow, setPanelFollow] = useState(null);
   const pickupGestureRef = useRef(null);
   const suppressPickupClickRef = useRef(false);
   const suppressPickupClickTimerRef = useRef(null);
 
-  // defer the WebGL work until the page has painted and settled
+  // Initialize WebGL 3D mascot loop
   useEffect(() => {
     const w = window;
     boot(w.matchMedia("(prefers-reduced-motion: reduce)").matches);
     // dev/test bridge — lets the console drive the mascot loop
     w.__tct3d = { state: mstate, wake, closeChat, setThinking, gsap };
-
-    /* Can this device actually run the 3D scene? (WebGL2 + a context that
-       survives one real draw call.) */
-    const probe = probeWebGL();
-    w.__tctProbe = probe;
-    if (!probe.ok) {
-      fallbackTo2d(probe.reason);
-      return undefined;
-    }
     setMode("3d");
-    let id;
-    if (typeof w.requestIdleCallback === "function") {
-      id = w.requestIdleCallback(() => setReady(true), { timeout: 2500 });
-    } else {
-      id = setTimeout(() => setReady(true), 1800);
-    }
-    return () => {
-      if (typeof w.cancelIdleCallback === "function") w.cancelIdleCallback(id);
-      else clearTimeout(id);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setReady(true);
   }, []);
-
-  /* Watchdog: a canvas that exists but never draws a single frame (a real iOS
-     Safari failure mode) falls back to the CSS robot. The clock starts when
-     the canvas actually appears, so a slow download of the three.js chunk on
-     a phone is never mistaken for a broken scene. */
-  useEffect(() => {
-    if (mode !== "3d" || !ready) return undefined;
-    const startedAt = Date.now();
-    let canvasSeenAt = 0;
-    const settled = () => {
-      const gl = window.__tct3dGl;
-      const canvas = gl?.domElement;
-      if (!canvas || !canvas.isConnected) {
-        // Still fetching/mounting the scene — only give up after a long wait.
-        if (Date.now() - startedAt > 25000) {
-          fallbackTo2d("scene-never-mounted");
-          return true;
-        }
-        return false;
-      }
-      if (!canvasSeenAt) canvasSeenAt = Date.now();
-      if (canvas.width > 0 && canvas.height > 0 && (gl?.info?.render?.frame || 0) > 0) return true;
-      if (Date.now() - canvasSeenAt > 7000) {
-        fallbackTo2d("no-first-frame");
-        return true;
-      }
-      return false;
-    };
-    if (settled()) return undefined;
-    const iv = setInterval(() => { if (settled()) clearInterval(iv); }, 700);
-    return () => clearInterval(iv);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, ready]);
 
   // The DOM hologram stays accessible and responsive, but its visible impact
   // point is measured in layout pixels so the 3D mouth beam ends on its edge.
@@ -194,7 +139,20 @@ export default function TctMascot() {
       // Center the full tap target over the sleeping robot + cloud. The cloud
       // is above WhatsApp; the extra world-space lift also covers the robot's
       // head so taps on the character itself wake it reliably.
-      const c = projectToScreen(L.home.x, L.home.y + 0.3);
+      let anchor = { x: L.home.x, y: L.home.y + 0.3 };
+      if (mstate.phase === "chat") anchor = { x: L.stage.x, y: L.stage.y + 0.34 };
+      else if (mstate.phase === "throw") anchor = { x: mstate.throwMotion.x, y: mstate.throwMotion.y + 0.15 };
+      else if (["throwLand", "recover"].includes(mstate.phase)) anchor = { x: mstate.throwMotion.landX, y: mstate.throwMotion.landY + 0.28 };
+      else if (mstate.phase === "walkback" && mstate.returningHome) {
+        const homeY = L.floorY + 0.158 * (L.activeMascotScale || 1);
+        anchor = {
+          x: mstate.throwMotion.landX + (L.home.x - mstate.throwMotion.landX) * mstate.t,
+          y: mstate.throwMotion.landY + (homeY - mstate.throwMotion.landY) * mstate.t + 0.28,
+        };
+      } else if (["pickup", "pickupIdle"].includes(mstate.phase) && mstate.pickupBase) {
+        anchor = { x: mstate.pickupBase.x + mstate.pickupX, y: mstate.pickupBase.y + mstate.pickupHeight + 0.28 };
+      }
+      const c = projectToScreen(anchor.x, anchor.y);
       setHitPos(c);
       const sc = L.mobile ? 0.82 : 0.95;
       if (L.mobile) {
@@ -209,12 +167,27 @@ export default function TctMascot() {
     };
     update();
     window.addEventListener("resize", update);
-    const iv = setInterval(update, 1200); // camera drifts subtly — keep it glued
+    const iv = setInterval(update, ["throw", "walkback", "pickup", "recover"].includes(mstate.phase) ? 45 : 800);
     return () => {
       window.removeEventListener("resize", update);
       clearInterval(iv);
     };
-  }, []);
+  }, [ui.phase]);
+
+  // A chat opened while the mascot is grabbed becomes a carried hologram:
+  // it travels to the landing point, then returns with the robot to its bed.
+  useEffect(() => {
+    if (ui.phase === "sleep") {
+      setPanelFollow(null);
+      return;
+    }
+    if (!ui.panelCarried || !mstate.layout) return;
+    if (ui.phase === "walkback") {
+      const L = mstate.layout;
+      const home = projectToScreen(L.home.x, L.home.y + 0.45);
+      setPanelFollow({ x: home.x + 112, y: home.y - 120, duration: 1.05 });
+    }
+  }, [ui.phase, ui.panelCarried]);
 
   useEffect(() => {
     if (ui.chatOpen) {
@@ -379,7 +352,7 @@ export default function TctMascot() {
   };
 
   const onMascotPointerDown = (event) => {
-    if ((event.button !== undefined && event.button !== 0) || !["sleep", "pickupIdle"].includes(mstate.phase)) return;
+    if ((event.button !== undefined && event.button !== 0) || !["sleep", "pickupIdle", "chat"].includes(mstate.phase)) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const nx = rect.width ? (event.clientX - rect.left) / rect.width : 0.5;
     const ny = rect.height ? (event.clientY - rect.top) / rect.height : 0.5;
@@ -403,19 +376,26 @@ export default function TctMascot() {
   const onMascotPointerMove = (event) => {
     const gesture = pickupGestureRef.current;
     if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const L = mstate.layout;
     const liftPx = gesture.startY - event.clientY;
+    const dx = event.clientX - gesture.startX;
     if (!gesture.started) {
-      // A deliberate upward drag picks the robot up; ordinary taps still open chat.
-      if (liftPx < 12) return;
-      if (!beginPickup()) {
+      // Any deliberate drag picks the robot up. It can then be dropped in any
+      // visible direction; a simple tap still opens the chat as before.
+      if (Math.hypot(dx, liftPx) < 12) return;
+      const fromChat = mstate.phase === "chat";
+      if (!beginPickup({ fromChat })) {
         pickupGestureRef.current = null;
         return;
+      }
+      if (fromChat && L) {
+        const atRobot = projectToScreen(L.stage.x, L.stage.y + 0.45);
+        setPanelFollow({ x: atRobot.x + 112, y: atRobot.y - 120, duration: 0.24 });
       }
       gesture.started = true;
       suppressPickupClickRef.current = true;
     }
 
-    const L = mstate.layout;
     if (!L) return;
     const now = event.timeStamp || performance.now();
     const elapsed = Math.max(0.016, Math.min(0.12, (now - gesture.lastAt) / 1000));
@@ -428,9 +408,8 @@ export default function TctMascot() {
     gesture.lastX = event.clientX;
     gesture.lastY = event.clientY;
     gesture.lastAt = now;
-    const dx = event.clientX - gesture.startX;
     movePickup({
-      height: Math.max(0, Math.min(1.25, liftPx * (2 * L.halfH / L.h))),
+      height: Math.max(0.25, Math.min(1.25, Math.hypot(dx, liftPx) * (2 * L.halfH / L.h) * 0.68)),
       x: Math.max(-0.46, Math.min(0.46, dx * (2 * L.halfW / L.w) * 0.55)),
       lookX: Math.max(-1, Math.min(1, dx / 90)),
       lookY: Math.max(-1, Math.min(1, liftPx / 120)),
@@ -444,10 +423,19 @@ export default function TctMascot() {
     if (!gesture.started) return;
     const releasedAt = event.timeStamp || performance.now();
     const momentum = Math.exp(-Math.max(0, releasedAt - gesture.lastAt) / 140);
+    const L = mstate.layout;
+    const rig = mstate.rig;
+    const dropX = L ? ((event.clientX / L.w) * 2 - 1) * L.halfW + (rig?.x || 0) : undefined;
+    const dropY = L ? (rig?.y || L.camY) + (1 - (event.clientY / L.h) * 2) * L.halfH : undefined;
     releasePickup({
       velocityX: gesture.velocityX * momentum,
       velocityY: gesture.velocityY * momentum,
+      dropX,
+      dropY,
     });
+    if (mstate.panelCarried) {
+      setPanelFollow({ x: event.clientX + 112, y: event.clientY - 120, duration: mstate.throwMotion.flightDuration || 0.8 });
+    }
     suppressPickupClickRef.current = true;
     clearTimeout(suppressPickupClickTimerRef.current);
     suppressPickupClickTimerRef.current = setTimeout(() => {
@@ -500,10 +488,15 @@ export default function TctMascot() {
     : jobStep === "role" ? "Role you want\u2026"
     : jobStep === "experience" ? "Fresher / 1\u20133 / 3\u20135 / 5+ years\u2026"
     : "Ask TCT Assistant...";
-
+  const displayBubblePos = ui.interactionNotice && hitPos
+    ? {
+        x: Math.max(96, Math.min((mstate.layout?.w || 320) - 96, hitPos.x + 88)),
+        y: Math.max(64, hitPos.y - 58),
+      }
+    : bubblePos;
   return (
     <div className="tct3d-wrap" aria-hidden="false">
-      {mode === "3d" && ready && (
+      {ready && (
         <MascotBoundary onFail={fallbackTo2d}>
           <Suspense fallback={null}>
             <Scene onFail={fallbackTo2d} />
@@ -511,19 +504,8 @@ export default function TctMascot() {
         </MascotBoundary>
       )}
 
-      {/* WebGL-free robot — same corner, same chat, drawn in SVG */}
-      {mode === "2d" && (
-        <Robot2D
-          hitPos={hitPos}
-          onTap={openChatInstant}
-          awake={ui.phase !== "sleep" || ui.chatOpen}
-          busy={ui.thinking}
-          open={ui.chatOpen}
-        />
-      )}
-
       {/* Tap to open chat; drag upward on the robot to pick it up and wake it. */}
-      {mode === "3d" && ["sleep", "pickup", "pickupIdle", "throw", "throwLand"].includes(ui.phase) && hitPos && (
+      {["sleep", "pickup", "pickupIdle", "throw", "throwLand", "recover", "walkback", "chat"].includes(ui.phase) && hitPos && (
         <button
           type="button"
           className="tct3d-hit"
@@ -533,8 +515,8 @@ export default function TctMascot() {
           onPointerUp={finishMascotPointer}
           onPointerCancel={finishMascotPointer}
           onClick={onMascotActivate}
-          aria-label={ui.phase === "pickupIdle" ? "TCT Assistant is awake. Tap to chat or drag up to lift it." : "Tap to chat or drag TCT Assistant upward to wake it."}
-          title="Drag up to pick up and wake the robot · tap to chat"
+          aria-label={ui.phase === "pickupIdle" ? "TCT Assistant is awake. Tap to chat or drag to pick it up." : "Tap to chat or drag TCT Assistant to pick it up."}
+          title="Drag to pick up and toss the robot · tap to chat"
         >
           <span className="tct3d-halo" aria-hidden="true" />
         </button>
@@ -543,7 +525,8 @@ export default function TctMascot() {
       {/* holographic chat panel — projected beside the robot */}
       <section
         ref={panelRef}
-        className={`tct3d-panel ${!ui.panelVisible ? "tct3d-panel-idle" : ui.phase === "goodnight" ? "tct3d-panel-out" : "tct3d-panel-in"}`}
+        className={`tct3d-panel ${panelFollow ? "tct3d-panel-carried" : ""} ${!ui.panelVisible ? "tct3d-panel-idle" : ui.phase === "goodnight" ? "tct3d-panel-out" : "tct3d-panel-in"}`}
+        style={panelFollow ? { left: panelFollow.x, top: panelFollow.y, right: "auto", bottom: "auto", "--tct3d-panel-travel": `${panelFollow.duration}s` } : undefined}
         role="dialog"
         aria-label="TCT Assistant chat"
         aria-hidden={!ui.chatOpen}
@@ -637,11 +620,9 @@ export default function TctMascot() {
       </section>
 
       {/* good night bubble */}
-      {ui.bubble && bubblePos && (
-        <div className={`tct3d-bubble ${mstate.layout?.mobile ? "tct3d-bubble-mobile" : ""}`} style={{ left: bubblePos.x, top: bubblePos.y }} role="status">
-          Good night! 🌙
-          <br />
-          See you soon!
+      {(ui.bubble || ui.interactionNotice) && displayBubblePos && (
+        <div className={`tct3d-bubble ${mstate.layout?.mobile ? "tct3d-bubble-mobile" : ""}`} style={{ left: displayBubblePos.x, top: displayBubblePos.y }} role="status">
+          {ui.interactionNotice || <>Good night! 🌙<br />See you soon!</>}
         </div>
       )}
     </div>
