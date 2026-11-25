@@ -25,10 +25,9 @@ import NotFound from "./pages/NotFound.jsx";
 import Seo from "./seo/Seo.jsx";
 
 /*
- * "Codey" is replaced by the 3D TCT Assistant mascot (src/mascot/) —
- * lazy-loaded so three.js never touches the initial bundle.
+ * Chat assistant & enquiry pipelines live in Contact and Quote forms.
+ * The intrusive 3D/2D cloud robot has been removed per user preference.
  */
-const TctMascot = lazy(() => import("./mascot/TctMascot.jsx"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -88,9 +87,7 @@ export default function App() {
       <Footer />
       <WhatsAppFloat />
       <AdDisplay />
-      <Suspense fallback={null}>
-        <TctMascot />
-      </Suspense>
+
     </>
   );
 }

@@ -32,7 +32,7 @@ export const COMPANY = {
 export const NAV = [
   { label: "Home", to: "/" },
   { label: "About Us", to: "/about" },
-  { label: "IT Services", to: "/services" },
+  { label: "Services", to: "/services" },
   {
     label: "HR Services",
     to: "/hr-services",
@@ -966,8 +966,14 @@ export const CAREERS = {
     icon: "bi-headset",
     title: "Non-IT Fields",
     blurb:
-      "People-first roles with clear growth paths, paid training and performance-linked incentives in our BPO, banking and core operations teams.",
-    roles: ["Data Entry", "Voice Process", "Banking", "Core Jobs"],
+      "People-first roles with clear growth paths, paid training and performance-linked incentives in our HR, BPO, banking and core operations teams.",
+    roles: [
+      "HR Executive / Recruiter",
+      "Data Entry",
+      "Voice Process",
+      "Banking",
+      "Core Jobs",
+    ],
   },
 };
 
@@ -976,11 +982,27 @@ export const CAREERS = {
 export const JOB_LISTINGS = {
   "non-it": {
     intro: [
-      "We're hiring dedicated people for our Data Entry, Voice Process, Banking and Core Jobs teams at Trend Code Technology. If you are accurate, disciplined and love working with people, numbers or machines, we want to hear from you!",
+      "We're hiring dedicated people for our HR Recruitment, Data Entry, Voice Process, Banking and Core Jobs teams at Trend Code Technology. If you are accurate, disciplined and love working with people, numbers or machines, we want to hear from you!",
       "At TCT, you get paid training, comfortable AC workspace, performance incentives and a clear growth path from executive to team lead — with daily-format work and supportive supervisors.",
       "We offer competitive salaries, daily/weekly payout options for select roles, and continuous skill training at our Ganapathy, Coimbatore centre.",
     ],
     jobs: [
+      {
+        title: "HR Executive / Recruiter",
+        qualification: "MBA in HR / Any Degree / BBA with good communication skills",
+        skills:
+          "Talent acquisition, candidate sourcing, resume screening, interview coordination, onboarding, employee engagement, HR documentation",
+        tools: "Job portals (Naukri, Indeed, LinkedIn), MS Office, Google Sheets, ATS / HRMS software",
+        description: [
+          "Source and screen potential candidates across job portals and social networks",
+          "Schedule and coordinate technical and HR interviews with department heads",
+          "Conduct preliminary HR screenings and communicate company culture and benefits",
+          "Manage candidate documentation, background verification and offer letter rollouts",
+          "Facilitate smooth onboarding, orientation and training schedules for new joiners",
+          "Maintain HR trackers, employee records and daily recruitment MIS reports",
+        ],
+        experience: "Fresher to 3 years in recruitment / talent acquisition (freshers with HR passion welcome)",
+      },
       {
         title: "Data Entry",
         qualification: "Any degree; typing speed 30+ WPM in English preferred",
@@ -1163,6 +1185,36 @@ export const ROLE_JDS = {
       "Track daily output and report deviations to the engineer in charge",
     ],
     experience: "Fresher to 3 years — diploma holders welcome",
+  },
+  "HR Executive / Recruiter": {
+    qualification: "MBA in HR / Any Degree / BBA with good communication skills",
+    skills:
+      "Talent acquisition, candidate sourcing, resume screening, interview coordination, onboarding, employee engagement, HR documentation",
+    tools: "Job portals (Naukri, Indeed, LinkedIn), MS Office, Google Sheets, ATS / HRMS software",
+    description: [
+      "Source and screen potential candidates across job portals and social networks",
+      "Schedule and coordinate technical and HR interviews with department heads",
+      "Conduct preliminary HR screenings and communicate company culture and benefits",
+      "Manage candidate documentation, background verification and offer letter rollouts",
+      "Facilitate smooth onboarding, orientation and training schedules for new joiners",
+      "Maintain HR trackers, employee records and daily recruitment MIS reports",
+    ],
+    experience: "Fresher to 3 years in recruitment / talent acquisition (freshers with HR passion welcome)",
+  },
+  HR: {
+    qualification: "MBA in HR / Any Degree / BBA with good communication skills",
+    skills:
+      "Talent acquisition, candidate sourcing, resume screening, interview coordination, onboarding, employee engagement, HR documentation",
+    tools: "Job portals (Naukri, Indeed, LinkedIn), MS Office, Google Sheets, ATS / HRMS software",
+    description: [
+      "Source and screen potential candidates across job portals and social networks",
+      "Schedule and coordinate technical and HR interviews with department heads",
+      "Conduct preliminary HR screenings and communicate company culture and benefits",
+      "Manage candidate documentation, background verification and offer letter rollouts",
+      "Facilitate smooth onboarding, orientation and training schedules for new joiners",
+      "Maintain HR trackers, employee records and daily recruitment MIS reports",
+    ],
+    experience: "Fresher to 3 years in recruitment / talent acquisition (freshers with HR passion welcome)",
   },
 };
 

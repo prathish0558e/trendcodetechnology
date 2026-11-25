@@ -1,19 +1,25 @@
-import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Reveal } from "./Reveal.jsx";
 import { COMPANY, JOB_LISTINGS } from "../data/content.js";
 import { apiUrl } from "../config/site.js";
 
 /*
  * Full careers page for a track with detailed job listings (JD accordion)
- * and a dedicated apply form with resume upload. Used for /careers/it —
- * content comes from JOB_LISTINGS in data/content.js.
+ * and a dedicated apply form with resume upload. Used for /careers/it and /careers/non-it.
+ * Supports deep-linking via ?role=... or ?job=... or #apply hash from Ads or campaigns.
  */
 
 const EXPERIENCE_OPTIONS = ["Fresher", "1-3 Years", "3-5 Years", "5+ Years"];
 
 function JobCard({ job, onApply, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (defaultOpen) {
+      setOpen(true);
+    }
+  }, [defaultOpen]);
 
   return (
     <div className="job-card">
@@ -72,12 +78,36 @@ function JobCard({ job, onApply, defaultOpen }) {
 }
 
 export default function JobListings({ trackTitle, intro, jobs, showGithubField = true }) {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const rawRoleParam =
+    searchParams.get("role") ||
+    searchParams.get("job") ||
+    searchParams.get("position") ||
+    "";
+
   const positions = useMemo(() => jobs.map((j) => j.title), [jobs]);
+
+  // Fuzzy match role from query parameter
+  const matchedJob = useMemo(() => {
+    if (!rawRoleParam) return null;
+    const clean = rawRoleParam.trim().toLowerCase();
+    return jobs.find((j) => {
+      const jt = j.title.toLowerCase();
+      return (
+        jt === clean ||
+        jt.includes(clean) ||
+        clean.includes(jt) ||
+        (clean === "hr" && jt.includes("hr"))
+      );
+    });
+  }, [jobs, rawRoleParam]);
+
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
-    position: positions[0] || "",
+    position: matchedJob ? matchedJob.title : positions[0] || "",
     experience: "",
     github: "",
     coverLetter: "",
@@ -87,11 +117,28 @@ export default function JobListings({ trackTitle, intro, jobs, showGithubField =
   const [busy, setBusy] = useState(false);
   const applyRef = useRef(null);
 
+  // Sync role and auto-scroll/focus when targeted from an ad
+  useEffect(() => {
+    if (matchedJob) {
+      setForm((f) => ({ ...f, position: matchedJob.title }));
+    }
+    if (rawRoleParam || location.hash === "#apply") {
+      const timer = setTimeout(() => {
+        applyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const nameInput = document.getElementById("ap-name");
+        nameInput?.focus();
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [matchedJob, rawRoleParam, location.hash]);
+
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const scrollToApply = (position) => {
     setForm((f) => ({ ...f, position }));
-    applyRef.current?.scrollIntoView({ block: "start" });
+    applyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const nameInput = document.getElementById("ap-name");
+    nameInput?.focus();
   };
 
   const onSubmit = async (e) => {
@@ -159,16 +206,42 @@ export default function JobListings({ trackTitle, intro, jobs, showGithubField =
               <div className="job-list">
                 {jobs.map((j, i) => (
                   <Reveal key={j.title} delay={i * 80}>
-                    <JobCard job={j} onApply={scrollToApply} defaultOpen={i === 0} />
+                    <JobCard
+                      job={j}
+                      onApply={scrollToApply}
+                      defaultOpen={matchedJob ? matchedJob.title === j.title : i === 0}
+                    />
                   </Reveal>
                 ))}
               </div>
             </div>
 
-            <div ref={applyRef}>
+            <div ref={applyRef} id="apply">
               <h2 className="careers-col-title">
                 <i className="bi bi-send"></i> Apply Now
               </h2>
+              {matchedJob && (
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(13,110,253,0.08), rgba(6,182,212,0.12))",
+                    border: "1px solid rgba(13,110,253,0.25)",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
+                    marginBottom: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "13.5px",
+                    fontWeight: "600",
+                    color: "#0369a1",
+                  }}
+                >
+                  <i className="bi bi-bullseye" style={{ fontSize: "16px", color: "#0284c7" }}></i>
+                  <span>
+                    Applying for: <strong style={{ color: "#0f172a" }}>{matchedJob.title}</strong>
+                  </span>
+                </div>
+              )}
               <form className="form-card apply-form" onSubmit={onSubmit}>
                 {status.state === "ok" && (
                   <div className="banner ok">

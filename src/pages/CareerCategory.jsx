@@ -15,6 +15,8 @@ const ROLE_META = {
   "Voice Process": { icon: "bi-headset", text: "Own customer conversations on support, retention and sales calls." },
   "Banking": { icon: "bi-bank", text: "Run banking operations, KYC and customer service for BFSI clients." },
   "Core Jobs": { icon: "bi-gear-wide-connected", text: "Apply your core-branch engineering skills on live production and site work." },
+  "HR Executive / Recruiter": { icon: "bi-people-fill", text: "Source top talent, conduct interviews, manage onboarding and drive HR operations." },
+  "HR": { icon: "bi-people-fill", text: "Source top talent, conduct interviews, manage onboarding and drive HR operations." },
 };
 
 const EXPERIENCE_OPTIONS = ["Fresher", "1-2 Years", "2-5 Years", "5+ Years"];

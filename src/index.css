@@ -385,7 +385,8 @@ h1, h2, h3, h4, h5 {
   width: 100%;
   max-width: none;
   height: 74px;
-  padding-inline: clamp(12px, 1.8vw, 24px);
+  padding-left: clamp(14px, 2vw, 28px);
+  padding-right: clamp(18px, 2.8vw, 36px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3384,7 +3385,8 @@ i.bi-whatsapp::after {
   .nav-inner {
     height: 70px;
     gap: 6px;
-    padding-inline: 10px;
+    padding-left: 12px;
+    padding-right: 18px;
   }
 
   .brand {

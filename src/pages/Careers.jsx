@@ -1,10 +1,23 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Reveal, SectionHead, PageHero } from "../components/Reveal.jsx";
 import { CAREERS } from "../data/content.js";
 
 const tracks = [CAREERS.it, CAREERS["non-it"]];
 
 export default function Careers() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const roleParam = searchParams.get("role") || searchParams.get("job") || searchParams.get("position");
+
+  useEffect(() => {
+    if (roleParam) {
+      const clean = roleParam.trim().toLowerCase();
+      const isIt = /web|software|developer|frontend|backend|full stack|design|machine learning|python|react/i.test(clean);
+      const targetTrack = isIt ? "it" : "non-it";
+      navigate(`/careers/${targetTrack}?role=${encodeURIComponent(roleParam)}#apply`, { replace: true });
+    }
+  }, [roleParam, navigate]);
   return (
     <>
       <PageHero

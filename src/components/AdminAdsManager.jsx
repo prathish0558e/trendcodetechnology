@@ -534,6 +534,61 @@ export default function AdminAdsManager({
                     <small style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4, display: "block" }}>
                       Where visitors go when tapping the poster / button.
                     </small>
+                    <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", alignSelf: "center", marginRight: 2 }}>
+                        Quick Presets:
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(13,110,253,0.1)", border: "1px solid rgba(13,110,253,0.3)", color: "var(--primary)" }}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, ctaLink: "/careers/non-it?role=HR#apply", ctaText: "Apply for HR" }));
+                        }}
+                      >
+                        💼 HR Job Apply
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(13,110,253,0.1)", border: "1px solid rgba(13,110,253,0.3)", color: "var(--primary)" }}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, ctaLink: "/careers/it?role=Frontend%20Developer#apply", ctaText: "Apply Now" }));
+                        }}
+                      >
+                        💻 Frontend Dev
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(13,110,253,0.1)", border: "1px solid rgba(13,110,253,0.3)", color: "var(--primary)" }}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, ctaLink: "/careers/non-it?role=Data%20Entry#apply", ctaText: "Apply Now" }));
+                        }}
+                      >
+                        ⌨️ Data Entry
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(13,110,253,0.1)", border: "1px solid rgba(13,110,253,0.3)", color: "var(--primary)" }}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, ctaLink: "/internship#apply", ctaText: "Apply for Internship" }));
+                        }}
+                      >
+                        🎓 Internship
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(13,110,253,0.1)", border: "1px solid rgba(13,110,253,0.3)", color: "var(--primary)" }}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, ctaLink: "/contact", ctaText: "Get Free Quote" }));
+                        }}
+                      >
+                        📞 Contact / Quote
+                      </button>
+                    </div>
                   </div>
 
                   <div className="admin-field-group">
