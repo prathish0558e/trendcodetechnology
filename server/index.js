@@ -2043,6 +2043,8 @@ app.post(
         secondaryLink,
         delaySeconds,
         active,
+        isPoster,
+        posterFit,
       } = req.body || {};
 
       let imageUrl = req.body && req.body.imageUrl ? String(req.body.imageUrl).trim() : "";
@@ -2073,6 +2075,8 @@ app.post(
         secondaryLink: secondaryLink ? String(secondaryLink).trim() : "",
         delaySeconds: Number(delaySeconds) >= 0 ? Number(delaySeconds) : 2,
         active: active !== false && active !== "false",
+        isPoster: isPoster === true || isPoster === "true" || isPoster === "1",
+        posterFit: posterFit === "cover" ? "cover" : "contain",
         views: 0,
         clicks: 0,
         createdAt: new Date().toISOString(),
@@ -2127,6 +2131,8 @@ app.put(
         secondaryLink,
         delaySeconds,
         active,
+        isPoster,
+        posterFit,
       } = req.body || {};
 
       let imageUrl = existing.imageUrl;
@@ -2158,6 +2164,8 @@ app.put(
         secondaryLink: typeof secondaryLink !== "undefined" ? String(secondaryLink).trim() : existing.secondaryLink,
         delaySeconds: typeof delaySeconds !== "undefined" && Number(delaySeconds) >= 0 ? Number(delaySeconds) : existing.delaySeconds,
         active: typeof active !== "undefined" ? (active !== false && active !== "false") : existing.active,
+        isPoster: typeof isPoster !== "undefined" ? (isPoster === true || isPoster === "true" || isPoster === "1") : (existing.isPoster || false),
+        posterFit: typeof posterFit !== "undefined" ? posterFit : (existing.posterFit || "contain"),
         updatedAt: new Date().toISOString(),
       };
 

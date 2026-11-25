@@ -6,13 +6,15 @@ const INITIAL_FORM = {
   badge: "SPECIAL PROMOTION",
   placement: "popup", // 'popup' | 'floating' | 'topbar'
   targetPage: "all", // 'all' | '/' | '/internship' | '/careers' | '/services' | '/contact'
-  ctaText: "Explore Internships",
+  ctaText: "Apply Now",
   ctaLink: "/internship",
   secondaryText: "Close",
   secondaryLink: "",
   delaySeconds: 2,
   active: true,
   imageUrl: "",
+  isPoster: false, // true = Custom Poster Ad (முழு போஸ்டர் விளம்பரம்), false = Standard Card Ad
+  posterFit: "contain", // 'contain' | 'cover'
 };
 
 export default function AdminAdsManager({
@@ -66,6 +68,8 @@ export default function AdminAdsManager({
       delaySeconds: typeof ad.delaySeconds !== "undefined" ? ad.delaySeconds : 2,
       active: ad.active !== false,
       imageUrl: ad.imageUrl || "",
+      isPoster: ad.isPoster === true || ad.isPoster === "true",
+      posterFit: ad.posterFit || "contain",
     });
     setPreviewUrl(ad.imageUrl || "");
     setFile(null);
@@ -257,13 +261,129 @@ export default function AdminAdsManager({
           </div>
 
           <form onSubmit={handleSubmit}>
+            {/* Choose Ad Type: Standard Card vs Custom Poster */}
+            <div className="admin-ad-format-selector">
+              <label className="admin-label mb-2" style={{ fontWeight: 700, fontSize: 13.5 }}>
+                <i className="bi bi-palette-fill me-1 text-primary"></i> Choose Ad Format / Style (விளம்பர வடிவம்) *
+              </label>
+              <div className="admin-format-toggle-grid">
+                <div
+                  className={`admin-format-option-card ${!form.isPoster ? "selected" : ""}`}
+                  onClick={() => setForm((p) => ({ ...p, isPoster: false }))}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="admin-format-icon">
+                    <i className="bi bi-layout-text-window-reverse"></i>
+                  </div>
+                  <div className="admin-format-details">
+                    <strong>Standard Card Ad (கார்டு வடிவம்)</strong>
+                    <p>Structured card with headline, badge, subtitle, trust tags & action buttons.</p>
+                  </div>
+                  <div className="admin-format-radio">
+                    <input
+                      type="radio"
+                      name="adFormat"
+                      checked={!form.isPoster}
+                      onChange={() => setForm((p) => ({ ...p, isPoster: false }))}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`admin-format-option-card ${form.isPoster ? "selected" : ""}`}
+                  onClick={() => setForm((p) => ({ ...p, isPoster: true }))}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="admin-format-icon gold">
+                    <i className="bi bi-file-earmark-image-fill"></i>
+                  </div>
+                  <div className="admin-format-details">
+                    <strong>Custom Poster Ad (சுய போஸ்டர் விளம்பரம்)</strong>
+                    <p>Directly upload your own designed marketing poster / flyer graphic (Full Poster Popup).</p>
+                  </div>
+                  <div className="admin-format-radio">
+                    <input
+                      type="radio"
+                      name="adFormat"
+                      checked={form.isPoster}
+                      onChange={() => setForm((p) => ({ ...p, isPoster: true }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="admin-ad-form-grid">
               {/* Left Column: Form Fields */}
               <div className="admin-ad-fields-col">
-                {/* Title */}
+                {/* Poster Specific Upload Dropzone if isPoster */}
+                {form.isPoster && (
+                  <div className="admin-poster-upload-section">
+                    <label className="admin-label" style={{ fontWeight: 700 }}>
+                      <i className="bi bi-cloud-arrow-up-fill me-1 text-warning"></i> Upload Designed Poster Flyer (PNG / JPG / WebP) *
+                    </label>
+                    <div className="admin-poster-dropzone">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="poster-file-input"
+                        style={{ display: "none" }}
+                        onChange={handleFileChange}
+                      />
+                      <label htmlFor="poster-file-input" className="admin-poster-drop-btn">
+                        <i className="bi bi-file-earmark-arrow-up-fill fs-2 mb-2 text-primary"></i>
+                        <span style={{ fontWeight: 700, fontSize: 14 }}>Click to Browse & Select Poster Image</span>
+                        <small style={{ color: "var(--muted)", fontSize: 12 }}>Upload your prepared flyer/creative (Up to 10 MB)</small>
+                      </label>
+                      <div className="admin-poster-url-fallback">
+                        <span style={{ fontSize: 12, color: "var(--muted)" }}>Or paste direct poster image URL:</span>
+                        <input
+                          type="text"
+                          className="admin-input"
+                          value={form.imageUrl}
+                          onChange={(e) => {
+                            setF("imageUrl")(e);
+                            if (!file) setPreviewUrl(e.target.value);
+                          }}
+                          placeholder="e.g. /posters/ai-career-poster.jpg or https://..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="admin-grid-2 mt-3">
+                      <div className="admin-field-group">
+                        <label className="admin-label">Poster Scaling / Fit</label>
+                        <select
+                          className="admin-select"
+                          value={form.posterFit}
+                          onChange={setF("posterFit")}
+                        >
+                          <option value="contain">Contain (முழு போஸ்டரும் வெட்டப்படாமல் தெரியும்படி - Recommended)</option>
+                          <option value="cover">Cover (முழு கார்டையும் நிரப்பும் வடிவம்)</option>
+                        </select>
+                      </div>
+                      <div className="admin-field-group">
+                        <label className="admin-label">Display Delay (seconds)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="60"
+                          className="admin-input"
+                          value={form.delaySeconds}
+                          onChange={setF("delaySeconds")}
+                          placeholder="e.g. 2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Title / Campaign Name */}
                 <div className="admin-field-group">
                   <label className="admin-label">
-                    Headline / Title *
+                    {form.isPoster ? "Poster Campaign Name / Internal Title *" : "Headline / Title *"}
                   </label>
                   <input
                     type="text"
@@ -271,53 +391,55 @@ export default function AdminAdsManager({
                     className="admin-input"
                     value={form.title}
                     onChange={setF("title")}
-                    placeholder="e.g. Launch Your AI Career in Coimbatore"
+                    placeholder={form.isPoster ? "e.g. AI Career Coaching Poster 2026" : "e.g. Launch Your AI Career in Coimbatore"}
                   />
+                  {form.isPoster && (
+                    <small style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                      Used as the campaign name in Admin table and accessibility label.
+                    </small>
+                  )}
                 </div>
 
-                {/* Eyebrow Badge & Subtitle */}
-                <div className="admin-grid-2">
-                  <div className="admin-field-group">
-                    <label className="admin-label">
-                      Badge / Eyebrow Text
-                    </label>
-                    <input
-                      type="text"
-                      className="admin-input"
-                      value={form.badge}
-                      onChange={setF("badge")}
-                      placeholder="e.g. 🚀 FAST-TRACK BATCH"
-                    />
-                  </div>
-                  <div className="admin-field-group">
-                    <label className="admin-label">
-                      Display Delay (seconds)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="60"
-                      className="admin-input"
-                      value={form.delaySeconds}
-                      onChange={setF("delaySeconds")}
-                      placeholder="e.g. 2"
-                    />
-                  </div>
-                </div>
+                {/* Eyebrow Badge & Subtitle (only for standard card ad) */}
+                {!form.isPoster && (
+                  <>
+                    <div className="admin-grid-2">
+                      <div className="admin-field-group">
+                        <label className="admin-label">Badge / Eyebrow Text</label>
+                        <input
+                          type="text"
+                          className="admin-input"
+                          value={form.badge}
+                          onChange={setF("badge")}
+                          placeholder="e.g. 🚀 FAST-TRACK BATCH"
+                        />
+                      </div>
+                      <div className="admin-field-group">
+                        <label className="admin-label">Display Delay (seconds)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="60"
+                          className="admin-input"
+                          value={form.delaySeconds}
+                          onChange={setF("delaySeconds")}
+                          placeholder="e.g. 2"
+                        />
+                      </div>
+                    </div>
 
-                {/* Subtitle / Description */}
-                <div className="admin-field-group">
-                  <label className="admin-label">
-                    Description / Subtitle
-                  </label>
-                  <textarea
-                    rows={3}
-                    className="admin-input"
-                    value={form.subtitle}
-                    onChange={setF("subtitle")}
-                    placeholder="Describe the offer, eligibility, ISO certification, or value proposition..."
-                  />
-                </div>
+                    <div className="admin-field-group">
+                      <label className="admin-label">Description / Subtitle</label>
+                      <textarea
+                        rows={3}
+                        className="admin-input"
+                        value={form.subtitle}
+                        onChange={setF("subtitle")}
+                        placeholder="Describe the offer, eligibility, ISO certification, or value proposition..."
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* Placement & Target Page (ENGA ENGA PODALAM) */}
                 <div className="admin-grid-2">
@@ -330,9 +452,9 @@ export default function AdminAdsManager({
                       value={form.placement}
                       onChange={setF("placement")}
                     >
-                      <option value="popup">Center Modal Popup (Opening Popup)</option>
+                      <option value="popup">Center Modal Popup (Opening Popup - Best for Posters)</option>
                       <option value="floating">Floating Side Card (Bottom-Right, non-intrusive)</option>
-                      <option value="topbar">Top Announcement Bar (Sticky Banner)</option>
+                      {!form.isPoster && <option value="topbar">Top Announcement Bar (Sticky Banner)</option>}
                     </select>
                     <small style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4, display: "block" }}>
                       {form.placement === "popup" && "Opens as a focused center modal on screen with close button."}
@@ -364,76 +486,86 @@ export default function AdminAdsManager({
                   </div>
                 </div>
 
-                {/* Image Upload or URL */}
-                <div className="admin-field-group">
-                  <label className="admin-label">
-                    Ad Banner Image (Optional)
-                  </label>
-                  <div className="admin-grid-2">
-                    <div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="admin-input"
-                        onChange={handleFileChange}
-                      />
-                      <small style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                        Upload PNG, JPG or WebP (max 5 MB)
-                      </small>
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        className="admin-input"
-                        value={form.imageUrl}
-                        onChange={(e) => {
-                          setF("imageUrl")(e);
-                          if (!file) setPreviewUrl(e.target.value);
-                        }}
-                        placeholder="Or paste image URL (/hero/slide-1.jpg)"
-                      />
+                {/* Standard image input if NOT poster */}
+                {!form.isPoster && (
+                  <div className="admin-field-group">
+                    <label className="admin-label">Ad Banner Image (Optional)</label>
+                    <div className="admin-grid-2">
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="admin-input"
+                          onChange={handleFileChange}
+                        />
+                        <small style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                          Upload PNG, JPG or WebP (max 5 MB)
+                        </small>
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          className="admin-input"
+                          value={form.imageUrl}
+                          onChange={(e) => {
+                            setF("imageUrl")(e);
+                            if (!file) setPreviewUrl(e.target.value);
+                          }}
+                          placeholder="Or paste image URL (/hero/slide-1.jpg)"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Call to Action Buttons */}
                 <div className="admin-grid-2">
                   <div className="admin-field-group">
-                    <label className="admin-label">CTA Button Label</label>
-                    <input
-                      type="text"
-                      className="admin-input"
-                      value={form.ctaText}
-                      onChange={setF("ctaText")}
-                      placeholder="e.g. Apply Now"
-                    />
-                  </div>
-                  <div className="admin-field-group">
-                    <label className="admin-label">CTA Button Link</label>
+                    <label className="admin-label">
+                      {form.isPoster ? "Poster Click Destination (Link URL) *" : "CTA Button Link *"}
+                    </label>
                     <input
                       type="text"
                       className="admin-input"
                       value={form.ctaLink}
                       onChange={setF("ctaLink")}
-                      placeholder="e.g. /internship or https://..."
+                      placeholder="e.g. /internship, /contact, or WhatsApp link"
+                    />
+                    <small style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                      Where visitors go when tapping the poster / button.
+                    </small>
+                  </div>
+
+                  <div className="admin-field-group">
+                    <label className="admin-label">
+                      {form.isPoster ? "Optional Button on Poster (Overlay)" : "CTA Button Label"}
+                    </label>
+                    <input
+                      type="text"
+                      className="admin-input"
+                      value={form.ctaText}
+                      onChange={setF("ctaText")}
+                      placeholder={form.isPoster ? "e.g. Apply Now (or leave blank for pure image click)" : "e.g. Apply Now"}
                     />
                   </div>
                 </div>
 
                 {/* Secondary Button & Active Toggle */}
                 <div className="admin-grid-2" style={{ alignItems: "center" }}>
-                  <div className="admin-field-group">
-                    <label className="admin-label">Dismiss / Secondary Button</label>
-                    <input
-                      type="text"
-                      className="admin-input"
-                      value={form.secondaryText}
-                      onChange={setF("secondaryText")}
-                      placeholder="e.g. Close or Maybe Later"
-                    />
-                  </div>
+                  {!form.isPoster && (
+                    <div className="admin-field-group">
+                      <label className="admin-label">Dismiss / Secondary Button</label>
+                      <input
+                        type="text"
+                        className="admin-input"
+                        value={form.secondaryText}
+                        onChange={setF("secondaryText")}
+                        placeholder="e.g. Close or Maybe Later"
+                      />
+                    </div>
+                  )}
 
-                  <div className="admin-field-group" style={{ paddingTop: 18 }}>
+                  <div className="admin-field-group" style={{ paddingTop: form.isPoster ? 0 : 18 }}>
                     <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 600 }}>
                       <input
                         type="checkbox"
@@ -471,82 +603,112 @@ export default function AdminAdsManager({
                 <div className="admin-ad-preview-header">
                   <i className="bi bi-eye-fill me-1 text-primary"></i> Live Design Preview
                   <span className="badge-chip ms-auto">
-                    {form.placement === "popup" && "Center Modal"}
-                    {form.placement === "floating" && "Floating Corner Card"}
-                    {form.placement === "topbar" && "Top Banner"}
+                    {form.isPoster ? "Custom Poster" : form.placement === "popup" ? "Center Modal" : form.placement === "floating" ? "Floating Card" : "Top Banner"}
                   </span>
                 </div>
 
                 <div className="admin-ad-preview-sandbox">
-                  {/* Modal style preview */}
-                  {form.placement === "popup" && (
-                    <div className="live-preview-modal-mock">
-                      <div className="live-modal-close-btn">×</div>
+                  {/* Poster style preview */}
+                  {form.isPoster ? (
+                    <div className="live-preview-poster-mock">
+                      <div className="live-poster-close-btn">×</div>
                       {previewUrl ? (
-                        <div className="live-modal-img-wrap">
-                          <img src={previewUrl} alt="Ad preview" />
+                        <div className="live-poster-img-container">
+                          <img
+                            src={previewUrl}
+                            alt="Poster preview"
+                            className="live-poster-preview-img"
+                            style={{ objectFit: form.posterFit || "contain" }}
+                          />
+                          {form.ctaText && (
+                            <div className="live-poster-btn-bar">
+                              <button type="button" className="btn live-poster-action-btn">
+                                {form.ctaText} <i className="bi bi-arrow-right ms-1"></i>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="live-modal-img-placeholder">
-                          <i className="bi bi-stars"></i>
+                        <div className="live-poster-empty-prompt">
+                          <i className="bi bi-file-earmark-image fs-1 mb-2 text-warning"></i>
+                          <strong>No Poster Uploaded Yet</strong>
+                          <p>Select or upload your designed poster image to see the live popup preview.</p>
                         </div>
                       )}
-                      <div className="live-modal-content">
-                        {form.badge && <span className="live-modal-badge">{form.badge}</span>}
-                        <h4 className="live-modal-title">{form.title || "Your Advertisement Title Here"}</h4>
-                        <p className="live-modal-sub">{form.subtitle || "Your advertisement description and value proposition will appear right here."}</p>
-                        <div className="live-modal-trust-tags">
-                          <span><i className="bi bi-shield-check me-1"></i> ISO 9001:2015</span>
-                          <span><i className="bi bi-patch-check me-1"></i> Verified</span>
-                        </div>
-                        <div className="live-modal-actions">
-                          <button type="button" className="btn btn-primary btn-sm">
-                            {form.ctaText || "Apply Now"} <i className="bi bi-arrow-right"></i>
-                          </button>
-                          <button type="button" className="btn btn-outline btn-sm">
-                            {form.secondaryText || "Close"}
-                          </button>
-                        </div>
-                      </div>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {/* Modal style preview */}
+                      {form.placement === "popup" && (
+                        <div className="live-preview-modal-mock">
+                          <div className="live-modal-close-btn">×</div>
+                          {previewUrl ? (
+                            <div className="live-modal-img-wrap">
+                              <img src={previewUrl} alt="Ad preview" />
+                            </div>
+                          ) : (
+                            <div className="live-modal-img-placeholder">
+                              <i className="bi bi-stars"></i>
+                            </div>
+                          )}
+                          <div className="live-modal-content">
+                            {form.badge && <span className="live-modal-badge">{form.badge}</span>}
+                            <h4 className="live-modal-title">{form.title || "Your Advertisement Title Here"}</h4>
+                            <p className="live-modal-sub">{form.subtitle || "Your advertisement description and value proposition will appear right here."}</p>
+                            <div className="live-modal-trust-tags">
+                              <span><i className="bi bi-shield-check me-1"></i> ISO 9001:2015</span>
+                              <span><i className="bi bi-patch-check me-1"></i> Verified</span>
+                            </div>
+                            <div className="live-modal-actions">
+                              <button type="button" className="btn btn-primary btn-sm">
+                                {form.ctaText || "Apply Now"} <i className="bi bi-arrow-right"></i>
+                              </button>
+                              <button type="button" className="btn btn-outline btn-sm">
+                                {form.secondaryText || "Close"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                  {/* Floating card preview */}
-                  {form.placement === "floating" && (
-                    <div className="live-preview-floating-mock">
-                      <div className="live-floating-close-btn">×</div>
-                      <div className="live-floating-header">
-                        {form.badge && <span className="live-modal-badge">{form.badge}</span>}
-                      </div>
-                      <div className="live-floating-body">
-                        {previewUrl && (
-                          <img src={previewUrl} alt="Thumbnail" className="live-floating-thumb" />
-                        )}
-                        <div>
-                          <h5 className="live-floating-title">{form.title || "Floating Promo Title"}</h5>
-                          <p className="live-floating-sub">{form.subtitle || "Brief promo text visible in the bottom corner of the screen."}</p>
+                      {/* Floating card preview */}
+                      {form.placement === "floating" && (
+                        <div className="live-preview-floating-mock">
+                          <div className="live-floating-close-btn">×</div>
+                          <div className="live-floating-header">
+                            {form.badge && <span className="live-modal-badge">{form.badge}</span>}
+                          </div>
+                          <div className="live-floating-body">
+                            {previewUrl && (
+                              <img src={previewUrl} alt="Thumbnail" className="live-floating-thumb" />
+                            )}
+                            <div>
+                              <h5 className="live-floating-title">{form.title || "Floating Promo Title"}</h5>
+                              <p className="live-floating-sub">{form.subtitle || "Brief promo text visible in the bottom corner of the screen."}</p>
+                            </div>
+                          </div>
+                          <div className="live-floating-footer">
+                            <button type="button" className="btn btn-primary btn-sm">
+                              {form.ctaText || "Claim Offer"}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="live-floating-footer">
-                        <button type="button" className="btn btn-primary btn-sm">
-                          {form.ctaText || "Claim Offer"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {/* Topbar preview */}
-                  {form.placement === "topbar" && (
-                    <div className="live-preview-topbar-mock">
-                      {form.badge && <span className="live-topbar-tag">{form.badge}</span>}
-                      <span className="live-topbar-text">
-                        <strong>{form.title || "Announcement Title"}</strong> — {form.subtitle || "Limited time offer."}
-                      </span>
-                      <button type="button" className="btn btn-primary btn-sm" style={{ padding: "3px 12px", fontSize: 12 }}>
-                        {form.ctaText || "Check Details"}
-                      </button>
-                      <span className="live-topbar-close">×</span>
-                    </div>
+                      {/* Topbar preview */}
+                      {form.placement === "topbar" && (
+                        <div className="live-preview-topbar-mock">
+                          {form.badge && <span className="live-topbar-tag">{form.badge}</span>}
+                          <span className="live-topbar-text">
+                            <strong>{form.title || "Announcement Title"}</strong> — {form.subtitle || "Limited time offer."}
+                          </span>
+                          <button type="button" className="btn btn-primary btn-sm" style={{ padding: "3px 12px", fontSize: 12 }}>
+                            {form.ctaText || "Check Details"}
+                          </button>
+                          <span className="live-topbar-close">×</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -706,6 +868,11 @@ export default function AdminAdsManager({
                     <strong>{isActive ? "Live / Active" : "Paused / Inactive"}</strong>
                   </div>
                   <div className="admin-ad-format-tag" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {ad.isPoster && (
+                      <span className="badge-chip" style={{ background: "rgba(234, 179, 8, 0.18)", color: "#b45309", fontWeight: 800 }}>
+                        <i className="bi bi-file-earmark-image-fill me-1"></i> Poster Ad
+                      </span>
+                    )}
                     {ad.targetPage === "/" && (
                       <span className="badge-chip blue">
                         <i className="bi bi-house me-1"></i> Home (/)
@@ -854,52 +1021,80 @@ export default function AdminAdsManager({
 
             <div className="ad-test-modal-body">
               {testPreviewAd.placement === "popup" && (
-                <div className="ad-popup-modal-card">
-                  <button
-                    type="button"
-                    className="ad-popup-close-btn"
-                    onClick={() => setTestPreviewAd(null)}
-                  >
-                    ×
-                  </button>
-                  {testPreviewAd.imageUrl ? (
-                    <div className="ad-popup-image-pane">
-                      <img src={testPreviewAd.imageUrl} alt={testPreviewAd.title} />
-                    </div>
-                  ) : (
-                    <div className="ad-popup-image-pane fallback">
-                      <i className="bi bi-stars"></i>
-                      <span>TREND CODE TECHNOLOGY</span>
-                    </div>
-                  )}
-                  <div className="ad-popup-body-pane">
-                    {testPreviewAd.badge && (
-                      <span className="ad-popup-badge-chip">{testPreviewAd.badge}</span>
-                    )}
-                    <h3 className="ad-popup-title">{testPreviewAd.title}</h3>
-                    {testPreviewAd.subtitle && (
-                      <p className="ad-popup-desc">{testPreviewAd.subtitle}</p>
-                    )}
-                    <div className="ad-popup-trust-row">
-                      <span className="ad-trust-tag"><i className="bi bi-patch-check-fill me-1 text-primary"></i> ISO 9001:2015</span>
-                      <span className="ad-trust-tag"><i className="bi bi-shield-fill-check me-1 text-success"></i> Govt. Recognized</span>
-                    </div>
-                    <div className="ad-popup-actions-row">
-                      <a href={testPreviewAd.ctaLink || "#"} className="btn btn-primary" onClick={(e) => e.preventDefault()}>
-                        {testPreviewAd.ctaText || "Apply Now"} <i className="bi bi-arrow-right"></i>
-                      </a>
-                      {testPreviewAd.secondaryText && (
-                        <button
-                          type="button"
-                          className="btn btn-outline"
-                          onClick={() => setTestPreviewAd(null)}
-                        >
-                          {testPreviewAd.secondaryText}
-                        </button>
+                testPreviewAd.isPoster ? (
+                  <div className="site-ad-poster-card" style={{ margin: "20px auto", position: "relative" }}>
+                    <button
+                      type="button"
+                      className="site-ad-poster-close"
+                      onClick={() => setTestPreviewAd(null)}
+                      title="Close"
+                    >
+                      ×
+                    </button>
+                    <div className="site-ad-poster-click-wrap">
+                      <img
+                        src={testPreviewAd.imageUrl || "/tct-logo.png"}
+                        alt={testPreviewAd.title}
+                        className="site-ad-poster-img"
+                        style={{ objectFit: testPreviewAd.posterFit || "contain" }}
+                      />
+                      {testPreviewAd.ctaText && (
+                        <div className="site-ad-poster-action-bar">
+                          <button type="button" className="btn site-ad-poster-action-btn">
+                            {testPreviewAd.ctaText} <i className="bi bi-arrow-right ms-2"></i>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="ad-popup-modal-card">
+                    <button
+                      type="button"
+                      className="ad-popup-close-btn"
+                      onClick={() => setTestPreviewAd(null)}
+                    >
+                      ×
+                    </button>
+                    {testPreviewAd.imageUrl ? (
+                      <div className="ad-popup-image-pane">
+                        <img src={testPreviewAd.imageUrl} alt={testPreviewAd.title} />
+                      </div>
+                    ) : (
+                      <div className="ad-popup-image-pane fallback">
+                        <i className="bi bi-stars"></i>
+                        <span>TREND CODE TECHNOLOGY</span>
+                      </div>
+                    )}
+                    <div className="ad-popup-body-pane">
+                      {testPreviewAd.badge && (
+                        <span className="ad-popup-badge-chip">{testPreviewAd.badge}</span>
+                      )}
+                      <h3 className="ad-popup-title">{testPreviewAd.title}</h3>
+                      {testPreviewAd.subtitle && (
+                        <p className="ad-popup-desc">{testPreviewAd.subtitle}</p>
+                      )}
+                      <div className="ad-popup-trust-row">
+                        <span className="ad-trust-tag"><i className="bi bi-patch-check-fill me-1 text-primary"></i> ISO 9001:2015</span>
+                        <span className="ad-trust-tag"><i className="bi bi-shield-fill-check me-1 text-success"></i> Govt. Recognized</span>
+                      </div>
+                      <div className="ad-popup-actions-row">
+                        <a href={testPreviewAd.ctaLink || "#"} className="btn btn-primary" onClick={(e) => e.preventDefault()}>
+                          {testPreviewAd.ctaText || "Apply Now"} <i className="bi bi-arrow-right"></i>
+                        </a>
+                        {testPreviewAd.secondaryText && (
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={() => setTestPreviewAd(null)}
+                          >
+                            {testPreviewAd.secondaryText}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
               )}
 
               {testPreviewAd.placement === "floating" && (

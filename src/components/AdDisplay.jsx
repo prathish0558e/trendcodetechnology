@@ -244,82 +244,135 @@ export default function AdDisplay() {
       {/* 3. Center Modal Popup */}
       {activePopupAd && (
         <div className="site-ad-modal-backdrop" onClick={() => dismissPopup(activePopupAd)}>
-          <div
-            className="site-ad-modal-card animate-pop-in"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ad-popup-title"
-          >
-            <button
-              type="button"
-              className="site-ad-modal-close"
-              onClick={() => dismissPopup(activePopupAd)}
-              aria-label="Close Advertisement"
+          {activePopupAd.isPoster ? (
+            /* Custom Designed Poster Ad (முழு போஸ்டர் விளம்பரம் - Appin / Poster Style) */
+            <div
+              className="site-ad-poster-card animate-pop-in"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ad-poster-title"
             >
-              ×
-            </button>
+              <button
+                type="button"
+                className="site-ad-poster-close"
+                onClick={() => dismissPopup(activePopupAd)}
+                aria-label="Close Poster Advertisement"
+                title="Close"
+              >
+                ×
+              </button>
 
-            {activePopupAd.imageUrl ? (
-              <div className="site-ad-modal-hero-img">
-                <img src={activePopupAd.imageUrl} alt={activePopupAd.title} />
-              </div>
-            ) : (
-              <div className="site-ad-modal-hero-banner">
-                <img src="/tct-logo.png" alt="Trend Code Technology" className="site-ad-modal-brand-logo" />
-                <span className="site-ad-modal-watermark">ISO 9001:2015 CERTIFIED</span>
-              </div>
-            )}
+              <div
+                className="site-ad-poster-click-wrap"
+                onClick={() => handleCtaClick(activePopupAd, activePopupAd.ctaLink || "/internship")}
+                title={activePopupAd.title || "Click to explore offer"}
+                style={{ cursor: "pointer" }}
+              >
+                <img
+                  id="ad-poster-title"
+                  src={activePopupAd.imageUrl || "/tct-logo.png"}
+                  alt={activePopupAd.title || "TCT Advertisement Poster"}
+                  className="site-ad-poster-img"
+                  style={{ objectFit: activePopupAd.posterFit || "contain" }}
+                />
 
-            <div className="site-ad-modal-body">
-              {activePopupAd.badge && (
-                <span className="badge-chip blue mb-2">
-                  <i className="bi bi-fire me-1"></i> {activePopupAd.badge}
-                </span>
-              )}
-
-              <h3 id="ad-popup-title" className="site-ad-modal-title">
-                {activePopupAd.title}
-              </h3>
-
-              {activePopupAd.subtitle && (
-                <p className="site-ad-modal-desc">{activePopupAd.subtitle}</p>
-              )}
-
-              <div className="site-ad-modal-trust-pills">
-                <div className="site-ad-pill">
-                  <i className="bi bi-patch-check-fill text-primary me-1"></i>
-                  ISO 9001:2015
-                </div>
-                <div className="site-ad-pill">
-                  <i className="bi bi-buildings text-warning me-1"></i>
-                  #StartupIndia & MSME
-                </div>
-                <div className="site-ad-pill">
-                  <i className="bi bi-award-fill text-success me-1"></i>
-                  100% University Credit
-                </div>
-              </div>
-
-              <div className="site-ad-modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-lg site-ad-cta-btn"
-                  onClick={() => handleCtaClick(activePopupAd, activePopupAd.ctaLink || "/internship")}
-                >
-                  {activePopupAd.ctaText || "Explore Internships"} <i className="bi bi-arrow-right"></i>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-outline site-ad-dismiss-btn"
-                  onClick={() => dismissPopup(activePopupAd)}
-                >
-                  {activePopupAd.secondaryText || "Close"}
-                </button>
+                {activePopupAd.ctaText && (
+                  <div className="site-ad-poster-action-bar">
+                    <button
+                      type="button"
+                      className="btn site-ad-poster-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCtaClick(activePopupAd, activePopupAd.ctaLink || "/internship");
+                      }}
+                    >
+                      <span>{activePopupAd.ctaText}</span>
+                      <i className="bi bi-arrow-right ms-2"></i>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          ) : (
+            /* Standard Card Modal Popup */
+            <div
+              className="site-ad-modal-card animate-pop-in"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ad-popup-title"
+            >
+              <button
+                type="button"
+                className="site-ad-modal-close"
+                onClick={() => dismissPopup(activePopupAd)}
+                aria-label="Close Advertisement"
+              >
+                ×
+              </button>
+
+              {activePopupAd.imageUrl ? (
+                <div className="site-ad-modal-hero-img">
+                  <img src={activePopupAd.imageUrl} alt={activePopupAd.title} />
+                </div>
+              ) : (
+                <div className="site-ad-modal-hero-banner">
+                  <img src="/tct-logo.png" alt="Trend Code Technology" className="site-ad-modal-brand-logo" />
+                  <span className="site-ad-modal-watermark">ISO 9001:2015 CERTIFIED</span>
+                </div>
+              )}
+
+              <div className="site-ad-modal-body">
+                {activePopupAd.badge && (
+                  <span className="badge-chip blue mb-2">
+                    <i className="bi bi-fire me-1"></i> {activePopupAd.badge}
+                  </span>
+                )}
+
+                <h3 id="ad-popup-title" className="site-ad-modal-title">
+                  {activePopupAd.title}
+                </h3>
+
+                {activePopupAd.subtitle && (
+                  <p className="site-ad-modal-desc">{activePopupAd.subtitle}</p>
+                )}
+
+                <div className="site-ad-modal-trust-pills">
+                  <div className="site-ad-pill">
+                    <i className="bi bi-patch-check-fill text-primary me-1"></i>
+                    ISO 9001:2015
+                  </div>
+                  <div className="site-ad-pill">
+                    <i className="bi bi-buildings text-warning me-1"></i>
+                    #StartupIndia & MSME
+                  </div>
+                  <div className="site-ad-pill">
+                    <i className="bi bi-award-fill text-success me-1"></i>
+                    100% University Credit
+                  </div>
+                </div>
+
+                <div className="site-ad-modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-lg site-ad-cta-btn"
+                    onClick={() => handleCtaClick(activePopupAd, activePopupAd.ctaLink || "/internship")}
+                  >
+                    {activePopupAd.ctaText || "Explore Internships"} <i className="bi bi-arrow-right"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline site-ad-dismiss-btn"
+                    onClick={() => dismissPopup(activePopupAd)}
+                  >
+                    {activePopupAd.secondaryText || "Close"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
