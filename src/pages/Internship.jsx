@@ -4,12 +4,12 @@ import { COMPANY, INTERNSHIP_JDS } from "../data/content.js";
 import { apiUrl } from "../config/site.js";
 import {
   InternshipTrustRibbon,
-  CertificateShowcase,
   IsoLogo,
   StartupIndiaLogo,
   NptelLogo,
   MetaLogo,
 } from "../components/TrustBadges.jsx";
+import { InternshipOfferLetterShowcase } from "../components/OfficialOfferLetter.jsx";
 
 /*
  * Internships page in the same style as the careers pages: every internship
@@ -331,8 +331,8 @@ export default function Internship() {
         </div>
       </section>
 
-      {/* Official Verified Certificate Showcase */}
-      <CertificateShowcase />
+      {/* Official Verified Internship Offer Letter Showcase */}
+      <InternshipOfferLetterShowcase />
 
       {/* How it works + who can apply */}
       <section className="section" style={{ paddingTop: 0 }}>

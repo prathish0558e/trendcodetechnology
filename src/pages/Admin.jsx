@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { PageHero } from "../components/Reveal.jsx";
 import AdminAdsManager from "../components/AdminAdsManager.jsx";
+import { OfficialOfferLetterPaper } from "../components/OfficialOfferLetter.jsx";
 import {
   clearSession,
   deleteTourEnquiry,
@@ -1385,61 +1386,20 @@ function AdminOfferSender({
               </span>
             </div>
 
-            <div className="admin-offer-letter-paper">
-              <div className="admin-offer-paper-header">
-                <h4>TREND CODE TECHNOLOGY</h4>
-                <p>Official Internship Offer & Confirmation</p>
-              </div>
-
-              <div className="admin-offer-meta-row">
-                <span>Ref: <strong style={{ color: "#0f172a" }}>TCT/INT/2026/PROV</strong></span>
-                <span>Date: <strong style={{ color: "#0f172a" }}>{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</strong></span>
-              </div>
-
-              <div className="admin-offer-letter-body">
-                <p>
-                  <strong>Dear {salutation} {displayName},</strong>
-                </p>
-
-                <p>
-                  We are pleased to confirm your position as a &ldquo;<strong>{displayRole}</strong>&rdquo; at &ldquo;<strong>TREND CODE TECHNOLOGY</strong>&rdquo;. Your internship began on <strong>{displayStart}</strong> to <strong>{displayEnd}</strong> and is currently ongoing.
-                </p>
-
-                <p>
-                  During this internship, you are expected to contribute to <strong>{displayField}</strong> tasks, assist in coding and debugging activities, and support project requirements as assigned. This internship is designed to enhance your technical skills and provide valuable hands-on industry experience.
-                </p>
-
-                <p>
-                  We appreciate your contribution so far and look forward to your continued dedication and learning.
-                </p>
-
-                <div className="admin-offer-paper-summary">
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Position</span><br />
-                    <strong>{displayRole}</strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Domain / Field</span><br />
-                    <strong>{displayField}</strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Duration</span><br />
-                    <strong>{displayStart} &mdash; {displayEnd}</strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Status</span><br />
-                    <span className="text-success fw-bold">Active · Ongoing</span>
-                  </div>
-                </div>
-
-                <div className="admin-offer-paper-sign">
-                  <div>Warm regards,</div>
-                  <strong>HR & Talent Operations</strong><br />
-                  <span style={{ color: "#0d6efd", fontWeight: 600 }}>Trend Code Technology</span><br />
-                  <span>Ganapathy, Coimbatore — 641006 · +91 93848 47922</span>
-                </div>
-              </div>
-            </div>
+            <OfficialOfferLetterPaper
+              candidateName={displayName}
+              salutation={salutation}
+              role={displayRole}
+              field={displayField}
+              startDate={displayStart}
+              endDate={displayEnd !== "[End Date]" ? displayEnd : ""}
+              date={new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+              isOngoing={true}
+              style={{
+                boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+                border: "1px solid #cbd5e1",
+              }}
+            />
           </div>
         </div>
       </div>
@@ -1576,61 +1536,20 @@ function AdminOfferSender({
               ></button>
             </div>
             <div className="admin-modal-body">
-              <div className="admin-offer-letter-paper" style={{ border: "1px solid #cbd5e1" }}>
-                <div className="admin-offer-paper-header">
-                  <h4>TREND CODE TECHNOLOGY</h4>
-                  <p>Official Internship Offer & Confirmation</p>
-                </div>
-
-                <div className="admin-offer-meta-row">
-                  <span>Ref: <strong style={{ color: "#0f172a" }}>{viewModalOffer.refId || "TCT/INT/2026"}</strong></span>
-                  <span>Sent On: <strong style={{ color: "#0f172a" }}>{fmtDate(viewModalOffer.createdAt)}</strong></span>
-                </div>
-
-                <div className="admin-offer-letter-body">
-                  <p>
-                    <strong>Dear {viewModalOffer.salutation || "Mr./Ms."} {viewModalOffer.candidateName},</strong>
-                  </p>
-
-                  <p>
-                    We are pleased to confirm your position as a &ldquo;<strong>{viewModalOffer.role}</strong>&rdquo; at &ldquo;<strong>TREND CODE TECHNOLOGY</strong>&rdquo;. Your internship began on <strong>{viewModalOffer.startDate}</strong> to <strong>{viewModalOffer.endDate}</strong> and is currently ongoing.
-                  </p>
-
-                  <p>
-                    During this internship, you are expected to contribute to <strong>{viewModalOffer.field}</strong> tasks, assist in coding and debugging activities, and support project requirements as assigned. This internship is designed to enhance your technical skills and provide valuable hands-on industry experience.
-                  </p>
-
-                  <p>
-                    We appreciate your contribution so far and look forward to your continued dedication and learning.
-                  </p>
-
-                  <div className="admin-offer-paper-summary">
-                    <div>
-                      <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Position</span><br />
-                      <strong>{viewModalOffer.role}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Domain</span><br />
-                      <strong>{viewModalOffer.field}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Period</span><br />
-                      <strong>{viewModalOffer.startDate} &mdash; {viewModalOffer.endDate}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase" }}>Recipient</span><br />
-                      <strong>{viewModalOffer.candidateEmail}</strong>
-                    </div>
-                  </div>
-
-                  <div className="admin-offer-paper-sign">
-                    <div>Warm regards,</div>
-                    <strong>HR & Talent Operations</strong><br />
-                    <span style={{ color: "#0d6efd", fontWeight: 600 }}>Trend Code Technology</span><br />
-                    <span>Ganapathy, Coimbatore — 641006 · +91 93848 47922</span>
-                  </div>
-                </div>
-              </div>
+              <OfficialOfferLetterPaper
+                candidateName={viewModalOffer.candidateName}
+                salutation={viewModalOffer.salutation || "Mr./Ms."}
+                role={viewModalOffer.role}
+                field={viewModalOffer.field || viewModalOffer.role}
+                startDate={viewModalOffer.startDate}
+                endDate={viewModalOffer.endDate}
+                date={fmtDate(viewModalOffer.createdAt)}
+                isOngoing={true}
+                style={{
+                  boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+                  border: "1px solid #cbd5e1",
+                }}
+              />
             </div>
             <div className="admin-modal-footer">
               <button
