@@ -146,6 +146,15 @@ export const postGalleryPhoto = (data) => {
   });
 };
 
+export const convertHeicFile = (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  return request("/api/admin/convert-heic", {
+    method: "POST",
+    body: formData,
+  });
+};
+
 export const deleteGalleryPhoto = (id) =>
   request(`/api/admin/gallery/${encodeURIComponent(id)}`, {
     method: "DELETE",

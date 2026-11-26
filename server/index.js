@@ -119,10 +119,19 @@ const uploadResume = multer({
 // Gallery image uploads — memory storage so photos work across both local dev & Vercel serverless
 const uploadGallery = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit for photos
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB limit for photos (handles high-res camera / HEIC files)
   fileFilter: (_req, file, cb) => {
-    const isImage = (file.mimetype && file.mimetype.startsWith("image/")) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.originalname);
-    cb(isImage ? null : new Error("Only image files (JPG, PNG, WebP, GIF, SVG) are allowed."), Boolean(isImage));
+    const isImage =
+      (file.mimetype && file.mimetype.startsWith("image/")) ||
+      (file.mimetype && file.mimetype.includes("heic")) ||
+      (file.mimetype && file.mimetype.includes("heif")) ||
+      /\.(jpg|jpeg|png|webp|gif|svg|heic|heif)$/i.test(file.originalname);
+    cb(
+      isImage
+        ? null
+        : new Error("Only image files (JPG, PNG, WebP, HEIC, GIF, SVG) are allowed."),
+      Boolean(isImage)
+    );
   },
 });
 
@@ -1152,8 +1161,29 @@ app.post(
       let imageUrl = req.body && req.body.imageUrl ? String(req.body.imageUrl).trim() : "";
 
       if (req.file) {
-        const mime = req.file.mimetype || "image/jpeg";
-        const b64 = req.file.buffer.toString("base64");
+        let mime = req.file.mimetype || "image/jpeg";
+        let buf = req.file.buffer;
+
+        // Auto-convert HEIC/HEIF files to high-quality JPEG so they render in all browsers
+        const isHeic =
+          (req.file.originalname && /\.(heic|heif)$/i.test(req.file.originalname)) ||
+          (mime && (mime.includes("heic") || mime.includes("heif")));
+
+        if (isHeic && buf) {
+          try {
+            const heicConvert = (await import("heic-convert")).default;
+            buf = await heicConvert({
+              buffer: buf,
+              format: "JPEG",
+              quality: 0.88,
+            });
+            mime = "image/jpeg";
+          } catch (convErr) {
+            console.warn("[gallery] backend HEIC conversion failed, using original:", convErr.message);
+          }
+        }
+
+        const b64 = buf.toString("base64");
         imageUrl = `data:${mime};base64,${b64}`;
       }
 
@@ -1209,6 +1239,42 @@ app.delete("/api/admin/gallery/:id?", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to delete photo from gallery." });
   }
 });
+
+// POST /api/admin/convert-heic (converts uploaded HEIC file to JPEG for instant browser preview and upload)
+app.post(
+  "/api/admin/convert-heic",
+  requireAdmin,
+  (req, res, next) => {
+    uploadGallery.single("image")(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || "Upload failed." });
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "No HEIC file provided." });
+      }
+      const heicConvert = (await import("heic-convert")).default;
+      const jpegBuffer = await heicConvert({
+        buffer: req.file.buffer,
+        format: "JPEG",
+        quality: 0.88,
+      });
+      const b64 = jpegBuffer.toString("base64");
+      const safeName = (req.file.originalname || "photo.heic").replace(/\.(heic|heif)$/i, ".jpg");
+      res.json({
+        ok: true,
+        imageUrl: `data:image/jpeg;base64,${b64}`,
+        filename: safeName,
+        size: jpegBuffer.length,
+      });
+    } catch (err) {
+      console.error("[heic-convert] Error converting HEIC:", err);
+      res.status(500).json({ error: "Failed to convert HEIC image: " + err.message });
+    }
+  }
+);
 
 app.post("/api/apply", uploadResume.single("resume"), async (req, res) => {
   const { name, email, phone, position, experience, github, coverLetter } =
@@ -2086,8 +2152,29 @@ app.post(
 
       let imageUrl = req.body && req.body.imageUrl ? String(req.body.imageUrl).trim() : "";
       if (req.file) {
-        const mime = req.file.mimetype || "image/jpeg";
-        const b64 = req.file.buffer.toString("base64");
+        let mime = req.file.mimetype || "image/jpeg";
+        let buf = req.file.buffer;
+
+        // Auto-convert HEIC/HEIF files to high-quality JPEG so they render in all browsers
+        const isHeic =
+          (req.file.originalname && /\.(heic|heif)$/i.test(req.file.originalname)) ||
+          (mime && (mime.includes("heic") || mime.includes("heif")));
+
+        if (isHeic && buf) {
+          try {
+            const heicConvert = (await import("heic-convert")).default;
+            buf = await heicConvert({
+              buffer: buf,
+              format: "JPEG",
+              quality: 0.88,
+            });
+            mime = "image/jpeg";
+          } catch (convErr) {
+            console.warn("[gallery] backend HEIC conversion failed, using original:", convErr.message);
+          }
+        }
+
+        const b64 = buf.toString("base64");
         imageUrl = `data:${mime};base64,${b64}`;
       }
 
@@ -2177,8 +2264,29 @@ app.put(
         imageUrl = String(req.body.imageUrl).trim();
       }
       if (req.file) {
-        const mime = req.file.mimetype || "image/jpeg";
-        const b64 = req.file.buffer.toString("base64");
+        let mime = req.file.mimetype || "image/jpeg";
+        let buf = req.file.buffer;
+
+        // Auto-convert HEIC/HEIF files to high-quality JPEG so they render in all browsers
+        const isHeic =
+          (req.file.originalname && /\.(heic|heif)$/i.test(req.file.originalname)) ||
+          (mime && (mime.includes("heic") || mime.includes("heif")));
+
+        if (isHeic && buf) {
+          try {
+            const heicConvert = (await import("heic-convert")).default;
+            buf = await heicConvert({
+              buffer: buf,
+              format: "JPEG",
+              quality: 0.88,
+            });
+            mime = "image/jpeg";
+          } catch (convErr) {
+            console.warn("[gallery] backend HEIC conversion failed, using original:", convErr.message);
+          }
+        }
+
+        const b64 = buf.toString("base64");
         imageUrl = `data:${mime};base64,${b64}`;
       }
 

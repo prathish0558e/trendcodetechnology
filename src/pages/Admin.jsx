@@ -18,6 +18,7 @@ import {
   getGallery,
   postGalleryPhoto,
   deleteGalleryPhoto,
+  convertHeicFile,
   getOffers,
   postSendOffer,
   deleteOffer,
@@ -467,6 +468,7 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
   const [imageUrl, setImageUrl] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [convertingHeic, setConvertingHeic] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -478,24 +480,94 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
 
   const fileInputRef = useRef(null);
 
+  const clearSelection = () => {
+    setSelectedFile(null);
+    setPreview(null);
+    setImageUrl("");
+    setConvertingHeic(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const processFile = async (file) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setErr("Please select a valid image file (JPEG, PNG, WebP, GIF, SVG).");
+    const isHeic =
+      (file.name && /\.(heic|heif)$/i.test(file.name)) ||
+      (file.type && (file.type.includes("heic") || file.type.includes("heif")));
+
+    if (!file.type.startsWith("image/") && !isHeic && file.type !== "") {
+      setErr("Please select a valid image file (JPEG, PNG, WebP, HEIC, GIF, SVG).");
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      setErr("Image file size exceeds 15 MB limit.");
+    if (file.size > 30 * 1024 * 1024) {
+      setErr("Image file size exceeds 30 MB limit.");
       return;
     }
     setErr(null);
+
+    let activeFile = file;
+
+    // Convert iPhone Apple HEIC format so user gets an instant preview in Chrome/Edge/Firefox
+    if (isHeic) {
+      setConvertingHeic(true);
+      setMsg("Converting Apple HEIC photo for instant preview...");
+      let convertedDataUrl = null;
+      let convertedFileName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
+
+      // 1. Try server-side converter (reliable across all browser engines & iPhone models)
+      try {
+        const res = await convertHeicFile(file);
+        if (res && res.imageUrl) {
+          convertedDataUrl = res.imageUrl;
+          if (res.filename) convertedFileName = res.filename;
+        }
+      } catch (srvErr) {
+        console.warn("Server HEIC preview conversion had error, trying client fallback:", srvErr.message);
+      }
+
+      // 2. If server wasn't reached, try client-side heic2any fallback
+      if (!convertedDataUrl) {
+        try {
+          const heic2anyModule = await import("heic2any");
+          const heic2any = heic2anyModule.default || heic2anyModule;
+          const converted = await heic2any({
+            blob: file,
+            toType: "image/jpeg",
+            quality: 0.88,
+          });
+          const blob = Array.isArray(converted) ? converted[0] : converted;
+          activeFile = new File([blob], convertedFileName, { type: "image/jpeg", lastModified: Date.now() });
+          setMsg("Apple HEIC photo converted to JPEG successfully!");
+          setTimeout(() => setMsg(null), 3500);
+        } catch (clientErr) {
+          console.error("Client HEIC conversion failed:", clientErr);
+        }
+      } else {
+        // We got convertedDataUrl from server!
+        const fetchRes = await fetch(convertedDataUrl);
+        const blob = await fetchRes.blob();
+        activeFile = new File([blob], convertedFileName, { type: "image/jpeg", lastModified: Date.now() });
+        setMsg("Apple HEIC photo converted to JPEG successfully!");
+        setTimeout(() => setMsg(null), 3500);
+      }
+
+      setConvertingHeic(false);
+
+      // If both converters failed:
+      if (activeFile === file && !convertedDataUrl) {
+        setErr("Could not decode this HEIC file for web preview. Please check that the file is not corrupted.");
+        setPreview(null);
+        setSelectedFile(null);
+        return;
+      }
+    }
+
     try {
-      const optimized = await compressImageFile(file);
+      const optimized = await compressImageFile(activeFile);
       setSelectedFile(optimized);
       setPreview(URL.createObjectURL(optimized));
     } catch {
-      setSelectedFile(file);
-      setPreview(URL.createObjectURL(file));
+      setSelectedFile(activeFile);
+      setPreview(URL.createObjectURL(activeFile));
     }
   };
 
@@ -535,13 +607,6 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processFile(e.dataTransfer.files[0]);
     }
-  };
-
-  const clearSelection = () => {
-    setSelectedFile(null);
-    setPreview(null);
-    setImageUrl("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e) => {
@@ -760,10 +825,41 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
                 <i className="bi bi-image text-primary"></i> Photo Preview &amp; Upload
               </label>
 
-              {preview ? (
+              {convertingHeic ? (
+                <div
+                  className="admin-dropzone"
+                  style={{
+                    cursor: "default",
+                    borderColor: "#0284c7",
+                    background: "#f0f9ff",
+                    padding: "44px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div className="spinner-border text-primary" style={{ width: 44, height: 44, marginBottom: 14 }}></div>
+                  <h4 style={{ color: "#0369a1", fontWeight: 700, margin: "0 0 8px 0" }}>
+                    Converting Apple HEIC Photo...
+                  </h4>
+                  <p style={{ color: "#0284c7", margin: 0, fontSize: "0.95rem" }}>
+                    Decoding iPhone camera format to standard JPEG for preview and gallery.
+                  </p>
+                </div>
+              ) : preview ? (
                 <div className="admin-preview-card">
                   <div className="admin-preview-img-wrap">
-                    <img src={preview} alt="Upload preview" className="admin-preview-img" />
+                    <img
+                      src={preview}
+                      alt="Upload preview"
+                      className="admin-preview-img"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        setErr("Image preview could not be rendered by this browser.");
+                      }}
+                    />
                     <span className="admin-preview-badge">{category}</span>
                   </div>
                   <div className="admin-preview-bar">
@@ -791,7 +887,7 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept="image/*"
+                    accept="image/*,.heic,.heif,image/heic,image/heif"
                     onChange={handleFileChange}
                     style={{ display: "none" }}
                   />
@@ -804,8 +900,11 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
                     <span className="admin-dropzone-tag">JPG</span>
                     <span className="admin-dropzone-tag">PNG</span>
                     <span className="admin-dropzone-tag">WEBP</span>
+                    <span className="admin-dropzone-tag" style={{ background: "#e0f2fe", color: "#0369a1", fontWeight: 700, borderColor: "#7dd3fc" }}>
+                      HEIC / iPhone
+                    </span>
                     <span className="admin-dropzone-tag">GIF</span>
-                    <span className="admin-dropzone-tag">Up to 10MB</span>
+                    <span className="admin-dropzone-tag">Up to 20MB</span>
                   </div>
                 </div>
               )}
