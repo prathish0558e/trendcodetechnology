@@ -399,6 +399,65 @@ function LeadsTable({ rows }) {
   );
 }
 
+function compressImageFile(file, maxWidth = 1600, maxHeight = 1600, quality = 0.85) {
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith("image/") || file.type === "image/svg+xml" || file.type === "image/gif") {
+      return resolve(file);
+    }
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width <= maxWidth && height <= maxHeight && file.size < 500 * 1024) {
+            return resolve(file);
+          }
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(file);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) return resolve(file);
+              const optimized = new File(
+                [blob],
+                file.name.replace(/\.[^.]+$/, outputType === "image/png" ? ".png" : ".jpg"),
+                { type: outputType, lastModified: Date.now() }
+              );
+              resolve(optimized);
+            },
+            outputType,
+            quality
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    } catch {
+      resolve(file);
+    }
+  });
+}
+
 function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) {
   const [mode, setMode] = useState("file"); // "file" | "url"
   const [title, setTitle] = useState("");
@@ -419,19 +478,40 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
 
   const fileInputRef = useRef(null);
 
-  const processFile = (file) => {
+  const processFile = async (file) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setErr("Please select a valid image file (JPEG, PNG, WebP, GIF, SVG).");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setErr("Image file size exceeds 10 MB limit.");
+    if (file.size > 15 * 1024 * 1024) {
+      setErr("Image file size exceeds 15 MB limit.");
       return;
     }
-    setSelectedFile(file);
-    setPreview(URL.createObjectURL(file));
     setErr(null);
+    try {
+      const optimized = await compressImageFile(file);
+      setSelectedFile(optimized);
+      setPreview(URL.createObjectURL(optimized));
+    } catch {
+      setSelectedFile(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleDelete = async (id, photoTitle) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${photoTitle || "this photo"}" from the gallery?`)) {
+      return;
+    }
+    setMsg(null);
+    setErr(null);
+    try {
+      await onDeletePhoto(id);
+      setMsg(`Photo "${photoTitle || id}" deleted successfully from gallery & database.`);
+      setTimeout(() => setMsg(null), 4000);
+    } catch (e) {
+      setErr(e.message || "Failed to delete photo.");
+    }
   };
 
   const handleFileChange = (e) => {
@@ -815,7 +895,7 @@ function AdminGalleryManager({ photos, onAddPhoto, onDeletePhoto, deletingId }) 
                     </span>
                     <button
                       className="admin-del-btn"
-                      onClick={() => onDeletePhoto(item.id)}
+                      onClick={() => handleDelete(item.id, item.title)}
                       disabled={deletingId === item.id}
                       title="Delete photo"
                     >
@@ -1579,13 +1659,18 @@ export default function Admin() {
     return res;
   };
 
-  const handleDeletePhoto = (id) => {
-    if (window.confirm("Are you sure you want to delete this photo from the gallery?")) {
-      setDeletingPhotoId(id);
-      deleteGalleryPhoto(id)
-        .then(() => setGalleryPhotos((prev) => (prev || []).filter((p) => p.id !== id)))
-        .catch((e) => setError(e.message))
-        .finally(() => setDeletingPhotoId(""));
+  const handleDeletePhoto = async (id) => {
+    setDeletingPhotoId(id);
+    setError("");
+    try {
+      await deleteGalleryPhoto(id);
+      setGalleryPhotos((prev) => (prev || []).filter((p) => String(p.id || p._id || "").trim() !== String(id).trim()));
+      return true;
+    } catch (e) {
+      setError(e.message || "Failed to delete photo.");
+      throw e;
+    } finally {
+      setDeletingPhotoId("");
     }
   };
 
@@ -1601,7 +1686,7 @@ export default function Admin() {
     if (window.confirm("Are you sure you want to remove this offer letter from history?")) {
       setDeletingOfferId(id);
       deleteOffer(id)
-        .then(() => setOffers((prev) => (prev || []).filter((o) => o.id !== id)))
+        .then(() => setOffers((prev) => (prev || []).filter((o) => String(o.id || o._id || "").trim() !== String(id).trim())))
         .catch((e) => setError(e.message))
         .finally(() => setDeletingOfferId(""));
     }

@@ -147,7 +147,7 @@ export const postGalleryPhoto = (data) => {
 };
 
 export const deleteGalleryPhoto = (id) =>
-  request("/api/admin/gallery", {
+  request(`/api/admin/gallery/${encodeURIComponent(id)}`, {
     method: "DELETE",
     body: JSON.stringify({ id }),
   });
@@ -161,7 +161,7 @@ export const postSendOffer = (data) =>
   });
 
 export const deleteOffer = (id) =>
-  request("/api/admin/offers", {
+  request(`/api/admin/offers/${encodeURIComponent(id)}`, {
     method: "DELETE",
     body: JSON.stringify({ id }),
   });

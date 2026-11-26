@@ -277,21 +277,66 @@ const readList = (file) => listGet(file);
 const writeList = (file, list) => listSet(file, list);
 const appendList = (file, item, max = 0) => listAppend(file, item, max);
 
+// Reads list, initializing with defaultSeed ONLY if the key/file has never been created.
+// If the collection or file exists with 0 items ([]), it honors the empty list and never resurrects seeds.
+async function readListWithSeed(file, defaultSeed = []) {
+  const key = listKey(file);
+  const db = await getDb();
+  if (db) {
+    const doc = await db.collection("lists").findOne({ _id: key });
+    if (!doc) {
+      const initial = Array.isArray(defaultSeed) ? [...defaultSeed] : [];
+      try {
+        await db.collection("lists").updateOne(
+          { _id: key },
+          { $set: { items: initial, initializedAt: new Date().toISOString() } },
+          { upsert: true }
+        );
+      } catch (err) {
+        console.warn(`[storage] mongo seed upsert failed for ${key}:`, err.message);
+      }
+      return initial;
+    }
+    return Array.isArray(doc.items) ? doc.items : [];
+  }
+
+  if (IS_SERVERLESS) {
+    if (MEMORY[key] === undefined || MEMORY[key] === null) {
+      MEMORY[key] = Array.isArray(defaultSeed) ? [...defaultSeed] : [];
+    }
+    return MEMORY[key];
+  }
+
+  try {
+    if (!fs.existsSync(file)) {
+      const initial = Array.isArray(defaultSeed) ? [...defaultSeed] : [];
+      fs.writeFileSync(file, JSON.stringify(initial, null, 2));
+      return initial;
+    }
+    const data = JSON.parse(fs.readFileSync(file, "utf8"));
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error(`[storage] error reading list ${key}:`, err.message);
+    return [];
+  }
+}
+
 const VALID_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// ---------- email notifications (SMTP credentials with serverless fallback) ----------
+// ---------- email notifications ----------
 const DEFAULT_SMTP_HOST = "smtp.gmail.com";
 const DEFAULT_SMTP_PORT = 465;
 const DEFAULT_SMTP_USER = "trendcodetechnology2026@gmail.com";
-const DEFAULT_SMTP_PASS = "jzgeackrdzqvcbmx";
 
 const SMTP_HOST = process.env.SMTP_HOST || DEFAULT_SMTP_HOST;
 const SMTP_PORT = Number(process.env.SMTP_PORT) || DEFAULT_SMTP_PORT;
 const SMTP_USER = process.env.SMTP_USER || DEFAULT_SMTP_USER;
-const SMTP_PASS = (process.env.SMTP_PASS || DEFAULT_SMTP_PASS).replace(/\s+/g, "");
+const SMTP_PASS = (process.env.SMTP_PASS || "").replace(/\s+/g, "");
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || SMTP_USER;
 
 function makeTransport() {
+  if (!SMTP_PASS) return null;
+
   return nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
@@ -1080,16 +1125,12 @@ const SEED_GALLERY = [
 // GET /api/gallery (public list)
 app.get("/api/gallery", async (_req, res) => {
   try {
-    let list = await readList(FILES.gallery);
-    if (!list || list.length === 0) {
-      list = SEED_GALLERY;
-      await writeList(FILES.gallery, list);
-    }
+    const list = await readListWithSeed(FILES.gallery, SEED_GALLERY);
     const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     res.json(sorted);
   } catch (err) {
     console.error("[gallery] error reading list:", err);
-    res.json(SEED_GALLERY);
+    res.json([]);
   }
 });
 
@@ -1133,10 +1174,7 @@ app.post(
         createdAt: new Date().toISOString(),
       };
 
-      let list = await readList(FILES.gallery);
-      if (!list || list.length === 0) {
-        list = [...SEED_GALLERY];
-      }
+      let list = await readListWithSeed(FILES.gallery, SEED_GALLERY);
       list.unshift(newItem);
       await writeList(FILES.gallery, list);
 
@@ -1151,20 +1189,21 @@ app.post(
 // DELETE /api/admin/gallery/:id or DELETE /api/admin/gallery
 app.delete("/api/admin/gallery/:id?", requireAdmin, async (req, res) => {
   try {
-    const id = req.params.id || (req.body && req.body.id);
-    if (!id) {
+    const rawId = req.params.id || (req.body && req.body.id) || (req.query && req.query.id);
+    if (!rawId) {
       return res.status(400).json({ error: "Photo ID is required to delete." });
     }
-    let list = await readList(FILES.gallery);
-    if (!list || list.length === 0) {
-      list = [...SEED_GALLERY];
-    }
-    const next = list.filter((item) => String(item.id) !== String(id));
+    const targetId = String(rawId).trim();
+    let list = await readListWithSeed(FILES.gallery, SEED_GALLERY);
+    const next = list.filter((item) => {
+      const itemId = String(item.id || item._id || "").trim();
+      return itemId !== targetId;
+    });
     if (next.length === list.length) {
-      return res.status(404).json({ error: "Photo not found in gallery." });
+      return res.status(404).json({ error: `Photo '${targetId}' not found in gallery.` });
     }
     await writeList(FILES.gallery, next);
-    res.json({ ok: true, deleted: String(id), remaining: next.length });
+    res.json({ ok: true, deleted: targetId, remaining: next.length });
   } catch (err) {
     console.error("[gallery] delete error:", err);
     res.status(500).json({ error: "Failed to delete photo from gallery." });
@@ -1845,16 +1884,22 @@ app.post("/api/admin/offers/send", requireAdmin, async (req, res) => {
   });
 });
 
-app.delete("/api/admin/offers", requireAdmin, async (req, res) => {
-  const { id } = req.body || {};
-  if (!id) return res.status(400).json({ error: "Offer ID is required." });
-  const list = await readList(FILES.offers);
-  const next = list.filter((e) => e.id !== String(id));
-  if (next.length === list.length) {
-    return res.status(404).json({ error: "Offer record not found." });
+app.delete("/api/admin/offers/:id?", requireAdmin, async (req, res) => {
+  try {
+    const rawId = req.params.id || (req.body && req.body.id) || (req.query && req.query.id);
+    if (!rawId) return res.status(400).json({ error: "Offer ID is required." });
+    const targetId = String(rawId).trim();
+    const list = await readList(FILES.offers);
+    const next = list.filter((e) => String(e.id || e._id || "").trim() !== targetId);
+    if (next.length === list.length) {
+      return res.status(404).json({ error: "Offer record not found." });
+    }
+    await writeList(FILES.offers, next);
+    res.json({ ok: true, deleted: targetId, remaining: next.length });
+  } catch (err) {
+    console.error("[offers] delete error:", err);
+    res.status(500).json({ error: "Failed to delete offer record." });
   }
-  await writeList(FILES.offers, next);
-  res.json({ ok: true, deleted: String(id), remaining: next.length });
 });
 
 // ---------- Advertisements & Popups System ----------
@@ -1959,11 +2004,7 @@ const SEED_ADS = [
 // GET /api/ads (public: returns active ads, supports ?page=&placement= filters)
 app.get("/api/ads", async (req, res) => {
   try {
-    let list = await readList(FILES.ads);
-    if (!list || list.length === 0) {
-      list = [...SEED_ADS];
-      await writeList(FILES.ads, list);
-    }
+    let list = await readListWithSeed(FILES.ads, SEED_ADS);
     let filtered = list.filter((a) => a.active !== false);
 
     const targetPage = req.query.page ? String(req.query.page).trim() : "";
@@ -2006,11 +2047,7 @@ app.post("/api/ads/:id/track", async (req, res) => {
 // GET /api/admin/ads (admin: get all ads including inactive)
 app.get("/api/admin/ads", requireAdmin, async (_req, res) => {
   try {
-    let list = await readList(FILES.ads);
-    if (!list || list.length === 0) {
-      list = [...SEED_ADS];
-      await writeList(FILES.ads, list);
-    }
+    let list = await readListWithSeed(FILES.ads, SEED_ADS);
     const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     res.json(sorted);
   } catch (err) {
@@ -2203,17 +2240,17 @@ app.patch("/api/admin/ads/:id/toggle", requireAdmin, async (req, res) => {
 // DELETE /api/admin/ads/:id or DELETE /api/admin/ads with body
 app.delete("/api/admin/ads/:id?", requireAdmin, async (req, res) => {
   try {
-    const id = req.params.id || (req.body && req.body.id);
-    if (!id) return res.status(400).json({ error: "Ad ID is required to delete." });
+    const rawId = req.params.id || (req.body && req.body.id) || (req.query && req.query.id);
+    if (!rawId) return res.status(400).json({ error: "Ad ID is required to delete." });
+    const targetId = String(rawId).trim();
 
-    let list = await readList(FILES.ads);
-    if (!list || list.length === 0) list = [...SEED_ADS];
-    const next = list.filter((a) => String(a.id) !== String(id));
+    let list = await readListWithSeed(FILES.ads, SEED_ADS);
+    const next = list.filter((a) => String(a.id || a._id || "").trim() !== targetId);
     if (next.length === list.length) {
       return res.status(404).json({ error: "Advertisement not found." });
     }
     await writeList(FILES.ads, next);
-    res.json({ ok: true, deleted: String(id), remaining: next.length });
+    res.json({ ok: true, deleted: targetId, remaining: next.length });
   } catch (err) {
     console.error("[ads] delete error:", err);
     res.status(500).json({ error: "Failed to delete advertisement." });
