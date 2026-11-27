@@ -208,8 +208,7 @@ export default function HomeGallery() {
         <Reveal>
           <div className="home-gallery-actions">
             <Link to="/gallery" className="btn btn-primary btn-lg">
-              Explore Full Photo Gallery ({photos.length} Photos){" "}
-              <i className="bi bi-arrow-right"></i>
+              Explore Gallery <i className="bi bi-arrow-right"></i>
             </Link>
           </div>
         </Reveal>
